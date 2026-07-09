@@ -1,0 +1,20 @@
+LOGO DE LAZOS
+=============
+
+Guardá el logo de la clínica en esta carpeta con el nombre EXACTO:
+
+    logo-lazos.png
+
+Vite sirve la carpeta "public/" en la raíz del sitio, así que el sistema
+lo usa como "/logo-lazos.png" (funciona en desarrollo y en la build).
+
+Dónde aparece:
+  - En el encabezado de la barra lateral de la app (reemplaza la caja "Lz").
+  - En el membrete de los informes PDF (arriba a la derecha).
+
+Si el archivo no está, la app y los informes funcionan igual, solo que sin
+el logo (en la barra lateral se muestra el texto "Lz" como respaldo).
+
+Formatos: PNG (recomendado, con fondo transparente) o JPG. Si usás JPG,
+podés dejar igual el nombre logo-lazos.png o cambiar la ruta en
+src/config/clinica.js (campo "logo").

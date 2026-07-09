@@ -1,0 +1,348 @@
+/* =====================================================================
+   Lazos — Centro de Rehabilitación Integral — Hoja de estilos
+   ---------------------------------------------------------------------
+   Variables de diseño (paleta y tipografías) + componentes de la
+   interfaz: sidebar, paneles, tablas, formularios, modales, estados
+   de carga y notificaciones.
+
+   PALETA: tomada de la marca Lazos (logo + folletería):
+     - Azul (navy → celeste): color principal de la interfaz. Por
+       compatibilidad conserva los nombres --teal-* (se usan en todo el
+       código), pero los VALORES ahora son la escala de azules de Lazos.
+     - Naranja (--orange-*): color de acento de la marca. Se usa en
+       puntos clave: logo, ítem activo del menú y detalles.
+     - Ámbar = avisos (por vencer), Rojo = errores / ausencias.
+
+   TIPOGRAFÍA: tamaños generosos a propósito. El sistema lo usan personas
+   adultas, así que se priorizó la legibilidad sobre la densidad.
+   ===================================================================== */
+
+/* =====================================================================
+   TEMAS: claro (por defecto) y oscuro.
+   La paleta vive entera en estas variables. El tema oscuro solo las
+   redefine bajo :root[data-theme="dark"], así con cambiar el atributo
+   data-theme de <html> se reskinea toda la app. Los nombres --teal-*
+   se conservan por compatibilidad (se usan en todo el código).
+   ===================================================================== */
+
+/* ---- TEMA CLARO (por defecto): celeste como primario, fondo cálido y
+        apagado (no blanco frío), naranja para acentos. ---- */
+:root{
+  /* Escala de azul/celeste de Lazos (navy del sidebar -> celeste claro). */
+  --teal-900:#15294a; --teal-800:#1b3865; --teal-700:#1488c2; --teal-600:#7bcbf0;
+  --teal-500:#9bd6f2; --teal-100:#dcf0fb; --teal-50:#eef8fd;
+  /* Naranja de Lazos (acento de marca, color exacto #F6A065). */
+  --orange-600:#e0824a; --orange-500:#f6a065; --orange-100:#fde4d2; --orange-50:#fdf4ec;
+  --amber-600:#b06a06; --amber-100:#fbe9c8; --amber-50:#fdf4e3;
+  --red-600:#b3261e; --red-100:#f6d4d1; --red-50:#fbecea;
+  --ink:#1f2730; --ink-soft:#56606b; --ink-faint:#8b939d;
+  --line:#e6e1d7; --line-soft:#ede9e0;
+  /* Fondo cálido y apagado (beige muy claro), tarjetas casi blancas tibias. */
+  --paper:#f1efe9; --card:#fbfaf6; --card-2:#f5f2ea;
+  --display:"Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --body:"Hanken Grotesk", -apple-system, "Segoe UI", system-ui, sans-serif;
+  --shadow:0 1px 2px rgba(31,39,48,.05), 0 8px 24px -12px rgba(31,39,48,.16);
+}
+
+/* ---- TEMA OSCURO: azul como primario, fondo oscuro, naranja más vivo
+        para que resalte sobre superficies oscuras. ---- */
+:root[data-theme="dark"]{
+  --teal-900:#0f1a2e; --teal-800:#152740; --teal-700:#5fb2e6; --teal-600:#1c80c0;
+  --teal-500:#46b3e6; --teal-100:#1c3450; --teal-50:#172838;
+  --orange-600:#f4925a; --orange-500:#f6a065; --orange-100:#3a2a18; --orange-50:#2a2010;
+  --amber-600:#e8a52a; --amber-100:#3a2e14; --amber-50:#2a2110;
+  --red-600:#d84a3e; --red-100:#3a1b18; --red-50:#2a1512;
+  --ink:#e8eef4; --ink-soft:#a3b2c1; --ink-faint:#748496;
+  --line:#2b3645; --line-soft:#232e3c;
+  --paper:#0e1621; --card:#18222f; --card-2:#1f2a38;
+  --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 28px -14px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--body);background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5;font-size:17.5px}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:#c9d4df;border-radius:8px;border:2px solid var(--paper)}
+:root[data-theme="dark"] ::-webkit-scrollbar-thumb{background:#2b3645}
+
+.app{display:grid;grid-template-columns:256px 1fr;min-height:100vh;transition:grid-template-columns .22s ease}
+.app.nav-collapsed{grid-template-columns:84px 1fr}
+
+/* ---- Sidebar ---- */
+.side{background:var(--teal-900);color:#cfe0ee;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+.brand{padding:22px 22px 18px;display:flex;gap:12px;align-items:center;border-bottom:1px solid rgba(255,255,255,.08)}
+.logo{width:58px;height:58px;border-radius:14px;background:var(--orange-500);display:grid;place-items:center;font-family:var(--display);font-weight:700;color:#fff;font-size:24px;flex-shrink:0;box-shadow:0 2px 8px -2px rgba(246,160,101,.55)}
+/* Con el logo real (img) se muestra solo la imagen, sin la caja naranja.
+   Si el archivo falta y queda el texto "Lz", la caja naranja vuelve. */
+.logo:has(img){background:none;box-shadow:none}
+.logo img{width:100%;height:100%;object-fit:contain;display:block}
+/* Contraído: se oculta el logo (se veía muy chico); queda solo el botón de menú. */
+.app.nav-collapsed .logo{display:none}
+.brand-text{flex:1;min-width:0}
+.brand b{font-family:var(--display);color:#fff;font-weight:600;font-size:18.5px;letter-spacing:.2px;display:block;line-height:1.2}
+.brand small{color:#8fb4d4;font-size:12.5px;letter-spacing:.4px;text-transform:uppercase}
+/* Botón contraer/expandir */
+.nav-toggle{all:unset;cursor:pointer;flex-shrink:0;width:30px;height:30px;border-radius:8px;display:grid;place-items:center;color:#8fb4d4;transition:.15s}
+.nav-toggle:hover{background:rgba(255,255,255,.08);color:#fff}
+.nav-toggle svg{width:19px;height:19px}
+/* Expandida: chevron. Contraída: icono de menú (hamburguesa). */
+.nav-toggle .ic-burger{display:none}
+.nav{padding:14px 12px;flex:1;display:flex;flex-direction:column;gap:3px}
+.nav-label{font-size:11.5px;letter-spacing:1.4px;text-transform:uppercase;color:#6f93b5;padding:14px 12px 6px;white-space:nowrap}
+.nav button{all:unset;cursor:pointer;display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:9px;color:#c3d4e8;font-size:17px;font-weight:500;transition:background .15s,color .15s}
+.nav button .ic{width:21px;height:21px;flex-shrink:0;opacity:.9}
+.nav button .lbl{white-space:nowrap;overflow:hidden}
+.nav button:not([disabled]):hover{background:rgba(255,255,255,.07);color:#fff}
+.nav button.active{background:var(--orange-500);color:#5c3115;box-shadow:0 2px 10px -2px rgba(246,160,101,.6)}
+.nav button[disabled]{opacity:.4;cursor:default}
+.side-foot{padding:16px 20px;border-top:1px solid rgba(255,255,255,.08);font-size:12.5px;color:#82a2c2;line-height:1.5;white-space:nowrap;overflow:hidden}
+
+/* ---- Estado contraído ---- */
+.app.nav-collapsed .brand{flex-direction:column;gap:12px;padding:18px 10px}
+.app.nav-collapsed .brand-text{display:none}
+.app.nav-collapsed .nav-toggle .ic-chevron{display:none}
+.app.nav-collapsed .nav-toggle .ic-burger{display:block}
+.app.nav-collapsed .nav-label{display:none}
+.app.nav-collapsed .nav{padding:14px 10px}
+.app.nav-collapsed .nav button{justify-content:center;gap:0;padding:12px 0}
+.app.nav-collapsed .nav button .lbl{display:none}
+.app.nav-collapsed .side-foot{display:none}
+
+/* ---- Sidebar en MODO CLARO: celeste claro con texto azul oscuro.
+        (En modo oscuro la barra queda navy, usando las reglas de arriba.)
+        Los valores de arriba asumen fondo navy + texto claro, así que aquí
+        se invierten solo para el tema claro. ---- */
+:root[data-theme="light"] .side{background:#7BCBF0;color:#123a5c}
+:root[data-theme="light"] .brand{border-bottom-color:rgba(11,40,60,.18)}
+:root[data-theme="light"] .brand b{color:#0d3354}
+:root[data-theme="light"] .brand small{color:#244a6a}
+:root[data-theme="light"] .nav-toggle{color:#244a6a}
+:root[data-theme="light"] .nav-toggle:hover{background:rgba(255,255,255,.5);color:#0d3354}
+:root[data-theme="light"] .nav-label{color:#244a6a}
+:root[data-theme="light"] .nav button:not(.active){color:#123a5c}
+:root[data-theme="light"] .nav button:not(.active):not([disabled]):hover{background:rgba(255,255,255,.5);color:#0d3354}
+:root[data-theme="light"] .side-foot{border-top-color:rgba(11,40,60,.18);color:#244a6a}
+
+/* ---- Modo claro: el celeste primario (#7bcbf0) es CLARO, así que los
+        elementos rellenos con él llevan TEXTO OSCURO para legibilidad.
+        (En modo oscuro el primario es un azul más fuerte y va texto blanco.)
+        Se excluyen .ghost (transparente) y .danger (rojo). ---- */
+:root[data-theme="light"] .btn:not(.ghost):not(.danger){color:#0d3a56}
+:root[data-theme="light"] .btn:not(.ghost):not(.danger):hover{background:#5bbde9}
+:root[data-theme="light"] .legajo-top .bigav{color:#0d3a56}
+:root[data-theme="light"] .seg button.on-p{color:#0d3a56}
+:root[data-theme="light"] .gtick.ok{color:#0d3a56}
+:root[data-theme="light"] .kpi .sub b{color:var(--teal-700)}
+
+/* ---- Main ---- */
+.main{min-width:0;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;justify-content:space-between;padding:20px 34px;background:rgba(241,239,233,.85);backdrop-filter:blur(6px);position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line)}
+:root[data-theme="dark"] .top{background:rgba(14,22,33,.82)}
+.top h1{font-family:var(--display);font-weight:600;font-size:28px;letter-spacing:-.3px}
+.top p{color:var(--ink-soft);font-size:16px;margin-top:2px}
+.top-r{display:flex;align-items:center;gap:14px}
+/* Botón de cambio de tema (sol / luna) */
+.theme-toggle{all:unset;cursor:pointer;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;color:var(--ink-soft);transition:.15s}
+.theme-toggle:hover{color:var(--teal-700);border-color:var(--teal-100);background:var(--teal-50)}
+.theme-toggle svg{width:19px;height:19px}
+.theme-toggle .ic-sun{display:none}
+:root[data-theme="dark"] .theme-toggle .ic-moon{display:none}
+:root[data-theme="dark"] .theme-toggle .ic-sun{display:block}
+.who{display:flex;align-items:center;gap:10px}
+.who .av{width:40px;height:40px;border-radius:50%;background:var(--teal-100);color:var(--teal-700);display:grid;place-items:center;font-weight:600;font-size:16px}
+.who small{display:block;color:var(--ink-faint);font-size:13.5px}
+.who b{font-size:16.5px;font-weight:600}
+
+.view{padding:30px 34px 56px;animation:rise .4s ease both}
+@keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.hidden{display:none}
+
+/* ---- KPI ---- */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:26px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 18px 16px;box-shadow:var(--shadow);animation:rise .5s ease both}
+.kpi:nth-child(2){animation-delay:.05s}.kpi:nth-child(3){animation-delay:.1s}.kpi:nth-child(4){animation-delay:.15s}
+.kpi .lab{font-size:14px;color:var(--ink-soft);font-weight:500;display:flex;align-items:center;gap:7px}
+.kpi .lab .dot{width:9px;height:9px;border-radius:50%;background:var(--orange-500)}
+.kpi .num{font-family:var(--display);font-size:46px;font-weight:600;letter-spacing:-1px;margin-top:8px;line-height:1}
+.kpi .sub{font-size:13px;color:var(--ink-faint);margin-top:6px}
+.kpi .sub b{color:var(--teal-600)}
+
+.grid2{display:grid;grid-template-columns:1.35fr 1fr;gap:20px}
+@media(max-width:1080px){.grid2{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}}
+
+.panel{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+.panel-h{padding:16px 20px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;justify-content:space-between}
+.panel-h h2{font-family:var(--display);font-size:19.5px;font-weight:600}
+.panel-h .cnt{font-size:13px;color:var(--ink-faint);background:var(--card-2);border:1px solid var(--line);padding:3px 9px;border-radius:20px}
+.panel-b{padding:8px 12px 14px}
+
+/* ---- Alert rows ---- */
+.alert{display:flex;gap:13px;align-items:center;padding:12px 8px;border-radius:11px;transition:.15s}
+.alert:hover{background:var(--card-2)}
+.alert + .alert{border-top:1px solid var(--line-soft)}
+.alert .ico{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-size:17px;flex-shrink:0}
+.alert .tx{flex:1;min-width:0}
+.alert .tx b{font-size:14.5px;font-weight:600;display:block}
+.alert .tx span{font-size:13.5px;color:var(--ink-soft)}
+.tag{font-size:12.5px;font-weight:600;padding:4px 10px;border-radius:20px;white-space:nowrap}
+.t-red{background:var(--red-50);color:var(--red-600)} .i-red{background:var(--red-50);color:var(--red-600)}
+.t-amber{background:var(--amber-50);color:var(--amber-600)} .i-amber{background:var(--amber-50);color:var(--amber-600)}
+.t-teal{background:var(--teal-50);color:var(--teal-700)} .i-teal{background:var(--teal-50);color:var(--teal-700)}
+
+/* ---- Table ---- */
+.tablewrap{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+table{width:100%;border-collapse:collapse}
+thead th{text-align:left;font-size:12.5px;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-faint);font-weight:600;padding:14px 18px;background:var(--card-2);border-bottom:1px solid var(--line)}
+tbody td{padding:15px 18px;border-bottom:1px solid var(--line-soft);font-size:16.5px;vertical-align:middle}
+tbody tr{cursor:pointer;transition:.12s}
+tbody tr:hover{background:var(--teal-50)}
+tbody tr:last-child td{border-bottom:none}
+.pname{display:flex;align-items:center;gap:12px}
+.pav{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-weight:600;font-size:14px;color:var(--teal-700);background:var(--teal-100);flex-shrink:0}
+.pname b{font-weight:600;font-size:16.5px}.pname small{color:var(--ink-faint);font-size:14px}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;padding:5px 11px;border-radius:20px}
+.pill .d{width:7px;height:7px;border-radius:50%}
+.ok{background:var(--teal-50);color:var(--teal-700)}.ok .d{background:var(--teal-500)}
+.warn{background:var(--amber-50);color:var(--amber-600)}.warn .d{background:#e09a26}
+.bad{background:var(--red-50);color:var(--red-600)}.bad .d{background:var(--red-600)}
+.chev{color:var(--ink-faint);font-size:18px}
+
+/* ---- Buttons / generic ---- */
+.btn{all:unset;cursor:pointer;font-family:var(--body);font-weight:600;font-size:16px;padding:10px 17px;border-radius:10px;background:var(--teal-600);color:#fff;transition:.15s}
+.btn:hover{background:var(--teal-700)}
+.btn.ghost{background:transparent;color:var(--teal-700);border:1px solid var(--line)}
+.btn.ghost:hover{background:var(--teal-50);border-color:var(--teal-100)}
+
+/* ---- Patient detail ---- */
+.back{all:unset;cursor:pointer;color:var(--ink-soft);font-size:14.5px;font-weight:500;display:inline-flex;align-items:center;gap:7px;margin-bottom:18px;padding:6px 10px;border-radius:8px}
+.back:hover{background:var(--card-2);color:var(--ink)}
+.legajo-top{display:flex;gap:18px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 24px;box-shadow:var(--shadow);margin-bottom:20px}
+.legajo-top .bigav{width:70px;height:70px;border-radius:16px;background:var(--teal-600);color:#fff;display:grid;place-items:center;font-family:var(--display);font-weight:600;font-size:28px}
+.legajo-top h2{font-family:var(--display);font-size:27px;font-weight:600;letter-spacing:-.4px}
+.legajo-top .meta{color:var(--ink-soft);font-size:14.5px;margin-top:3px}
+.legajo-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:1080px){.legajo-grid{grid-template-columns:1fr}}
+.field{padding:11px 0;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;gap:16px}
+.field:last-child{border-bottom:none}
+.field .k{color:var(--ink-soft);font-size:15.5px}.field .v{font-weight:600;font-size:16px;text-align:right}
+.docrow{display:flex;align-items:center;gap:12px;padding:11px 8px;border-radius:10px}
+.docrow + .docrow{border-top:1px solid var(--line-soft)}
+.docrow .di{width:36px;height:36px;border-radius:9px;background:var(--teal-50);color:var(--teal-700);display:grid;place-items:center;font-size:16px}
+.docrow b{font-size:14.5px;flex:1}.docrow small{color:var(--ink-faint);font-size:13px;display:block;font-weight:400}
+
+/* ---- Asistencia ---- */
+.asis-head{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:22px}
+.datechip{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:11px 16px;font-weight:600;font-size:16.5px;box-shadow:var(--shadow);display:flex;align-items:center;gap:9px}
+.livestat{margin-left:auto;display:flex;gap:22px}
+.livestat div{text-align:right}
+.livestat .n{font-family:var(--display);font-size:29px;font-weight:600;line-height:1}
+.livestat small{font-size:12.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.4px}
+.asis-row{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--line-soft)}
+.asis-row:last-child{border-bottom:none}
+.asis-row .nm{flex:1;min-width:0}
+.asis-row .nm b{font-size:16.5px;font-weight:600}.asis-row .nm small{color:var(--ink-faint);font-size:14px}
+.seg{display:flex;gap:6px;background:var(--card-2);border:1px solid var(--line);border-radius:11px;padding:4px}
+.seg button{all:unset;cursor:pointer;font-size:15px;font-weight:600;padding:8px 13px;border-radius:8px;color:var(--ink-soft);transition:.12s}
+.seg button:hover{background:#fff;color:var(--ink)}
+:root[data-theme="dark"] .seg button:hover{background:#2a3645;color:#fff}
+.seg button.on-p{background:var(--teal-600);color:#fff}
+.seg button.on-a{background:var(--red-600);color:#fff}
+.seg button.on-av{background:#e09a26;color:#fff}
+.seg button.on-e{background:#6b7c98;color:#fff}
+.mes{width:82px;text-align:right;font-size:13.5px;color:var(--ink-soft);flex-shrink:0}
+.mes b{color:var(--teal-700)}
+/* Navegación de fecha (día anterior / siguiente) */
+.datenav{display:flex;align-items:center;gap:8px}
+.nav-dia{all:unset;cursor:pointer;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--card);box-shadow:var(--shadow);display:grid;place-items:center;color:var(--ink-soft);font-size:18px;font-weight:600;transition:.15s}
+.nav-dia:hover{background:var(--teal-50);color:var(--teal-700);border-color:var(--teal-100)}
+/* Barra de acciones: buscador + marcado masivo */
+.asis-toolbar{display:flex;gap:12px;margin-bottom:16px;align-items:center}
+.asis-toolbar input{flex:1;font-family:var(--body);font-size:15.5px;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--card);box-shadow:var(--shadow)}
+.asis-toolbar input:focus{outline:none;border-color:var(--teal-500);box-shadow:0 0 0 3px var(--teal-50)}
+/* Lápiz: ÚNICA función es reabrir una fila guardada para editarla */
+.btn-editar{all:unset;cursor:pointer;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:15px;color:var(--ink-faint);border:1px solid transparent;transition:.15s;flex-shrink:0}
+.btn-editar:hover{background:var(--card-2);color:var(--ink);border-color:var(--line)}
+.btn-editar.activo{background:var(--teal-50);color:var(--teal-700);border-color:var(--teal-100)}
+.btn-editar[disabled]{opacity:.3;cursor:default}
+.btn-editar[disabled]:hover{background:transparent;color:var(--ink-faint);border-color:transparent}
+/* Tilde permanente de guardado por fila: verde = en la base, gris = sin guardar */
+.gtick{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:14px;font-weight:700;flex-shrink:0}
+.gtick.ok{background:var(--teal-600);color:#fff}
+.gtick.pend{background:var(--card-2);color:var(--ink-faint);border:1px solid var(--line)}
+/* Botones bloqueados (fila guardada o fecha futura): se ven pero no se tocan */
+.seg button[disabled]{opacity:.4;cursor:default}
+.seg button[disabled]:hover{background:transparent;color:var(--ink-soft)}
+/* En pantallas angostas el control de estado baja a una segunda línea */
+@media(max-width:760px){
+  .asis-row{flex-wrap:wrap}
+  .asis-row .seg{margin-left:auto}
+}
+
+.footnote{margin-top:30px;font-size:13px;color:var(--ink-faint);text-align:center;line-height:1.6}
+
+
+/* ---- Estados de carga / error / vacío ---- */
+.state{padding:38px 20px;text-align:center;color:var(--ink-soft);font-size:15px}
+.state .spin{width:32px;height:32px;border:3px solid var(--line);border-top-color:var(--teal-500);border-radius:50%;margin:0 auto 14px;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.state.error{color:var(--red-600)}
+.state.error .ic{font-size:28px;display:block;margin-bottom:8px}
+
+/* ---- Botones extra ---- */
+.btn.danger{background:var(--red-600)} .btn.danger:hover{background:#8f1e17}
+.btn[disabled]{opacity:.55;cursor:default}
+
+/* ---- Banner de aviso (p. ej. falta el bucket de Storage) ---- */
+.banner{background:var(--amber-50);border:1px solid var(--amber-100);color:var(--amber-600);padding:13px 16px;border-radius:11px;font-size:14px;margin-bottom:18px;display:flex;gap:10px;align-items:center}
+
+/* ---- Notificación flotante (toast) ---- */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--teal-800);color:#fff;padding:13px 22px;border-radius:10px;font-size:14.5px;font-weight:500;box-shadow:var(--shadow);z-index:80;animation:rise .3s ease both;max-width:90vw;text-align:center}
+.toast.bad{background:var(--red-600)}
+
+/* ---- Modal / overlay para formularios ---- */
+.overlay{position:fixed;inset:0;background:rgba(13,28,48,.45);backdrop-filter:blur(3px);display:grid;place-items:center;z-index:50;padding:20px;animation:fade .2s ease}
+@keyframes fade{from{opacity:0}to{opacity:1}}
+.modal{background:var(--card);border-radius:18px;box-shadow:0 20px 60px -20px rgba(13,28,48,.5);width:100%;max-width:640px;max-height:90vh;overflow:auto;animation:rise .3s ease both}
+.modal-h{padding:18px 24px;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);z-index:1}
+.modal-h h2{font-family:var(--display);font-size:23px;font-weight:600}
+.modal-b{padding:20px 24px}
+.modal-f{padding:14px 24px;border-top:1px solid var(--line-soft);display:flex;justify-content:flex-end;gap:10px;position:sticky;bottom:0;background:var(--card)}
+.x{all:unset;cursor:pointer;color:var(--ink-faint);font-size:26px;line-height:1;padding:2px 8px;border-radius:8px}
+.x:hover{background:var(--card-2);color:var(--ink)}
+
+/* ---- Campos de formulario ---- */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px}
+@media(max-width:560px){.form-grid{grid-template-columns:1fr}}
+.form-field{display:flex;flex-direction:column;gap:6px}
+.form-field.full{grid-column:1 / -1}
+.form-field label{font-size:15px;font-weight:600;color:var(--ink-soft)}
+.form-field input,.form-field select,.form-field textarea{font-family:var(--body);font-size:17px;padding:10px 13px;border:1px solid var(--line);border-radius:9px;background:var(--card-2);color:var(--ink);transition:.15s;width:100%}
+.form-field input:focus,.form-field select:focus,.form-field textarea:focus{outline:none;border-color:var(--teal-500);background:var(--card);box-shadow:0 0 0 3px var(--teal-50)}
+.form-field textarea{resize:vertical;min-height:74px}
+/* Autocompletar del navegador: por defecto pinta el campo de blanco con
+   texto oscuro, que en modo oscuro no se ve. Se fuerza el color del tema. */
+.form-field input:-webkit-autofill,.form-field input:-webkit-autofill:hover,.form-field input:-webkit-autofill:focus{
+  -webkit-text-fill-color:var(--ink);
+  -webkit-box-shadow:0 0 0 1000px var(--card) inset;
+  caret-color:var(--ink);
+  transition:background-color 9999s ease-out 0s}
+/* Mensaje de validación dentro de un formulario (oculto hasta que hace falta) */
+.form-error{display:none;color:var(--red-600);font-size:13.5px;font-weight:500;margin-top:7px}
+
+/* ---- Checklist de admisión ---- */
+.adm-item{display:flex;align-items:center;gap:14px;padding:13px 8px;border-bottom:1px solid var(--line-soft)}
+.adm-item:last-child{border-bottom:none}
+.adm-chk{display:flex;align-items:center;gap:11px;cursor:pointer;flex:1;min-width:0;font-size:16px;font-weight:500}
+.adm-check{width:20px;height:20px;flex-shrink:0;accent-color:var(--teal-600);cursor:pointer}
+.adm-obs{font-family:var(--body);font-size:14.5px;padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:var(--card-2);color:var(--ink);width:230px;max-width:38vw}
+.adm-obs:focus{outline:none;border-color:var(--teal-500);background:var(--card)}
+@media(max-width:680px){.adm-item{flex-wrap:wrap}.adm-obs{width:100%;max-width:none}}
+
+/* ---- Pestañas (tabs) ---- */
+.tabs{display:flex;gap:4px;margin-bottom:22px;border-bottom:1px solid var(--line)}
+.tab{all:unset;cursor:pointer;padding:11px 20px;font-size:16px;font-weight:600;color:var(--ink-soft);border-bottom:2.5px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s}
+.tab:hover{color:var(--ink)}
+.tab.active{color:var(--teal-700);border-bottom-color:var(--teal-600)}
+
+/* ---- KPI como atajo (clickeable) ---- */
+.kpi[data-goto]{cursor:pointer;transition:transform .15s,box-shadow .15s,border-color .15s}
+.kpi[data-goto]:hover{transform:translateY(-2px);border-color:var(--teal-500);box-shadow:0 2px 4px rgba(31,39,48,.06),0 14px 30px -16px rgba(31,39,48,.30)}
+.kpi[data-goto] .sub{color:var(--teal-700)}

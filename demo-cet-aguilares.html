@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CET Aguilares · Sistema de Gestión (Demo)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --teal-900:#0c2e26; --teal-800:#10463a; --teal-700:#155e4b; --teal-600:#1a7a60;
+    --teal-500:#1f9c79; --teal-100:#d9efe7; --teal-50:#eef7f3;
+    --amber-600:#b06a06; --amber-100:#fbe9c8; --amber-50:#fdf4e3;
+    --red-600:#b3261e; --red-100:#f6d4d1; --red-50:#fbecea;
+    --ink:#16201d; --ink-soft:#566460; --ink-faint:#8a958f;
+    --line:#e6e7e1; --line-soft:#eff0ea;
+    --paper:#f6f6f1; --card:#ffffff; --card-2:#fbfbf7;
+    --display:"Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+    --body:"Hanken Grotesk", -apple-system, "Segoe UI", system-ui, sans-serif;
+    --shadow:0 1px 2px rgba(16,32,28,.04), 0 8px 24px -12px rgba(16,32,28,.12);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--body);background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5}
+  ::-webkit-scrollbar{width:10px;height:10px}
+  ::-webkit-scrollbar-thumb{background:#d2d4cc;border-radius:8px;border:2px solid var(--paper)}
+
+  .app{display:grid;grid-template-columns:248px 1fr;min-height:100vh}
+
+  /* ---- Sidebar ---- */
+  .side{background:var(--teal-900);color:#cfe3da;display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+  .brand{padding:22px 22px 18px;display:flex;gap:12px;align-items:center;border-bottom:1px solid rgba(255,255,255,.07)}
+  .logo{width:38px;height:38px;border-radius:10px;background:var(--teal-500);display:grid;place-items:center;font-family:var(--display);font-weight:700;color:#06231b;font-size:18px;flex-shrink:0}
+  .brand b{font-family:var(--display);color:#fff;font-weight:600;font-size:15px;letter-spacing:.2px;display:block;line-height:1.2}
+  .brand small{color:#7fb0a0;font-size:11.5px;letter-spacing:.4px;text-transform:uppercase}
+  .nav{padding:14px 12px;flex:1;display:flex;flex-direction:column;gap:3px}
+  .nav-label{font-size:10.5px;letter-spacing:1.4px;text-transform:uppercase;color:#5f8e7e;padding:14px 12px 6px}
+  .nav button{all:unset;cursor:pointer;display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:9px;color:#bcd6cc;font-size:14px;font-weight:500;transition:.15s}
+  .nav button .ic{width:20px;text-align:center;opacity:.9}
+  .nav button:hover{background:rgba(255,255,255,.06);color:#fff}
+  .nav button.active{background:var(--teal-600);color:#fff;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+  .side-foot{padding:16px 20px;border-top:1px solid rgba(255,255,255,.07);font-size:11.5px;color:#6fa091;line-height:1.5}
+
+  /* ---- Main ---- */
+  .main{min-width:0;display:flex;flex-direction:column}
+  .top{display:flex;align-items:center;justify-content:space-between;padding:20px 34px;background:rgba(246,246,241,.85);backdrop-filter:blur(6px);position:sticky;top:0;z-index:5;border-bottom:1px solid var(--line)}
+  .top h1{font-family:var(--display);font-weight:600;font-size:23px;letter-spacing:-.3px}
+  .top p{color:var(--ink-soft);font-size:13px;margin-top:2px}
+  .top-r{display:flex;align-items:center;gap:14px}
+  .demo-badge{font-size:11px;font-weight:600;letter-spacing:.5px;color:var(--amber-600);background:var(--amber-50);border:1px solid var(--amber-100);padding:5px 11px;border-radius:20px}
+  .who{display:flex;align-items:center;gap:10px}
+  .who .av{width:38px;height:38px;border-radius:50%;background:var(--teal-100);color:var(--teal-700);display:grid;place-items:center;font-weight:600;font-size:14px}
+  .who small{display:block;color:var(--ink-faint);font-size:11.5px}
+  .who b{font-size:13.5px;font-weight:600}
+
+  .view{padding:30px 34px 56px;animation:rise .4s ease both}
+  @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .hidden{display:none}
+
+  /* ---- KPI ---- */
+  .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:26px}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 18px 16px;box-shadow:var(--shadow);animation:rise .5s ease both}
+  .kpi:nth-child(2){animation-delay:.05s}.kpi:nth-child(3){animation-delay:.1s}.kpi:nth-child(4){animation-delay:.15s}
+  .kpi .lab{font-size:12.5px;color:var(--ink-soft);font-weight:500;display:flex;align-items:center;gap:7px}
+  .kpi .lab .dot{width:8px;height:8px;border-radius:50%;background:var(--teal-500)}
+  .kpi .num{font-family:var(--display);font-size:38px;font-weight:600;letter-spacing:-1px;margin-top:8px;line-height:1}
+  .kpi .sub{font-size:12px;color:var(--ink-faint);margin-top:6px}
+  .kpi .sub b{color:var(--teal-600)}
+
+  .grid2{display:grid;grid-template-columns:1.35fr 1fr;gap:20px}
+  @media(max-width:1080px){.grid2{grid-template-columns:1fr}.kpis{grid-template-columns:repeat(2,1fr)}}
+
+  .panel{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+  .panel-h{padding:16px 20px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;justify-content:space-between}
+  .panel-h h2{font-family:var(--display);font-size:16px;font-weight:600}
+  .panel-h .cnt{font-size:12px;color:var(--ink-faint);background:var(--card-2);border:1px solid var(--line);padding:3px 9px;border-radius:20px}
+  .panel-b{padding:8px 12px 14px}
+
+  /* ---- Alert rows ---- */
+  .alert{display:flex;gap:13px;align-items:center;padding:12px 8px;border-radius:11px;transition:.15s}
+  .alert:hover{background:var(--card-2)}
+  .alert + .alert{border-top:1px solid var(--line-soft)}
+  .alert .ico{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-size:16px;flex-shrink:0}
+  .alert .tx{flex:1;min-width:0}
+  .alert .tx b{font-size:13.5px;font-weight:600;display:block}
+  .alert .tx span{font-size:12.5px;color:var(--ink-soft)}
+  .tag{font-size:11.5px;font-weight:600;padding:4px 10px;border-radius:20px;white-space:nowrap}
+  .t-red{background:var(--red-50);color:var(--red-600)} .i-red{background:var(--red-50);color:var(--red-600)}
+  .t-amber{background:var(--amber-50);color:var(--amber-600)} .i-amber{background:var(--amber-50);color:var(--amber-600)}
+  .t-teal{background:var(--teal-50);color:var(--teal-700)} .i-teal{background:var(--teal-50);color:var(--teal-700)}
+
+  /* ---- Table ---- */
+  .tablewrap{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+  table{width:100%;border-collapse:collapse}
+  thead th{text-align:left;font-size:11.5px;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-faint);font-weight:600;padding:14px 18px;background:var(--card-2);border-bottom:1px solid var(--line)}
+  tbody td{padding:14px 18px;border-bottom:1px solid var(--line-soft);font-size:14px;vertical-align:middle}
+  tbody tr{cursor:pointer;transition:.12s}
+  tbody tr:hover{background:var(--teal-50)}
+  tbody tr:last-child td{border-bottom:none}
+  .pname{display:flex;align-items:center;gap:12px}
+  .pav{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;font-weight:600;font-size:13px;color:var(--teal-700);background:var(--teal-100);flex-shrink:0}
+  .pname b{font-weight:600;font-size:14px}.pname small{color:var(--ink-faint);font-size:12px}
+  .pill{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:5px 11px;border-radius:20px}
+  .pill .d{width:7px;height:7px;border-radius:50%}
+  .ok{background:var(--teal-50);color:var(--teal-700)}.ok .d{background:var(--teal-500)}
+  .warn{background:var(--amber-50);color:var(--amber-600)}.warn .d{background:#e09a26}
+  .bad{background:var(--red-50);color:var(--red-600)}.bad .d{background:var(--red-600)}
+  .chev{color:var(--ink-faint);font-size:18px}
+
+  /* ---- Buttons / generic ---- */
+  .btn{all:unset;cursor:pointer;font-family:var(--body);font-weight:600;font-size:13px;padding:9px 16px;border-radius:10px;background:var(--teal-600);color:#fff;transition:.15s}
+  .btn:hover{background:var(--teal-700)}
+  .btn.ghost{background:transparent;color:var(--teal-700);border:1px solid var(--line)}
+  .btn.ghost:hover{background:var(--teal-50);border-color:var(--teal-100)}
+
+  /* ---- Patient detail ---- */
+  .back{all:unset;cursor:pointer;color:var(--ink-soft);font-size:13.5px;font-weight:500;display:inline-flex;align-items:center;gap:7px;margin-bottom:18px;padding:6px 10px;border-radius:8px}
+  .back:hover{background:var(--card-2);color:var(--ink)}
+  .legajo-top{display:flex;gap:18px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 24px;box-shadow:var(--shadow);margin-bottom:20px}
+  .legajo-top .bigav{width:66px;height:66px;border-radius:16px;background:var(--teal-600);color:#fff;display:grid;place-items:center;font-family:var(--display);font-weight:600;font-size:25px}
+  .legajo-top h2{font-family:var(--display);font-size:24px;font-weight:600;letter-spacing:-.4px}
+  .legajo-top .meta{color:var(--ink-soft);font-size:13.5px;margin-top:3px}
+  .legajo-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+  @media(max-width:1080px){.legajo-grid{grid-template-columns:1fr}}
+  .field{padding:11px 0;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;gap:16px}
+  .field:last-child{border-bottom:none}
+  .field .k{color:var(--ink-soft);font-size:13px}.field .v{font-weight:600;font-size:13.5px;text-align:right}
+  .docrow{display:flex;align-items:center;gap:12px;padding:11px 8px;border-radius:10px}
+  .docrow + .docrow{border-top:1px solid var(--line-soft)}
+  .docrow .di{width:34px;height:34px;border-radius:9px;background:var(--teal-50);color:var(--teal-700);display:grid;place-items:center;font-size:15px}
+  .docrow b{font-size:13.5px;flex:1}.docrow small{color:var(--ink-faint);font-size:12px;display:block;font-weight:400}
+
+  /* ---- Asistencia ---- */
+  .asis-head{display:flex;gap:16px;flex-wrap:wrap;align-items:center;margin-bottom:22px}
+  .datechip{background:var(--card);border:1px solid var(--line);border-radius:11px;padding:10px 16px;font-weight:600;font-size:14px;box-shadow:var(--shadow);display:flex;align-items:center;gap:9px}
+  .livestat{margin-left:auto;display:flex;gap:22px}
+  .livestat div{text-align:right}
+  .livestat .n{font-family:var(--display);font-size:24px;font-weight:600;line-height:1}
+  .livestat small{font-size:11.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.4px}
+  .asis-row{display:flex;align-items:center;gap:14px;padding:13px 18px;border-bottom:1px solid var(--line-soft)}
+  .asis-row:last-child{border-bottom:none}
+  .asis-row .nm{flex:1;min-width:0}
+  .asis-row .nm b{font-size:14px;font-weight:600}.asis-row .nm small{color:var(--ink-faint);font-size:12px}
+  .seg{display:flex;gap:6px;background:var(--card-2);border:1px solid var(--line);border-radius:11px;padding:4px}
+  .seg button{all:unset;cursor:pointer;font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:8px;color:var(--ink-soft);transition:.12s}
+  .seg button:hover{background:#fff;color:var(--ink)}
+  .seg button.on-p{background:var(--teal-600);color:#fff}
+  .seg button.on-a{background:var(--red-600);color:#fff}
+  .seg button.on-av{background:#e09a26;color:#fff}
+  .seg button.on-e{background:#6b7c98;color:#fff}
+  .mes{width:78px;text-align:right;font-size:12.5px;color:var(--ink-soft)}
+  .mes b{color:var(--teal-700)}
+
+  .footnote{margin-top:30px;font-size:12px;color:var(--ink-faint);text-align:center;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- ===== SIDEBAR ===== -->
+  <aside class="side">
+    <div class="brand">
+      <div class="logo">CET</div>
+      <div><b>CET Aguilares</b><small>Tucumán</small></div>
+    </div>
+    <nav class="nav" id="nav">
+      <div class="nav-label">Principal</div>
+      <button data-v="inicio" class="active"><span class="ic">◈</span> Inicio</button>
+      <button data-v="pacientes"><span class="ic">❖</span> Pacientes</button>
+      <button data-v="asistencia"><span class="ic">✓</span> Asistencia</button>
+      <button data-v="profesionales"><span class="ic">⚑</span> Profesionales</button>
+      <div class="nav-label">Próximas etapas</div>
+      <button disabled style="opacity:.4;cursor:default"><span class="ic">✎</span> Evoluciones</button>
+      <button disabled style="opacity:.4;cursor:default"><span class="ic">$</span> Facturación</button>
+      <button disabled style="opacity:.4;cursor:default"><span class="ic">▤</span> Estadísticas</button>
+    </nav>
+    <div class="side-foot">Prototipo de demostración<br>v0.1 · Etapa 1</div>
+  </aside>
+
+  <!-- ===== MAIN ===== -->
+  <main class="main">
+    <header class="top">
+      <div>
+        <h1 id="ttl">Panel de Dirección</h1>
+        <p id="sub">Miércoles 3 de junio de 2026</p>
+      </div>
+      <div class="top-r">
+        <span class="demo-badge">DEMO · DATOS FICTICIOS</span>
+        <div class="who">
+          <div class="av">DM</div>
+          <div><b>Dra. Mónica</b><small>Dirección</small></div>
+        </div>
+      </div>
+    </header>
+
+    <!-- ===== INICIO ===== -->
+    <section id="v-inicio" class="view">
+      <div class="kpis">
+        <div class="kpi"><div class="lab"><span class="dot"></span>Pacientes activos</div><div class="num">8</div><div class="sub"><b>4 cupos</b> disponibles</div></div>
+        <div class="kpi"><div class="lab"><span class="dot"></span>Profesionales presentes</div><div class="num">6<span style="font-size:22px;color:var(--ink-faint)"> / 7</span></div><div class="sub">1 ausente hoy</div></div>
+        <div class="kpi"><div class="lab"><span class="dot"></span>Turnos del día</div><div class="num">18</div><div class="sub"><b>15</b> ya asistieron</div></div>
+        <div class="kpi"><div class="lab"><span class="dot" style="background:var(--amber-600)"></span>Alertas activas</div><div class="num">7</div><div class="sub">2 urgentes</div></div>
+      </div>
+
+      <div class="grid2">
+        <div class="panel">
+          <div class="panel-h"><h2>Alertas importantes</h2><span class="cnt">requieren atención</span></div>
+          <div class="panel-b" id="alertbox"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-h"><h2>Informes pendientes</h2><span class="cnt">3</span></div>
+          <div class="panel-b">
+            <div class="alert"><div class="ico i-teal">✎</div><div class="tx"><b>Mía Figueroa</b><span>Informe trimestral · vence 10/06</span></div><span class="tag t-amber">Pendiente</span></div>
+            <div class="alert"><div class="ico i-teal">✎</div><div class="tx"><b>Thiago Juárez</b><span>Informe mensual de mayo</span></div><span class="tag t-amber">Pendiente</span></div>
+            <div class="alert"><div class="ico i-teal">✎</div><div class="tx"><b>Lautaro Medina</b><span>Informe mensual de mayo</span></div><span class="tag t-amber">Pendiente</span></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== PACIENTES ===== -->
+    <section id="v-pacientes" class="view hidden">
+      <div id="lista-pac">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+          <p style="color:var(--ink-soft);font-size:13.5px">Tocá un paciente para abrir su legajo digital completo.</p>
+          <button class="btn">+ Nuevo paciente</button>
+        </div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Paciente</th><th>Edad</th><th>Obra social</th><th>Estado CUD</th><th>Autorización</th><th></th></tr></thead>
+            <tbody id="pacbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="ficha-pac" class="hidden"></div>
+    </section>
+
+    <!-- ===== ASISTENCIA ===== -->
+    <section id="v-asistencia" class="view hidden">
+      <div class="asis-head">
+        <div class="datechip">📅 Miércoles 3 de junio de 2026</div>
+        <div class="livestat">
+          <div><div class="n" id="st-pres" style="color:var(--teal-600)">0</div><small>Presentes</small></div>
+          <div><div class="n" id="st-aus" style="color:var(--red-600)">0</div><small>Ausentes</small></div>
+          <div><div class="n" id="st-pct">0%</div><small>Asistencia hoy</small></div>
+        </div>
+      </div>
+      <div class="tablewrap"><div id="asisbody"></div></div>
+      <p style="font-size:12.5px;color:var(--ink-faint);margin-top:14px">Cada registro queda guardado con fecha y se acumula automáticamente para las estadísticas mensuales y anuales — y es la base de la planilla que se presenta a la obra social.</p>
+    </section>
+
+    <!-- ===== PROFESIONALES ===== -->
+    <section id="v-profesionales" class="view hidden">
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Profesional</th><th>Especialidad</th><th>Matrícula</th><th>Pacientes</th><th>Hoy</th></tr></thead>
+          <tbody id="profbody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="footnote">Prototipo de demostración · CET Aguilares · Todos los datos son ficticios y de ejemplo.<br>Construido como propuesta — Etapa 1: Pacientes, Documentación, Asistencia y Profesionales.</div>
+  </main>
+</div>
+
+<script>
+const HOY = new Date(2026,5,3);
+const dias = d => Math.round((new Date(d) - HOY)/86400000);
+const fmt = d => new Date(d).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+function estado(venceStr){
+  if(!venceStr) return {txt:'Cargado',cls:'ok'};
+  const n = dias(venceStr);
+  if(n < 0) return {txt:'Vencido', cls:'bad', n};
+  if(n <= 30) return {txt:'Por vencer', cls:'warn', n};
+  return {txt:'Vigente', cls:'ok', n};
+}
+const ini = s => s.split(' ').map(w=>w[0]).slice(0,2).join('');
+
+const PAC = [
+  {id:1,nombre:'Tomás Gauna',dni:'48.221.115',nac:'2018-03-14',dom:'Av. San Martín 845, Aguilares',tel:'381 4567788',escuela:'Esc. N°212 J. B. Alberdi',ref:'Gabriela Gauna (madre)',dx:'Trastorno del espectro autista',os:'OSDE',afil:'620-44781205-01',cud:'2026-11-30',autoriz:'2026-12-31',mes:96,
+    docs:[{t:'DNI',v:null},{t:'CUD',v:'2026-11-30'},{t:'Certificado médico',v:'2026-09-10'},{t:'Informe escolar',v:null},{t:'Consentimiento informado',v:null}]},
+  {id:2,nombre:'Martina Ríos',dni:'47.880.342',nac:'2017-07-02',dom:'Belgrano 1230, Aguilares',tel:'381 5012233',escuela:'Esc. Especial N°5',ref:'Sandra Ríos (madre)',dx:'Síndrome de Down',os:'Subsidio de Salud (Tucumán)',afil:'SS-0099231',cud:'2026-06-28',autoriz:'2026-10-15',mes:91,
+    docs:[{t:'DNI',v:null},{t:'CUD',v:'2026-06-28'},{t:'Estudios',v:null},{t:'Autorización OS',v:'2026-10-15'},{t:'Consentimiento informado',v:null}]},
+  {id:3,nombre:'Benjamín Salas',dni:'49.102.778',nac:'2019-01-20',dom:'Sarmiento 56, Aguilares',tel:'381 4789900',escuela:'Jardín N°18',ref:'Marcos Salas (padre)',dx:'Retraso madurativo',os:'Swiss Medical',afil:'SM-7782341',cud:'2027-02-15',autoriz:'2026-06-11',mes:88,
+    docs:[{t:'DNI',v:null},{t:'CUD',v:'2027-02-15'},{t:'Certificado médico',v:'2026-08-01'},{t:'Autorización OS',v:'2026-06-11'}]},
+  {id:4,nombre:'Valentina Coria',dni:'46.554.219',nac:'2015-05-09',dom:'Rivadavia 410, Aguilares',tel:'381 4332211',escuela:'Esc. Especial N°5',ref:'Lucía Coria (madre)',dx:'Parálisis cerebral',os:'Incluir Salud',afil:'IS-1102938',cud:'2026-05-15',autoriz:'2026-08-20',mes:79,
+    docs:[{t:'DNI',v:null},{t:'CUD',v:'2026-05-15'},{t:'Estudios',v:null},{t:'Informe escolar',v:null},{t:'Autorización OS',v:'2026-08-20'}]},
+  {id:5,nombre:'Thiago Juárez',dni:'48.900.661',nac:'2020-02-28',dom:'Mitre 990, Aguilares',tel:'381 5677001',escuela:'Jardín N°22',ref:'Carla Juárez (madre)',dx:'Trastorno del espectro autista',os:'OSECAC',afil:'OSE-4451220',cud:'2027-04-10',autoriz:'2026-11-30',mes:94,
+    docs:[{t:'DNI',v:null},{t:'CUD',v:'2027-04-10'},{t:'Certificado médico',v:'2026-10-05'},{t:'Consentimiento informado',v:null}]},
+  {id:6,nombre:'Mía Figueroa',dni:'47.330.890',nac:'2016-10-11',dom:'Córdoba 145, Aguilares',tel:'381 4990012',escuela:'Esc. N°212 J. B. Alberdi',ref:'Romina Figueroa (madre)',dx:'Discapacidad intelectual',os:'OSDE',afil:'620-33019822-02',cud:'2026-12-20',autoriz:'2026-09-30',mes:90,
+    docs:[{t:'DNI',v:null},{t:'CUD',v:'2026-12-20'},{t:'Estudios',v:null},{t:'Informe escolar',v:null}]},
+  {id:7,nombre:'Lautaro Medina',dni:'49.667.201',nac:'2018-09-03',dom:'9 de Julio 78, Aguilares',tel:'381 5223344',escuela:'Jardín N°18',ref:'Diego Medina (padre)',dx:'TGD',os:'Subsidio de Salud (Tucumán)',afil:'SS-0102874',cud:'2027-01-25',autoriz:'2026-12-01',mes:97,
+    docs:[{t:'DNI',v:null},{t:'CUD',v:'2027-01-25'},{t:'Certificado médico',v:'2026-09-20'},{t:'Autorización OS',v:'2026-12-01'}]},
+  {id:8,nombre:'Catalina Vega',dni:'46.998.554',nac:'2014-12-19',dom:'Laprida 332, Aguilares',tel:'381 4678123',escuela:'Esc. Especial N°5',ref:'Paola Vega (madre)',dx:'Síndrome de Down',os:'Galeno',afil:'GAL-5567120',cud:'2026-10-05',autoriz:'2026-06-17',mes:85,
+    docs:[{t:'DNI',v:null},{t:'CUD',v:'2026-10-05'},{t:'Estudios',v:null},{t:'Autorización OS',v:'2026-06-17'}]},
+];
+
+const PROF = [
+  {n:'Lic. Carla Domínguez',esp:'Psicología',mp:'M.P. 4521',pac:5,hoy:true},
+  {n:'Lic. Federico Albornoz',esp:'Fonoaudiología',mp:'M.P. 3380',pac:6,hoy:true},
+  {n:'Lic. Romina Páez',esp:'Terapia Ocupacional',mp:'M.P. 2890',pac:4,hoy:true},
+  {n:'Lic. Sergio Maidana',esp:'Kinesiología',mp:'M.P. 5102',pac:3,hoy:false},
+  {n:'Lic. Daniela Soria',esp:'Psicopedagogía',mp:'M.P. 4015',pac:5,hoy:true},
+  {n:'Prof. Lucía Herrera',esp:'Docente de educación especial',mp:'—',pac:8,hoy:true},
+  {n:'Lic. Pablo Ferreyra',esp:'Psicología',mp:'M.P. 4780',pac:4,hoy:true},
+];
+
+/* ---------- NAV ---------- */
+const titulos = {inicio:['Panel de Dirección','Miércoles 3 de junio de 2026'],pacientes:['Pacientes','8 pacientes activos · 4 cupos disponibles'],asistencia:['Asistencia del día','Registro diario de concurrencia'],profesionales:['Profesionales','Equipo interdisciplinario']};
+document.getElementById('nav').addEventListener('click',e=>{
+  const b = e.target.closest('button[data-v]'); if(!b) return;
+  const v = b.dataset.v;
+  document.querySelectorAll('#nav button').forEach(x=>x.classList.remove('active'));
+  b.classList.add('active');
+  document.querySelectorAll('.view').forEach(s=>s.classList.add('hidden'));
+  const sec = document.getElementById('v-'+v); sec.classList.remove('hidden');
+  sec.style.animation='none'; void sec.offsetWidth; sec.style.animation='';
+  document.getElementById('ttl').textContent = titulos[v][0];
+  document.getElementById('sub').textContent = titulos[v][1];
+  if(v==='pacientes'){document.getElementById('lista-pac').classList.remove('hidden');document.getElementById('ficha-pac').classList.add('hidden');}
+});
+
+/* ---------- ALERTAS (derivadas de pacientes) ---------- */
+(function(){
+  let h='';
+  const items=[];
+  PAC.forEach(p=>{
+    const c=estado(p.cud); if(c.cls!=='ok') items.push({nom:p.nombre,tipo:'CUD',e:c});
+    const a=estado(p.autoriz); if(a.cls!=='ok') items.push({nom:p.nombre,tipo:'Autorización OS',e:a});
+  });
+  items.sort((x,y)=> (x.e.cls==='bad'?-1:0) - (y.e.cls==='bad'?-1:0) || (x.e.n)-(y.e.n));
+  items.forEach(it=>{
+    const bad = it.e.cls==='bad';
+    const ico = it.tipo==='CUD' ? '🪪' : '📋';
+    const det = bad ? `Vencido hace ${Math.abs(it.e.n)} días` : `Vence en ${it.e.n} días · ${it.tipo==='CUD'?'CUD':'autorización'}`;
+    h+=`<div class="alert"><div class="ico ${bad?'i-red':'i-amber'}">${ico}</div><div class="tx"><b>${it.nom}</b><span>${it.tipo} · ${det}</span></div><span class="tag ${bad?'t-red':'t-amber'}">${bad?'Vencido':'Por vencer'}</span></div>`;
+  });
+  document.getElementById('alertbox').innerHTML=h;
+})();
+
+/* ---------- TABLA PACIENTES ---------- */
+function edad(nac){let e=HOY.getFullYear()-new Date(nac).getFullYear();const m=HOY.getMonth()-new Date(nac).getMonth();if(m<0||(m===0&&HOY.getDate()<new Date(nac).getDate()))e--;return e;}
+(function(){
+  let h='';
+  PAC.forEach(p=>{
+    const c=estado(p.cud), a=estado(p.autoriz);
+    h+=`<tr onclick="abrir(${p.id})">
+      <td><div class="pname"><div class="pav">${ini(p.nombre)}</div><div><b>${p.nombre}</b><br><small>DNI ${p.dni}</small></div></div></td>
+      <td>${edad(p.nac)} años</td>
+      <td>${p.os}</td>
+      <td><span class="pill ${c.cls}"><span class="d"></span>${c.txt}</span></td>
+      <td><span class="pill ${a.cls}"><span class="d"></span>${a.txt}</span></td>
+      <td><span class="chev">›</span></td></tr>`;
+  });
+  document.getElementById('pacbody').innerHTML=h;
+})();
+
+/* ---------- FICHA / LEGAJO ---------- */
+function abrir(id){
+  const p = PAC.find(x=>x.id===id);
+  const c=estado(p.cud), a=estado(p.autoriz);
+  let docs='';
+  p.docs.forEach(d=>{
+    const e=estado(d.v);
+    docs+=`<div class="docrow"><div class="di">▤</div><b>${d.t}<small>${d.v?('Vence '+fmt(d.v)):'Sin vencimiento'}</small></b><span class="pill ${e.cls}"><span class="d"></span>${e.txt}</span></div>`;
+  });
+  document.getElementById('ficha-pac').innerHTML = `
+    <button class="back" onclick="cerrarFicha()">‹ Volver al listado</button>
+    <div class="legajo-top">
+      <div class="bigav">${ini(p.nombre)}</div>
+      <div style="flex:1">
+        <h2>${p.nombre}</h2>
+        <div class="meta">${p.dx} · ${edad(p.nac)} años · DNI ${p.dni}</div>
+      </div>
+      <button class="btn ghost">Editar legajo</button>
+    </div>
+    <div class="legajo-grid">
+      <div class="panel">
+        <div class="panel-h"><h2>Datos personales</h2></div>
+        <div class="panel-b" style="padding:6px 20px 14px">
+          <div class="field"><span class="k">Fecha de nacimiento</span><span class="v">${fmt(p.nac)}</span></div>
+          <div class="field"><span class="k">Domicilio</span><span class="v">${p.dom}</span></div>
+          <div class="field"><span class="k">Teléfono</span><span class="v">${p.tel}</span></div>
+          <div class="field"><span class="k">Escuela</span><span class="v">${p.escuela}</span></div>
+          <div class="field"><span class="k">Referente familiar</span><span class="v">${p.ref}</span></div>
+          <div class="field"><span class="k">Obra social</span><span class="v">${p.os}</span></div>
+          <div class="field"><span class="k">N° de afiliado</span><span class="v">${p.afil}</span></div>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-h"><h2>Documentación</h2><span class="cnt">${p.docs.length} archivos</span></div>
+        <div class="panel-b">${docs}
+          <div style="padding:12px 8px 4px"><button class="btn ghost" style="width:100%;text-align:center">+ Adjuntar documento</button></div>
+        </div>
+      </div>
+    </div>`;
+  document.getElementById('lista-pac').classList.add('hidden');
+  document.getElementById('ficha-pac').classList.remove('hidden');
+  document.getElementById('ttl').textContent='Legajo del paciente';
+  document.getElementById('sub').textContent=p.nombre;
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function cerrarFicha(){
+  document.getElementById('ficha-pac').classList.add('hidden');
+  document.getElementById('lista-pac').classList.remove('hidden');
+  document.getElementById('ttl').textContent='Pacientes';
+  document.getElementById('sub').textContent='8 pacientes activos · 4 cupos disponibles';
+}
+
+/* ---------- ASISTENCIA ---------- */
+const estadoAsis = {1:'p',2:'p',3:'p',4:'e',5:'p',6:'av',7:'p',8:'a'};
+function renderAsis(){
+  let h='';
+  PAC.forEach(p=>{
+    const s=estadoAsis[p.id];
+    h+=`<div class="asis-row">
+      <div class="pav">${ini(p.nombre)}</div>
+      <div class="nm"><b>${p.nombre}</b><br><small>${p.dx}</small></div>
+      <div class="seg">
+        <button onclick="setAsis(${p.id},'p',this)" class="${s==='p'?'on-p':''}">Presente</button>
+        <button onclick="setAsis(${p.id},'a',this)" class="${s==='a'?'on-a':''}">Ausente</button>
+        <button onclick="setAsis(${p.id},'av',this)" class="${s==='av'?'on-av':''}">C/ aviso</button>
+        <button onclick="setAsis(${p.id},'e',this)" class="${s==='e'?'on-e':''}">Enfermo</button>
+      </div>
+      <div class="mes">mes <b>${p.mes}%</b></div>
+    </div>`;
+  });
+  document.getElementById('asisbody').innerHTML=h;
+  recalc();
+}
+function setAsis(id,val){estadoAsis[id]=val;renderAsis();}
+function recalc(){
+  const vals=Object.values(estadoAsis);
+  const pres=vals.filter(v=>v==='p').length;
+  const aus=vals.filter(v=>v==='a').length;
+  document.getElementById('st-pres').textContent=pres;
+  document.getElementById('st-aus').textContent=aus;
+  document.getElementById('st-pct').textContent=Math.round(pres/vals.length*100)+'%';
+}
+renderAsis();
+
+/* ---------- PROFESIONALES ---------- */
+(function(){
+  let h='';
+  PROF.forEach(p=>{
+    h+=`<tr style="cursor:default">
+      <td><div class="pname"><div class="pav">${ini(p.n.replace(/^(Lic\.|Prof\.|Dra\.|Dr\.)\s/,''))}</div><div><b>${p.n}</b></div></div></td>
+      <td>${p.esp}</td><td>${p.mp}</td><td>${p.pac} asignados</td>
+      <td>${p.hoy?'<span class="pill ok"><span class="d"></span>Presente</span>':'<span class="pill bad"><span class="d"></span>Ausente</span>'}</td></tr>`;
+  });
+  document.getElementById('profbody').innerHTML=h;
+})();
+</script>
+</body>
+</html>

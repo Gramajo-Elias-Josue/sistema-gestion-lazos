@@ -1,0 +1,20 @@
+{
+  "name": "cet-aguilares",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Sistema de gestión del Centro Educativo Terapéutico Aguilares — Etapa 1 (MVC + Supabase)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8"
+  },
+  "devDependencies": {
+    "vite": "^5.4.0"
+  }
+}

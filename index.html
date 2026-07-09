@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lazos · Sistema de Gestión</title>
+
+  <!-- Tema (claro por defecto): se aplica ANTES de pintar para evitar
+       el parpadeo claro→oscuro al recargar. La lógica del botón está
+       en src/tema.js. -->
+  <script>
+    (function () {
+      try {
+        var t = localStorage.getItem('lazos-tema') || 'light';
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    })();
+  </script>
+
+  <!-- Tipografías -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <!-- Hoja de estilos -->
+  <link rel="stylesheet" href="/styles/main.css">
+</head>
+<body>
+  <!--
+    index.html es solo el "cascarón" (shell) de la aplicación.
+    El contenido de cada sección lo generan las VISTAS y lo inyectan los CONTROLADORES.
+    La barra lateral y el encabezado son chrome estático; el <main> se rellena por JS.
+  -->
+  <div class="app">
+
+    <!-- ===== SIDEBAR (navegación) ===== -->
+    <aside class="side">
+      <div class="brand">
+        <div class="logo"><img src="/logo-lazos.png" alt="Lazos" style="width:100%;height:100%;object-fit:contain;border-radius:inherit" onerror="this.replaceWith(document.createTextNode('Lz'))"></div>
+        <div class="brand-text"><b>Lazos</b><small>Rehabilitación integral</small></div>
+        <!-- Botón para contraer / expandir la barra lateral.
+             Muestra un chevron cuando está expandida y el icono de menú
+             (hamburguesa) cuando está contraída. -->
+        <button class="nav-toggle" id="nav-toggle" title="Contraer menú" aria-label="Contraer menú">
+          <svg class="ic-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+          <svg class="ic-burger" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+      </div>
+      <nav class="nav" id="nav">
+        <div class="nav-label">Principal</div>
+        <button data-v="inicio" class="active" title="Inicio">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+          <span class="lbl">Inicio</span>
+        </button>
+        <button data-v="admision" title="Admisión">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="m9 14 2 2 4-4"/></svg>
+          <span class="lbl">Admisión</span>
+        </button>
+        <button data-v="pacientes" title="Pacientes">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span class="lbl">Pacientes</span>
+        </button>
+        <button data-v="agenda" title="Turnos">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><circle cx="12" cy="15" r="2.6"/><path d="M12 13.6V15l1 .8"/></svg>
+          <span class="lbl">Turnos</span>
+        </button>
+        <button data-v="asistencia" title="Asistencia">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><path d="m9 16 2 2 4-4"/></svg>
+          <span class="lbl">Asistencia</span>
+        </button>
+        <button data-v="profesionales" title="Profesionales">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><circle cx="8" cy="11" r="2.4"/><path d="M4.6 16.5a3.5 3.5 0 0 1 6.8 0"/><path d="M15 10h4M15 13.5h4"/></svg>
+          <span class="lbl">Profesionales</span>
+        </button>
+        <div class="nav-label">Próximamente</div>
+        <button disabled title="Estadísticas (próximamente)">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><rect x="7" y="11" width="3" height="7" rx="1"/><rect x="12" y="7" width="3" height="11" rx="1"/><rect x="17" y="13" width="3" height="5" rx="1"/></svg>
+          <span class="lbl">Estadísticas</span>
+        </button>
+        <button disabled title="Administración (próximamente)">
+          <svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H2a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 3.6 8a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H8a1.65 1.65 0 0 0 1-1.51V2a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V8a1.65 1.65 0 0 0 1.51 1H22a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span class="lbl">Administración</span>
+        </button>
+      </nav>
+      <div class="side-foot">Sistema de gestión<br>Lazos · Aguilares, Tucumán</div>
+    </aside>
+
+    <!-- ===== MAIN ===== -->
+    <main class="main">
+      <header class="top">
+        <div>
+          <!-- Título y subtítulo actualizados por el router según la sección -->
+          <h1 id="ttl">Panel de Dirección</h1>
+          <p id="sub">Cargando…</p>
+        </div>
+        <div class="top-r">
+          <!-- Cambio de modo claro / oscuro (sol / luna) -->
+          <button class="theme-toggle" id="theme-toggle" title="Cambiar a modo oscuro" aria-label="Cambiar a modo oscuro">
+            <svg class="ic-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            <svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+          </button>
+          <div class="who">
+            <div class="av">DI</div>
+            <div><b>Dirección</b><small>Lazos</small></div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Secciones: cada controlador inyecta su contenido en el <section> correspondiente -->
+      <section id="v-inicio" class="view"></section>
+      <section id="v-admision" class="view hidden"></section>
+      <section id="v-pacientes" class="view hidden"></section>
+      <section id="v-agenda" class="view hidden"></section>
+      <section id="v-asistencia" class="view hidden"></section>
+      <section id="v-profesionales" class="view hidden"></section>
+
+      <div class="footnote">
+        Sistema de gestión · Centro de Rehabilitación Integral Lazos · Aguilares, Tucumán
+      </div>
+    </main>
+  </div>
+
+  <!-- Punto de entrada de la aplicación (módulo ES) -->
+  <script type="module" src="/src/app.js"></script>
+</body>
+</html>
