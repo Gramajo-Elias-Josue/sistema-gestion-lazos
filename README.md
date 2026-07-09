@@ -101,28 +101,50 @@ CET Aguilares/
 
 ## 🚀 Instalación y ejecución
 
-Requisitos: **Node.js 18+** (probado con Node 22) y npm.
+Requisitos: **Node.js 18+** (probado con Node 22), **npm** y una cuenta de **Supabase**.
 
 ```bash
-# 1) Instalar dependencias
+# 1) Clonar el repositorio
+git clone https://github.com/Gramajo-Elias-Josue/sistema-gestion-lazos.git
+cd sistema-gestion-lazos
+
+# 2) Instalar dependencias
 npm install
 
-# 2) Verificar el archivo .env (ya viene cargado con las credenciales del proyecto)
-#    Si lo creás de cero, copiá la plantilla:
-#    copy .env.example .env   (Windows)
-#    cp .env.example .env      (Linux/Mac)
+# 3) Crear el archivo .env a partir de la plantilla
+#    (el .env NO está en el repo por seguridad: hay que crearlo)
+copy .env.example .env      # Windows
+# cp .env.example .env       # Linux/Mac
+```
 
-# 3) Levantar el servidor de desarrollo
+Abrí `.env` y completá con los datos de tu proyecto Supabase
+(**Project Settings → API**). Se usa **solo la publishable key** (clave pública):
+
+```
+VITE_SUPABASE_URL=https://TU-PROYECTO.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxxxxxxxxxxxxxxxxxxxxxxx
+```
+
+```bash
+# 4) Preparar Supabase (una sola vez): ver "Pasos manuales en Supabase" más abajo
+#    - crear el bucket "documentos"
+#    - ejecutar supabase-migracion.sql y supabase-setup.sql en el SQL Editor
+
+# 5) Levantar el servidor de desarrollo
 npm run dev
 ```
 
-Vite mostrará una URL (normalmente http://localhost:5173). Abrila en el navegador.
+Vite mostrará una URL (normalmente **http://localhost:5173**). Abrila en el navegador.
 
 Otros comandos:
 ```bash
 npm run build     # genera la versión de producción en /dist
 npm run preview   # sirve localmente el build de producción
 ```
+
+> **Logo e informes:** el logo (`public/logo-lazos.png`) y las fuentes del membrete de
+> los PDF (`public/comic*.ttf`, Comic Sans MS) ya vienen en el repo. Si falta el logo,
+> la app y los informes funcionan igual, solo que sin él (en el sidebar se muestra "Lz").
 
 ---
 
