@@ -16,10 +16,10 @@
 // Tipos de informe. `key` = lo que se guarda; `titulo` = título por defecto
 // que se muestra centrado en el PDF (el profesional puede editarlo).
 export const TIPOS_INFORME = [
-  { key: 'mensual',    titulo: 'INFORME MENSUAL' },
-  { key: 'evaluacion', titulo: 'INFORME DE EVALUACIÓN' },
-  { key: 'evolucion',  titulo: 'INFORME DE EVOLUCIÓN' },
-  { key: 'admision',   titulo: 'INFORME DE ADMISIÓN' },
+  { key: 'mensual',   titulo: 'INFORME MENSUAL' },
+  { key: 'diario',    titulo: 'INFORME DIARIO' },
+  { key: 'evolucion', titulo: 'INFORME DE EVOLUCIÓN' },
+  { key: 'admision',  titulo: 'INFORME DE ADMISIÓN' },
 ];
 
 // Secciones que llena el profesional, en orden. `cuerpo` es el desarrollo

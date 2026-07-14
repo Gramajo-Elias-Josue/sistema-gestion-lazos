@@ -197,7 +197,7 @@ export async function generarInformeEvaluacion({ paciente = {}, profesional = {}
   // Logo circular, arriba a la derecha, sobre la banda.
   const logo = await cargarLogo();
   if (logo) {
-    try { doc.addImage(logo.dataUrl, logo.formato, W - margin - 72, 2, 72, 72); }
+    try { doc.addImage(logo.dataUrl, logo.formato, W - margin - 84, -4, 84, 84); }
     catch { /* si el formato del logo falla, sigue sin él */ }
   }
 
@@ -208,18 +208,18 @@ export async function generarInformeEvaluacion({ paciente = {}, profesional = {}
   const nombre = CLINICA.nombre.toUpperCase();
   const sub = CLINICA.subtitulo.toUpperCase();
   const gap = 9;
-  doc.setFont(ff, 'bolditalic'); doc.setFontSize(20);
+  doc.setFont(ff, 'bolditalic'); doc.setFontSize(22);
   const wNombre = doc.getTextWidth(nombre);
-  doc.setFont(ff, 'italic'); doc.setFontSize(12);
+  doc.setFont(ff, 'italic'); doc.setFontSize(13.5);
   const wSub = doc.getTextWidth(sub);
-  const zonaDer = W - 88;                 // reservado para el logo a la derecha
+  const zonaDer = W - 96;                 // reservado para el logo a la derecha
   const totalW = wNombre + gap + wSub;
   const xIni = Math.max(margin, margin + (zonaDer - margin - totalW) / 2);
-  const yTit = 44;                        // baseline: baja con el logo y queda centrado con él
+  const yTit = 40;                        // baseline: alineado (centrado) con el logo
   doc.setTextColor(0, 0, 0);
-  doc.setFont(ff, 'bolditalic'); doc.setFontSize(20);
+  doc.setFont(ff, 'bolditalic'); doc.setFontSize(22);
   doc.text(nombre, xIni, yTit);
-  doc.setFont(ff, 'italic'); doc.setFontSize(12);
+  doc.setFont(ff, 'italic'); doc.setFontSize(13.5);
   doc.text(sub, xIni + wNombre + gap, yTit);
 
   // Datos de contacto DEBAJO de la banda.

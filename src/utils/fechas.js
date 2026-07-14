@@ -25,10 +25,17 @@ export function diasHasta(fechaStr) {
   return Math.round((objetivo - hoy) / 86400000);
 }
 
+// Parsea una fecha 'yyyy-mm-dd' como fecha LOCAL (no UTC), para que no se
+// corra un día por la zona horaria (Argentina es UTC-3). Si el string ya
+// trae hora, se respeta tal cual.
+function parseFechaLocal(fechaStr) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(fechaStr) ? new Date(fechaStr + 'T00:00:00') : new Date(fechaStr);
+}
+
 // Formatea una fecha a dd/mm/aaaa (formato argentino). '—' si está vacía.
 export function formatearFecha(fechaStr) {
   if (!fechaStr) return '—';
-  return new Date(fechaStr).toLocaleDateString('es-AR', {
+  return parseFechaLocal(fechaStr).toLocaleDateString('es-AR', {
     day: '2-digit', month: '2-digit', year: 'numeric',
   });
 }
@@ -48,7 +55,7 @@ export function estadoVencimiento(fechaStr) {
 export function calcularEdad(fechaNac) {
   if (!fechaNac) return '—';
   const hoy = new Date();
-  const nac = new Date(fechaNac);
+  const nac = parseFechaLocal(fechaNac);
   let edad = hoy.getFullYear() - nac.getFullYear();
   const m = hoy.getMonth() - nac.getMonth();
   if (m < 0 || (m === 0 && hoy.getDate() < nac.getDate())) edad--;

@@ -13,7 +13,7 @@ import * as evaluacionModel from '../models/evaluacionModel.js';
 import * as turnoModel from '../models/turnoModel.js';
 import {
   renderEstructura, renderTabla, renderFicha, renderHistoria, renderCategorias,
-  renderFormPaciente, renderFormDocumento, renderFormEvaluacion,
+  renderFormPaciente, renderFormDocumento, renderFormEvaluacion, renderVistaEvaluacion,
 } from '../views/pacientesView.js';
 import { htmlCargando, htmlError, toast } from '../utils/ui.js';
 import { hoyISO } from '../utils/fechas.js';
@@ -114,6 +114,10 @@ async function abrirHistoria(id) {
     // cargar una nueva y un botón por evaluación para reimprimir su PDF.
     const btnNuevaEval = document.querySelector('.btn-nueva-eval');
     if (btnNuevaEval) btnNuevaEval.addEventListener('click', () => abrirFormEvaluacion(paciente, evaluaciones));
+    document.querySelectorAll('.btn-eval-ver').forEach(b => b.addEventListener('click', () => {
+      const ev = evaluaciones.find(e => String(e.id) === String(b.dataset.evalId));
+      if (ev) abrirVistaEvaluacion(paciente, ev, evaluaciones);
+    }));
     document.querySelectorAll('.btn-eval-pdf').forEach(b => b.addEventListener('click', () => {
       const ev = evaluaciones.find(e => String(e.id) === String(b.dataset.evalId));
       if (ev) descargarPdfEvaluacion(paciente, ev);
@@ -352,13 +356,13 @@ async function abrirFormEvaluacion(paciente, evalsPaciente = []) {
     .filter(ev => ev.fecha === hoy)
     .forEach(ev => { datosPorProf[String(ev.profesional_id)] = parseEvaluacion(ev.contenido); });
 
-  document.body.insertAdjacentHTML('beforeend', renderFormEvaluacion(turnos, datosPorProf));
+  document.body.insertAdjacentHTML('beforeend', renderFormEvaluacion(paciente, turnos, datosPorProf));
   const overlay = document.getElementById('overlay-eval');
   const form = document.getElementById('form-eval');
   const selProf = document.getElementById('eval-prof');
   const selTipo = document.getElementById('eval-tipo');
   const inputTitulo = document.getElementById('eval-titulo');
-  const campos = () => [...form.querySelectorAll('.eval-sec')]; // un textarea por sección
+  const txtCuerpo = document.getElementById('eval-cuerpo'); // la hoja de escritura
   const cerrar = () => overlay.remove();
 
   overlay.querySelectorAll('[data-cerrar]').forEach(b => b.addEventListener('click', cerrar));
@@ -367,23 +371,22 @@ async function abrirFormEvaluacion(paciente, evalsPaciente = []) {
   // Al cambiar el TIPO, se sugiere el título por defecto de ese tipo.
   selTipo.addEventListener('change', () => { inputTitulo.value = tituloPorTipo(selTipo.value); });
 
-  // Al cambiar de PROFESIONAL, recarga tipo/título/secciones con lo que ese
+  // Al cambiar de PROFESIONAL, recarga tipo/título/cuerpo con lo que ese
   // profesional ya cargó hoy (o el informe en blanco si todavía no cargó).
   selProf.addEventListener('change', () => {
-    const inf = datosPorProf[selProf.value] || { tipo: 'mensual', titulo: tituloPorTipo('mensual') };
+    const inf = datosPorProf[selProf.value] || { tipo: 'mensual', titulo: tituloPorTipo('mensual'), cuerpo: '' };
     selTipo.value = inf.tipo || 'mensual';
     inputTitulo.value = inf.titulo || tituloPorTipo(selTipo.value);
-    campos().forEach(ta => { ta.value = inf[ta.dataset.sec] || ''; });
+    txtCuerpo.value = inf.cuerpo || '';
   });
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    // Arma el informe: tipo + título + secciones.
-    const datos = { tipo: selTipo.value, titulo: inputTitulo.value };
-    campos().forEach(ta => { datos[ta.dataset.sec] = ta.value; });
+    // Arma el informe: tipo + título + cuerpo (lo escrito en la hoja).
+    const datos = { tipo: selTipo.value, titulo: inputTitulo.value, cuerpo: txtCuerpo.value };
     if (!(datos.cuerpo || '').trim()) {
-      toast('Escribí el desarrollo del informe antes de guardar.', 'bad');
+      toast('Escribí el informe antes de guardar.', 'bad');
       return;
     }
 
@@ -446,6 +449,26 @@ async function descargarPdfEvaluacion(paciente, ev) {
     console.error('Error generando el PDF del informe:', err);
     toast('No se pudo generar el PDF.', 'bad');
   }
+}
+
+// Abre la PREVISUALIZACIÓN (solo lectura) de un informe guardado, con la
+// misma hoja del editor. La descarga del PDF queda para imprimir. Solo el
+// informe de HOY se puede editar (por si se cargó mal ese mismo día); los de
+// días anteriores quedan solo lectura para no corromper lo ya registrado.
+function abrirVistaEvaluacion(paciente, ev, evalsPaciente = []) {
+  const editable = ev.fecha === hoyISO();
+  const inf = parseEvaluacion(ev.contenido);
+  document.body.insertAdjacentHTML('beforeend', renderVistaEvaluacion(paciente, ev, inf, editable));
+  const overlay = document.getElementById('overlay-vista-eval');
+  const cerrar = () => overlay.remove();
+
+  overlay.querySelectorAll('[data-cerrar]').forEach(b => b.addEventListener('click', cerrar));
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) cerrar(); });
+  document.getElementById('btn-vista-pdf').addEventListener('click', () => descargarPdfEvaluacion(paciente, ev));
+
+  // Solo el informe de hoy: botón Editar → abre el editor (prellenado).
+  const btnEditar = document.getElementById('btn-vista-editar');
+  if (btnEditar) btnEditar.addEventListener('click', () => { cerrar(); abrirFormEvaluacion(paciente, evalsPaciente); });
 }
 
 // ---------------------------------------------------------------------

@@ -10,6 +10,7 @@
 import { calcularEdad, formatearFecha, estadoVencimiento, iniciales } from '../utils/fechas.js';
 import { esc, pill } from '../utils/ui.js';
 import { TIPOS_INFORME, SECCIONES_INFORME, parseEvaluacion, evaluacionVacia } from '../utils/evaluacion.js';
+import { CLINICA } from '../config/clinica.js';
 
 // Tipos de documento de la historia clínica: código (lo que se guarda)
 // y etiqueta legible (lo que se muestra).
@@ -259,12 +260,13 @@ export function renderEvaluacionesHistoria(evaluaciones = []) {
     ? conTexto.map(({ ev, inf }) => {
         const prof = ev.profesionales?.nombre_completo || 'Profesional';
         const profesion = ev.profesionales?.profesion ? ' · ' + esc(ev.profesionales.profesion) : '';
-        // Solo se listan las secciones con contenido.
+        // Se listan las secciones con contenido. El cuerpo (desarrollo) va
+        // sin subtítulo; objetivos/indicaciones (informes viejos) con etiqueta.
         const secciones = SECCIONES_INFORME
           .filter(s => (inf[s.key] || '').trim())
           .map(s => `
             <div style="margin-top:8px">
-              <span style="display:block;font-size:13px;font-weight:600;color:var(--teal-700)">${esc(s.label)}</span>
+              ${s.key === 'cuerpo' ? '' : `<span style="display:block;font-size:13px;font-weight:600;color:var(--teal-700)">${esc(s.label)}</span>`}
               <span style="display:block;color:var(--ink);font-weight:400;white-space:pre-wrap">${esc(inf[s.key])}</span>
             </div>`).join('');
         return `
@@ -274,7 +276,8 @@ export function renderEvaluacionesHistoria(evaluaciones = []) {
             <small>${esc(prof)}${profesion} · ${formatearFecha(ev.fecha)}</small>
             ${secciones}
           </b>
-          <button class="btn ghost btn-eval-pdf" data-eval-id="${esc(String(ev.id))}" style="padding:6px 12px">⤓ PDF</button>
+          <button class="btn ghost btn-eval-pdf" data-eval-id="${esc(String(ev.id))}" style="padding:6px 10px">⤓ PDF</button>
+          <button class="btn ghost btn-eval-ver" data-eval-id="${esc(String(ev.id))}" style="padding:6px 12px">Ver</button>
         </div>`;
       }).join('')
     : `<div class="state" style="padding:18px">Todavía no hay informes. Se cargan con <b>+ Nuevo informe de hoy</b> después de atender al paciente.</div>`;
@@ -294,16 +297,39 @@ export function renderEvaluacionesHistoria(evaluaciones = []) {
     </div>`;
 }
 
-// Formulario (modal) para cargar el INFORME de HOY desde la ficha del
-// paciente. El profesional se elige de los que lo ATENDIERON hoy (turno
-// 'atendido'); esto une el gate ("ya atendió") con la identidad provisional
-// del autor (en Etapa 2 lo reemplaza el profesional logueado).
-// El informe sigue la PLANTILLA: tipo (define el título) + título editable +
-// secciones (SECCIONES_INFORME). Al guardar se genera el PDF con membrete.
+// Cabecera de la HOJA (membrete + datos del paciente), compartida por el
+// editor y la previsualización. Devuelve el HTML del encabezado del documento.
+function hojaCabecera(paciente = {}) {
+  const dato = (label, valor) => `<div><b>${label}</b> ${esc(valor || '—')}</div>`;
+  return `
+      <div class="hoja-band"></div>
+      <img class="hoja-logo" src="${CLINICA.logo}" alt="" onerror="this.remove()">
+      <div class="hoja-emp">${esc(CLINICA.nombre.toUpperCase())} <span>${esc(CLINICA.subtitulo.toUpperCase())}</span></div>
+      <div class="hoja-contacto">
+        <div>DIREC: ${esc(CLINICA.direccion)}<br>CUIT: ${esc(CLINICA.cuit)}</div>
+        <div>CEL: ${esc(CLINICA.cel)}<br>RES: ${esc(CLINICA.resolucion)}</div>
+      </div>
+      <hr class="hoja-sep">
+      <div class="hoja-datos">
+        ${dato('PACIENTE:', paciente.nombre_completo)}
+        ${dato('FECHA DE NACIMIENTO:', paciente.fecha_nacimiento ? formatearFecha(paciente.fecha_nacimiento) : '')}
+        ${dato('DNI:', paciente.dni)}
+        ${dato('DX:', paciente.diagnostico)}
+        ${dato('OBRA SOCIAL:', paciente.obra_social)}
+        ${dato('AFIL:', paciente.numero_afiliado)}
+      </div>`;
+}
+
+// Editor tipo HOJA para cargar el INFORME de HOY desde la ficha del paciente.
+// En vez de campos sueltos, se escribe sobre un documento que replica el
+// membrete del PDF (banda + logo + datos del paciente + título + cuerpo). El
+// profesional se elige de los que lo ATENDIERON hoy (turno 'atendido'): eso
+// une el gate ("ya atendió") con el autor provisional (en Etapa 2 = login).
+// El cuerpo grande es el desarrollo del informe (se guarda en `cuerpo`).
+// paciente: objeto completo (datos del membrete).
 // turnos: [{ id, profesional_id, hora, profesionales:{nombre_completo, profesion} }]
-// datosPorProf: { profesional_id: {tipo, titulo, cuerpo, …} } para prellenar
-//   si ese profesional ya cargó hoy.
-export function renderFormEvaluacion(turnos, datosPorProf = {}) {
+// datosPorProf: { profesional_id: {tipo, titulo, cuerpo, …} } para prellenar.
+export function renderFormEvaluacion(paciente = {}, turnos = [], datosPorProf = {}) {
   const opciones = turnos.map(t => {
     const p = t.profesionales || {};
     const et = `${p.nombre_completo || 'Profesional'}${p.profesion ? ' — ' + p.profesion : ''}${t.hora ? ' · ' + String(t.hora).slice(0, 5) : ''}`;
@@ -311,41 +337,73 @@ export function renderFormEvaluacion(turnos, datosPorProf = {}) {
   }).join('');
 
   const primero = turnos[0] ? String(turnos[0].profesional_id) : '';
-  const inf = datosPorProf[primero] || { tipo: 'mensual', titulo: TIPOS_INFORME[0].titulo };
+  const inf = datosPorProf[primero] || { tipo: 'mensual', titulo: TIPOS_INFORME[0].titulo, cuerpo: '' };
 
   const opcTipo = TIPOS_INFORME.map(t =>
     `<option value="${t.key}" ${t.key === inf.tipo ? 'selected' : ''}>${esc(t.titulo)}</option>`).join('');
 
-  // Un campo por sección de la plantilla (con lo ya cargado si corresponde).
-  const campos = SECCIONES_INFORME.map(s => `
-              <div class="form-field full">
-                <label>${esc(s.label)}${s.opcional ? ' <small style="color:var(--ink-faint);font-weight:400">(opcional)</small>' : ' *'}</label>
-                <textarea name="${s.key}" class="eval-sec" data-sec="${s.key}"
-                  placeholder="${esc(s.label)}…" style="min-height:${s.key === 'cuerpo' ? 150 : 70}px">${esc(inf[s.key] || '')}</textarea>
-              </div>`).join('');
-
   return `
     <div class="overlay" id="overlay-eval">
-      <div class="modal" style="max-width:640px">
-        <div class="modal-h"><h2>Cargar informe de hoy</h2><button class="x" data-cerrar>×</button></div>
+      <div class="modal" style="max-width:840px;width:96%">
+        <div class="modal-h"><h2>Nuevo informe</h2><button class="x" data-cerrar>×</button></div>
         <form id="form-eval">
           <div class="modal-b">
-            <div class="form-grid">
-              <div class="form-field full"><label>Profesional (atendió hoy) *</label>
-                <select name="profesional_id" id="eval-prof" required>${opciones}</select></div>
-              <div class="form-field"><label>Tipo de informe</label>
-                <select name="tipo" id="eval-tipo">${opcTipo}</select></div>
-              <div class="form-field"><label>Título</label>
-                <input name="titulo" id="eval-titulo" value="${esc(inf.titulo || '')}"></div>
-              ${campos}
+            <!-- Barra de metadatos (no es parte de la hoja) -->
+            <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">
+              <div class="form-field" style="flex:1;min-width:220px"><label>Profesional (atendió hoy) *</label>
+                <select id="eval-prof" required>${opciones}</select></div>
+              <div class="form-field" style="width:230px"><label>Tipo de informe</label>
+                <select id="eval-tipo">${opcTipo}</select></div>
             </div>
-            <p style="margin:2px 4px 0;color:var(--ink-soft);font-size:13px">Se genera un informe PDF con el membrete de la clínica y se guarda en la historia clínica.</p>
+
+            <!-- HOJA: se escribe directamente sobre el documento -->
+            <div class="hoja-informe">
+              ${hojaCabecera(paciente)}
+              <div class="hoja-titulo-wrap"><input id="eval-titulo" class="hoja-titulo" value="${esc(inf.titulo || '')}" placeholder="TÍTULO DEL INFORME"></div>
+              <textarea id="eval-cuerpo" class="hoja-cuerpo" placeholder="Escribí acá el informe…">${esc(inf.cuerpo || '')}</textarea>
+              <div class="hoja-firma"><span>__________________<br>Firma</span><span>__________________<br>Aclaración y sello</span></div>
+            </div>
+            <p style="margin:12px 4px 0;color:var(--ink-soft);font-size:13px">Al guardar se genera el PDF con el membrete y se adjunta a la historia clínica.</p>
           </div>
           <div class="modal-f">
             <button type="button" class="btn ghost" data-cerrar>Cancelar</button>
             <button type="submit" class="btn" id="btn-guardar-eval">Guardar y generar PDF</button>
           </div>
         </form>
+      </div>
+    </div>`;
+}
+
+// PREVISUALIZACIÓN (solo lectura) de un informe ya guardado, con la misma
+// hoja del editor. Sirve para leer informes anteriores sin descargarlos.
+// `editable=true` (solo el informe de HOY) habilita el botón Editar para
+// corregir un error del mismo día; los de días pasados quedan solo lectura.
+// ev: la fila de evaluaciones (con profesionales embebido). inf: parseado.
+export function renderVistaEvaluacion(paciente = {}, ev = {}, inf = {}, editable = false) {
+  const prof = ev.profesionales?.nombre_completo || 'Profesional';
+  const acl = [prof, ev.profesionales?.matricula ? 'Mat. ' + ev.profesionales.matricula : null]
+    .filter(Boolean).join(' · ');
+
+  return `
+    <div class="overlay" id="overlay-vista-eval">
+      <div class="modal" style="max-width:840px;width:96%">
+        <div class="modal-h">
+          <h2>Informe · ${formatearFecha(ev.fecha)}</h2>
+          <button class="x" data-cerrar>×</button>
+        </div>
+        <div class="modal-b">
+          <div class="hoja-informe">
+            ${hojaCabecera(paciente)}
+            <div class="hoja-titulo-wrap"><div class="hoja-titulo" style="border-bottom:none">${esc(inf.titulo || 'INFORME')}</div></div>
+            <div class="hoja-cuerpo" style="white-space:pre-wrap">${esc(inf.cuerpo || '—')}</div>
+            <div class="hoja-firma"><span>__________________<br>Firma</span><span>__________________<br>${esc(acl || 'Aclaración y sello')}</span></div>
+          </div>
+        </div>
+        <div class="modal-f">
+          <button type="button" class="btn ghost" data-cerrar>Cerrar</button>
+          ${editable ? `<button type="button" class="btn ghost" id="btn-vista-editar" data-eval-id="${esc(String(ev.id))}">Editar (informe de hoy)</button>` : ''}
+          <button type="button" class="btn" id="btn-vista-pdf" data-eval-id="${esc(String(ev.id))}">⤓ Descargar PDF</button>
+        </div>
       </div>
     </div>`;
 }
