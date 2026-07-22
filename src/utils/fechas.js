@@ -20,7 +20,7 @@ export function diasHasta(fechaStr) {
   if (!fechaStr) return null;
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
-  const objetivo = new Date(fechaStr);
+  const objetivo = parseFechaLocal(fechaStr); // local, no UTC (evita correrse un día)
   objetivo.setHours(0, 0, 0, 0);
   return Math.round((objetivo - hoy) / 86400000);
 }
