@@ -7,9 +7,15 @@
 // varios de estos tests BLINDAN bugs ya corregidos: si alguien los
 // reintroduce, el test falla. Se anota "[regresión: …]" en esos casos.
 import { describe, it, expect } from 'vitest';
-import { renderTabla as tablaPacientes, renderFormPaciente } from '../src/views/pacientesView.js';
+import {
+  renderTabla as tablaPacientes, renderFormPaciente, renderEvaluacionesHistoria,
+} from '../src/views/pacientesView.js';
 import { renderTabla as tablaProfesionales, renderFormProfesional } from '../src/views/profesionalesView.js';
 import { renderAlertas } from '../src/views/inicioView.js';
+import { renderLista as listaTurnos, renderFormTurno } from '../src/views/turnosView.js';
+import { renderLista as listaAdmision, renderAdmision } from '../src/views/admisionView.js';
+import { renderFilas as filasAsistencia, filaHtml as filaAsistencia } from '../src/views/asistenciaView.js';
+import { filaHtml as filaFichaje, renderFilas as filasFichaje } from '../src/views/asistenciaProfView.js';
 
 // Fecha ISO a N días de hoy (para armar vencimientos relativos).
 const isoDesdeHoy = (dias) => {
@@ -101,5 +107,194 @@ describe('inicioView.renderAlertas (gramática de vencimientos)', () => {
 
   it('sin vencimientos próximos muestra el estado tranquilo', () => {
     expect(renderAlertas([doc(200)])).toContain('Sin documentos');
+  });
+});
+
+describe('turnosView.renderLista', () => {
+  const turno = {
+    id: 9, estado: 'programado', hora: '10:30:00',
+    pacientes: { nombre_completo: 'Ana Test', dni: '12345678' },
+    profesionales: { nombre_completo: 'Lic. María', profesion: 'Psicología' },
+  };
+
+  it('muestra el estado vacío cuando no hay turnos', () => {
+    expect(listaTurnos([])).toContain('No hay turnos');
+  });
+
+  it('muestra hora (HH:MM), paciente y profesional', () => {
+    const html = listaTurnos([turno]);
+    expect(html).toContain('10:30');
+    expect(html).not.toContain('10:30:00'); // recorta los segundos
+    expect(html).toContain('Ana Test');
+    expect(html).toContain('Lic. María');
+  });
+
+  it('el selector de estado marca el estado actual como selected', () => {
+    const html = listaTurnos([{ ...turno, estado: 'atendido' }]);
+    expect(html).toMatch(/<option value="atendido"[^>]*selected/);
+  });
+
+  it('escapa el nombre del paciente', () => {
+    const html = listaTurnos([{ ...turno, pacientes: { nombre_completo: '<x>', dni: '1' } }]);
+    expect(html).not.toContain('<x>');
+    expect(html).toContain('&lt;x&gt;');
+  });
+});
+
+describe('turnosView.renderFormTurno', () => {
+  const pac = { id: 1, nombre_completo: 'Ana', dni: '123' };
+  const prof = { id: 2, nombre_completo: 'Lic. María', profesion: 'Psicología', horario_entrada: '08:00', horario_salida: '16:00', dias_trabajo: ['Lunes'] };
+
+  it('avisa si faltan pacientes o profesionales cargados', () => {
+    expect(renderFormTurno([], [prof], '2026-07-16')).toContain('Necesitás al menos un paciente');
+    expect(renderFormTurno([pac], [], '2026-07-16')).toContain('Necesitás al menos un paciente');
+  });
+
+  it('con datos completos, no muestra el aviso', () => {
+    expect(renderFormTurno([pac], [prof], '2026-07-16')).not.toContain('Necesitás al menos un paciente');
+  });
+
+  it('las opciones de profesional llevan los data-* que lee el controlador', () => {
+    const html = renderFormTurno([pac], [prof], '2026-07-16');
+    expect(html).toContain('data-entrada="08:00"');
+    expect(html).toContain('data-salida="16:00"');
+    expect(html).toContain('data-dias='); // días de trabajo serializados
+  });
+});
+
+describe('admisionView', () => {
+  const pac = { id: 1, nombre_completo: 'Ana Test', dni: '123', tiene_cud: true };
+
+  it('estado vacío cuando no hay admisiones', () => {
+    expect(listaAdmision([])).toContain('No hay pacientes en proceso de admisión');
+  });
+
+  it('la lista muestra el paciente y su estado de CUD', () => {
+    const html = listaAdmision([pac]);
+    expect(html).toContain('Ana Test');
+    expect(html).toContain('Con CUD');
+    expect(html).toContain('Abrir admisión'); // botón de acción
+  });
+
+  it('renderAdmision arma el checklist con el progreso', () => {
+    // "dni" presentado; el resto pendiente.
+    const checklist = [{ requisito: 'dni', presentado: true, observaciones: '' }];
+    const html = renderAdmision(pac, checklist);
+    expect(html).toContain('DNI (copia)');
+    expect(html).toContain('Presentado'); // el requisito marcado
+    expect(html).toContain('Pendiente');  // los no marcados
+    expect(html).toContain('1 / 7 presentados'); // 7 requisitos estándar
+  });
+});
+
+// Helper: arma el objeto `vista` que espera asistenciaView.filaHtml.
+const vistaAsis = (over = {}) => ({
+  seleccion: {}, notas: {}, mesStats: {}, guardado: {}, editando: {}, bloqueado: false, ...over,
+});
+
+describe('asistenciaView.filaHtml (planilla de pacientes)', () => {
+  const pac = { id: 1, nombre_completo: 'Ana Test', diagnostico: 'TEA' };
+
+  it('estado vacío cuando no hay pacientes', () => {
+    expect(filasAsistencia([], vistaAsis())).toContain('No hay pacientes');
+  });
+
+  it('sin marca: los botones de estado están habilitados', () => {
+    // Ojo: el lápiz ✎ sí va disabled cuando no hay nada guardado, así que se
+    // apunta específicamente al botón de estado (data-estado), no a toda la fila.
+    const html = filaAsistencia(pac, vistaAsis());
+    expect(html.match(/data-estado="presente"[^>]*disabled/)).toBeFalsy();
+  });
+
+  it('ya guardado y sin editar: los botones de estado quedan bloqueados', () => {
+    const html = filaAsistencia(pac, vistaAsis({ seleccion: { 1: 'presente' }, guardado: { 1: true } }));
+    expect(html.match(/data-estado="presente"[^>]*disabled/)).toBeTruthy();
+  });
+
+  it('fecha futura (bloqueado): los botones de estado se deshabilitan', () => {
+    const html = filaAsistencia(pac, vistaAsis({ bloqueado: true }));
+    expect(html.match(/data-estado="presente"[^>]*disabled/)).toBeTruthy();
+  });
+
+  it('el estado seleccionado recibe su clase activa', () => {
+    const html = filaAsistencia(pac, vistaAsis({ seleccion: { 1: 'presente' } }));
+    expect(html).toContain('on-p'); // clase del botón "Presente" activo
+  });
+
+  it('muestra el porcentaje mensual si hay datos', () => {
+    const html = filaAsistencia(pac, vistaAsis({ mesStats: { 1: { presentes: 8, total: 10, pct: 80 } } }));
+    expect(html).toContain('80%');
+  });
+});
+
+describe('asistenciaProfView.filaHtml (fichaje)', () => {
+  const prof = { id: 5, nombre_completo: 'Lic. María', profesion: 'Psicología', horario_entrada: '08:00', horario_salida: '16:00' };
+
+  it('estado vacío cuando no hay profesionales', () => {
+    expect(filasFichaje([], {}, {})).toContain('No hay profesionales activos');
+  });
+
+  it('fecha futura muestra el aviso', () => {
+    const html = filasFichaje([prof], {}, { bloqueado: true });
+    expect(html).toContain('Fecha futura');
+  });
+
+  it('presente habilita las horas; ausente las deshabilita', () => {
+    const presente = filaFichaje(prof, { estado: 'presente' }, { esHoy: false });
+    const ausente = filaFichaje(prof, { estado: 'ausente' }, { esHoy: false });
+    // En "ausente" los inputs de hora van disabled; en "presente" no.
+    expect(ausente).toContain('apf-entrada');
+    expect(ausente.match(/apf-entrada[^>]*disabled/)).toBeTruthy();
+    expect(presente.match(/apf-entrada[^>]*disabled/)).toBeFalsy();
+  });
+
+  it('[regla no-futuro] HOY sin fichaje: prefill de entrada = hora actual, salida vacía', () => {
+    const html = filaFichaje(prof, undefined, { esHoy: true, ahora: '09:15' });
+    expect(html).toContain('class="apf-entrada" value="09:15"');
+    expect(html).toContain('class="apf-salida" value=""');
+  });
+
+  it('[regla no-futuro] una entrada guardada en el futuro se reemplaza por la hora actual', () => {
+    const html = filaFichaje(prof, { estado: 'presente', hora_entrada: '18:00' }, { esHoy: true, ahora: '09:15' });
+    expect(html).toContain('class="apf-entrada" value="09:15"'); // no 18:00 (aún no ocurrió)
+  });
+
+  it('fecha pasada: usa el horario habitual del perfil', () => {
+    const html = filaFichaje(prof, undefined, { esHoy: false });
+    expect(html).toContain('class="apf-entrada" value="08:00"');
+    expect(html).toContain('class="apf-salida" value="16:00"');
+  });
+});
+
+describe('pacientesView.renderEvaluacionesHistoria (informes)', () => {
+  const evalJSON = (obj) => JSON.stringify(obj);
+
+  it('estado vacío cuando no hay informes', () => {
+    expect(renderEvaluacionesHistoria([])).toContain('Todavía no hay informes');
+  });
+
+  it('muestra el título, el profesional y los botones Ver / PDF', () => {
+    const ev = {
+      id: 3, fecha: '2026-07-10',
+      contenido: evalJSON({ tipo: 'mensual', titulo: 'INFORME MENSUAL', cuerpo: 'Buen avance.' }),
+      profesionales: { nombre_completo: 'Lic. María', profesion: 'Psicología' },
+    };
+    const html = renderEvaluacionesHistoria([ev]);
+    expect(html).toContain('INFORME MENSUAL');
+    expect(html).toContain('Lic. María');
+    expect(html).toContain('btn-eval-ver');
+    expect(html).toContain('btn-eval-pdf');
+  });
+
+  it('descarta los informes totalmente vacíos', () => {
+    const vacio = { id: 4, fecha: '2026-07-10', contenido: evalJSON({ tipo: 'mensual', titulo: 'X', cuerpo: '' }), profesionales: {} };
+    expect(renderEvaluacionesHistoria([vacio])).toContain('Todavía no hay informes');
+  });
+
+  it('escapa el contenido del informe', () => {
+    const ev = { id: 5, fecha: '2026-07-10', contenido: evalJSON({ tipo: 'mensual', titulo: 'T', cuerpo: '<script>x</script>' }), profesionales: {} };
+    const html = renderEvaluacionesHistoria([ev]);
+    expect(html).not.toContain('<script>x</script>');
+    expect(html).toContain('&lt;script&gt;');
   });
 });
