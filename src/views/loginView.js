@@ -63,7 +63,7 @@ export function renderLogin() {
             <!-- Mensaje de error (oculto hasta que haga falta). -->
             <p class="login-error" id="login-error" role="alert" hidden></p>
 
-            <button type="submit" class="btn login-btn" id="btn-login">Entrar</button>
+            <button type="submit" class="btn login-btn" id="btn-login">Acceder</button>
           </form>
         </div>
 

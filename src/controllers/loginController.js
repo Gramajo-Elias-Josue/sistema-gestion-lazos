@@ -58,7 +58,7 @@ export function montarLogin(contenedor, onExito) {
       if (error) {
         mostrarError(mensajeAuth(error));
         btn.disabled = false;
-        btn.textContent = 'Entrar';
+        btn.textContent = 'Acceder';
         return;
       }
       // Éxito: app.js se encarga de mostrar la app. No reactivamos el botón
@@ -68,7 +68,7 @@ export function montarLogin(contenedor, onExito) {
       console.error('Error inesperado al iniciar sesión:', err);
       mostrarError(mensajeAuth(err));
       btn.disabled = false;
-      btn.textContent = 'Entrar';
+      btn.textContent = 'Acceder';
     }
   });
 }
