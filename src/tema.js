@@ -15,16 +15,19 @@
 
 const CLAVE = 'lazos-tema';
 
+// Conecta el botón sol/luna del encabezado de la app.
 export function iniciarTema() {
-  const btn = document.getElementById('theme-toggle');
+  conectarToggleTema(document.getElementById('theme-toggle'));
+}
+
+// Conecta CUALQUIER botón para alternar el tema (sirve para el toggle del
+// encabezado y también para el de la pantalla de login). Como el tema vive
+// en <html>, todos los toggles quedan sincronizados solos.
+export function conectarToggleTema(btn) {
   if (!btn) return;
-
-  // Click en el botón sol/luna: alterna el tema y lo guarda.
   btn.addEventListener('click', () => {
-    const actual = temaActual();
-    aplicarTema(actual === 'dark' ? 'light' : 'dark');
+    aplicarTema(temaActual() === 'dark' ? 'light' : 'dark');
   });
-
   actualizarTitulo(btn);
 }
 
@@ -33,11 +36,13 @@ function temaActual() {
   return document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
 }
 
-// Aplica el tema: atributo en <html> + guardado + tooltip del botón.
+// Aplica el tema: atributo en <html> + guardado + tooltip de los botones.
 function aplicarTema(tema) {
   document.documentElement.setAttribute('data-theme', tema);
   localStorage.setItem(CLAVE, tema);
-  actualizarTitulo(document.getElementById('theme-toggle'));
+  // Puede haber más de un toggle en pantalla (encabezado + login): se
+  // actualizan todos, ya comparten la clase .theme-toggle.
+  document.querySelectorAll('.theme-toggle').forEach(actualizarTitulo);
 }
 
 // Ajusta el tooltip/aria del botón según a qué modo se va a cambiar.

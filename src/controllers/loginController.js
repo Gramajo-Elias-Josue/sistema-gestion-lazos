@@ -9,6 +9,7 @@
 
 import { renderLogin } from '../views/loginView.js';
 import { iniciarSesion } from '../auth.js';
+import { conectarToggleTema } from '../tema.js';
 
 // Traduce los errores típicos de Supabase Auth (vienen en inglés) a un
 // mensaje claro en español. Si no se reconoce, se usa un texto genérico.
@@ -25,6 +26,9 @@ function mensajeAuth(error) {
 // `onExito(sesion)` se llama cuando el login es correcto.
 export function montarLogin(contenedor, onExito) {
   contenedor.innerHTML = renderLogin();
+
+  // El login tiene su propio toggle de tema (claro / oscuro).
+  conectarToggleTema(document.getElementById('login-theme'));
 
   const form = document.getElementById('form-login');
   const cajaError = document.getElementById('login-error');
