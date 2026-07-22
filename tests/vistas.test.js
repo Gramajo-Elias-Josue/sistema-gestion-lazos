@@ -16,6 +16,7 @@ import { renderLista as listaTurnos, renderFormTurno } from '../src/views/turnos
 import { renderLista as listaAdmision, renderAdmision } from '../src/views/admisionView.js';
 import { renderFilas as filasAsistencia, filaHtml as filaAsistencia } from '../src/views/asistenciaView.js';
 import { filaHtml as filaFichaje, renderFilas as filasFichaje } from '../src/views/asistenciaProfView.js';
+import { renderLogin } from '../src/views/loginView.js';
 
 // Fecha ISO a N días de hoy (para armar vencimientos relativos).
 const isoDesdeHoy = (dias) => {
@@ -296,5 +297,25 @@ describe('pacientesView.renderEvaluacionesHistoria (informes)', () => {
     const html = renderEvaluacionesHistoria([ev]);
     expect(html).not.toContain('<script>x</script>');
     expect(html).toContain('&lt;script&gt;');
+  });
+});
+
+describe('loginView.renderLogin (Etapa 2 · Fase A)', () => {
+  it('tiene los campos de email y contraseña que espera el controlador', () => {
+    const html = renderLogin();
+    expect(html).toContain('id="login-email"');
+    expect(html).toContain('id="login-password"');
+    expect(html).toContain('type="password"'); // la contraseña no se muestra
+  });
+
+  it('tiene el formulario, el botón y el contenedor de error', () => {
+    const html = renderLogin();
+    expect(html).toContain('id="form-login"');
+    expect(html).toContain('id="btn-login"');
+    expect(html).toContain('id="login-error"'); // donde va el mensaje de error
+  });
+
+  it('muestra la marca de la clínica', () => {
+    expect(renderLogin()).toContain('Lazos');
   });
 });

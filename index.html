@@ -33,7 +33,10 @@
     El contenido de cada sección lo generan las VISTAS y lo inyectan los CONTROLADORES.
     La barra lateral y el encabezado son chrome estático; el <main> se rellena por JS.
   -->
-  <div class="app">
+  <!-- La app arranca oculta: app.js la muestra solo si hay sesión iniciada
+       (si no, monta la pantalla de login). Evita el "flash" de la app
+       antes de verificar la sesión. -->
+  <div class="app hidden">
 
     <!-- ===== SIDEBAR (navegación) ===== -->
     <aside class="side">
@@ -102,9 +105,11 @@
             <svg class="ic-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
           </button>
           <div class="who">
-            <div class="av">DI</div>
-            <div><b>Dirección</b><small>Lazos</small></div>
+            <div class="av" id="who-av">US</div>
+            <div><b id="who-nombre">Usuario</b><small id="who-sub">Lazos</small></div>
           </div>
+          <!-- Cerrar sesión (Etapa 2 · Fase A) -->
+          <button class="btn ghost" id="btn-logout" title="Cerrar sesión" style="padding:8px 14px">Salir</button>
         </div>
       </header>
 
