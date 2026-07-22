@@ -60,19 +60,21 @@ export async function actualizarEstadoTurno(id, estado) {
   return data;
 }
 
-// Obtiene el turno de un paciente a una hora y fecha específicas, si existe y no está cancelado.
-export async function obtenerTurnoPacientePorHora(pacienteId, fecha, hora) {
-  if (!hora) return null;
+// Devuelve todos los turnos activos (no cancelados) de un paciente en una
+// fecha, con el profesional embebido. El controlador calcula si alguno cae
+// dentro de la ventana de duración de sesión (un paciente no puede tener dos
+// turnos pegados, aunque sean con profesionales distintos: no puede estar en
+// dos sesiones a la vez).
+export async function listarTurnosPacientePorFecha(pacienteId, fecha) {
   const { data, error } = await supabase
     .from(TABLA)
     .select('*, profesionales(nombre_completo)')
     .eq('paciente_id', pacienteId)
     .eq('fecha', fecha)
-    .eq('hora', hora)
     .neq('estado', 'cancelado')
-    .limit(1);
+    .order('hora', { ascending: true });
   if (error) throw error;
-  return data && data.length > 0 ? data[0] : null;
+  return data || [];
 }
 
 // Devuelve todos los turnos activos (no cancelados) de un profesional en una fecha.

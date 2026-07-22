@@ -80,6 +80,10 @@ async function cargarFecha(fecha) {
       profesionalModel.listarProfesionales({ soloActivos: true }),
       asistenciaProfModel.listarPorFecha(fecha),
     ]);
+    // Guard anti-carrera: si ya se cambió de fecha mientras se pedían estos
+    // datos, descartamos esta respuesta (misma protección que en la planilla
+    // de pacientes y en la agenda de turnos).
+    if (fecha !== fechaActual) return;
     profesionales = profs;
     regs.forEach(r => { fichajes[r.profesional_id] = r; });
     caja.innerHTML = renderFilas(profesionales, fichajes, ctx());

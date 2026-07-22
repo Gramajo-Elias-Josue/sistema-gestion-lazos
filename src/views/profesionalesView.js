@@ -36,7 +36,7 @@ export function renderTabla(profesionales) {
       <tr style="cursor:default">
         <td>
           <div class="pname">
-            <div class="pav">${iniciales(nombreSinTitulo)}</div>
+            <div class="pav">${esc(iniciales(nombreSinTitulo))}</div>
             <div>
               <b>${esc(p.nombre_completo)}</b><br>
               <small>${esc(p.email || '')}</small>
@@ -52,7 +52,7 @@ export function renderTabla(profesionales) {
         <td>${activo ? pill('ok', 'Activo') : pill('bad', 'Inactivo')}</td>
         <td style="white-space:nowrap;text-align:right">
           <button class="btn ghost btn-editar-prof" data-id="${p.id}" style="padding:6px 12px">Editar</button>
-          <button class="btn ghost btn-eliminar-prof" data-id="${p.id}" data-nombre="${esc(p.nombre_completo)}" style="padding:6px 12px;color:var(--red-600)">Eliminar</button>
+          <button class="btn ghost btn-baja-prof" data-id="${p.id}" data-estado="${esc(p.estado || '')}" data-nombre="${esc(p.nombre_completo)}" style="padding:6px 12px;color:${activo ? 'var(--red-600)' : 'var(--teal-700)'}">${activo ? 'Dar de baja' : 'Reactivar'}</button>
         </td>
       </tr>`;
   }).join('');
@@ -106,12 +106,9 @@ export function renderFormProfesional(prof = {}) {
                   }).join('')}
                 </div>
               </div>
-              <div class="form-field full"><label>Estado</label>
-                <select name="estado">
-                  <option value="activo" ${(prof.estado === 'activo' || !esEdicion) ? 'selected' : ''}>Activo</option>
-                  <option value="inactivo" ${prof.estado === 'inactivo' ? 'selected' : ''}>Inactivo</option>
-                </select>
-              </div>
+              <!-- El campo estado (activo/inactivo) NO se pide acá: es estado
+                   interno del sistema. El profesional nace activo y solo cambia
+                   con "Dar de baja" / "Reactivar" desde el listado. -->
             </div>
           </div>
           <div class="modal-f">

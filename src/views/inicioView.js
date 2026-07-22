@@ -146,9 +146,17 @@ export function renderAlertas(documentos) {
   return items.map(({ doc, e }) => {
     const vencido = e.clase === 'bad';
     const nombre = doc.pacientes?.nombre_completo ?? 'Paciente';
-    const detalle = vencido
-      ? `Vencido hace ${Math.abs(e.dias)} días`
-      : `Vence en ${e.dias} días`;
+    // Singular/plural correcto, y "Vence hoy" cuando faltan 0 días.
+    const plural = (n) => (n === 1 ? 'día' : 'días');
+    let detalle;
+    if (vencido) {
+      const n = Math.abs(e.dias);
+      detalle = `Vencido hace ${n} ${plural(n)}`;
+    } else if (e.dias === 0) {
+      detalle = 'Vence hoy';
+    } else {
+      detalle = `Vence en ${e.dias} ${plural(e.dias)}`;
+    }
     const icono = doc.tipo === 'cud' ? '🪪' : '📋';
     return `
       <div class="alert">

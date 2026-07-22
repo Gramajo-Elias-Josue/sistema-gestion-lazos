@@ -123,6 +123,10 @@ async function cargarFecha(fecha) {
       asistenciaModel.listarAsistenciasPorFecha(fecha),
       asistenciaModel.listarAsistenciasRango(rango.desde, rango.hasta),
     ]);
+    // Guard anti-carrera: si el usuario ya cambió de fecha mientras se pedían
+    // estos datos, descartamos esta respuesta (llegó tarde y sobreescribiría
+    // el estado/DOM con una fecha que ya no es la visible).
+    if (fecha !== fechaActual) return;
     pacientes = activos;
     // Lo que viene de la base ya está guardado: tilde verde y fila bloqueada.
     registradas.forEach(a => {

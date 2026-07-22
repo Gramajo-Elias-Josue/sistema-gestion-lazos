@@ -252,6 +252,11 @@ export function abrirFormPaciente(paciente = {}, opts = {}) {
         // documento/archivo del CUD se sube luego en la historia clínica.
         // El paciente nace 'en_admision' (default de la base): primero pasa
         // por el proceso de admisión antes de ser paciente activo.
+        // `estado` se fuerza acá en vez de confiar en el default de la base:
+        // el formulario ya no lo pide, y si la columna no tuviera default
+        // quedaría en NULL y el paciente no aparecería en ningún listado
+        // (todos filtran por estado = 'activo').
+        datos.estado = 'activo';
         const nuevo = await pacienteModel.crearPaciente(datos);
         toast(opts.mensajeAlta || 'Paciente creado.');
         cerrar();

@@ -49,6 +49,10 @@ async function cargarFecha(fecha) {
   caja.innerHTML = htmlCargando('Cargando turnos…');
   try {
     const turnos = await turnoModel.listarTurnosPorFecha(fecha);
+    // Guard anti-carrera: si el usuario ya navegó a otra fecha mientras se
+    // pedían estos datos, descartamos esta respuesta (llegó tarde y pintaría
+    // una fecha que ya no es la visible).
+    if (fecha !== fechaActual) return;
     turnosCargados = turnos;
     caja.innerHTML = renderLista(turnos);
     caja.querySelectorAll('.turno-estado').forEach(sel =>
@@ -102,45 +106,61 @@ async function nuevoTurno() {
     btn.disabled = true;
     btn.textContent = 'Verificando…';
 
-    // 1) VALIDACIÓN DE SUPERPOSICIÓN:
-    // A) El paciente no puede tener otro turno a la misma hora el mismo día.
-    // B) El profesional no puede tener otro paciente dentro de la ventana de 30 min
-    //    (duración mínima de sesión). Dos turnos solapan si |horaA - horaB| < DURACION_SESION.
+    // 1) VALIDACIÓN DE SUPERPOSICIÓN (ventana de duración mínima de sesión):
+    // A) El PACIENTE no puede tener otro turno dentro de la ventana de 30 min
+    //    (aunque sea con otro profesional: no puede estar en dos sesiones a la vez).
+    // B) El PROFESIONAL no puede tener otro paciente dentro de la misma ventana.
+    //    Dos turnos solapan si |horaA - horaB| < DURACION_SESION.
     const DURACION_SESION = 30; // minutos
     if (datos.hora) {
+      let turnosPacDia, turnosProfDia;
       try {
-        const [turnoExistentePac, turnosProfDia] = await Promise.all([
-          turnoModel.obtenerTurnoPacientePorHora(datos.paciente_id, datos.fecha, datos.hora),
+        [turnosPacDia, turnosProfDia] = await Promise.all([
+          turnoModel.listarTurnosPacientePorFecha(datos.paciente_id, datos.fecha),
           turnoModel.listarTurnosProfesionalPorFecha(datos.profesional_id, datos.fecha),
         ]);
-
-        if (turnoExistentePac) {
-          const profNombre = turnoExistentePac.profesionales?.nombre_completo || 'otro profesional';
-          toast(`El paciente ya tiene un turno asignado para las ${datos.hora.slice(0, 5)} con ${profNombre}.`, 'bad');
-          btn.disabled = false;
-          btn.textContent = 'Crear turno';
-          return;
-        }
-
-        const minNuevo = horaAMinutos(datos.hora);
-        const turnoSolapado = turnosProfDia.find(t => {
-          const minExistente = horaAMinutos(t.hora);
-          return minExistente !== null && Math.abs(minNuevo - minExistente) < DURACION_SESION;
-        });
-        if (turnoSolapado) {
-          const pacNombre = turnoSolapado.pacientes?.nombre_completo || 'otro paciente';
-          const horaExistente = (turnoSolapado.hora || '').slice(0, 5);
-          toast(
-            `El profesional ya tiene un turno con ${pacNombre} a las ${horaExistente}. ` +
-            `Debe haber al menos ${DURACION_SESION} min entre turnos.`,
-            'bad'
-          );
-          btn.disabled = false;
-          btn.textContent = 'Crear turno';
-          return;
-        }
       } catch (err) {
+        // Si no se pudo verificar (p. ej. corte de red), NO se crea el turno
+        // a ciegas: se aborta y se avisa, para no dejar pasar superposiciones.
         console.error('Error al verificar superposiciones de turnos:', err);
+        toast('No se pudo verificar la disponibilidad. Revisá la conexión e intentá de nuevo.', 'bad');
+        btn.disabled = false;
+        btn.textContent = 'Crear turno';
+        return;
+      }
+
+      const minNuevo = horaAMinutos(datos.hora);
+      const solapa = (t) => {
+        const m = horaAMinutos(t.hora);
+        return m !== null && Math.abs(minNuevo - m) < DURACION_SESION;
+      };
+
+      const turnoPac = turnosPacDia.find(solapa);
+      if (turnoPac) {
+        const profNombre = turnoPac.profesionales?.nombre_completo || 'otro profesional';
+        const horaExistente = (turnoPac.hora || '').slice(0, 5);
+        toast(
+          `El paciente ya tiene un turno a las ${horaExistente} con ${profNombre}. ` +
+          `Debe haber al menos ${DURACION_SESION} min entre turnos.`,
+          'bad'
+        );
+        btn.disabled = false;
+        btn.textContent = 'Crear turno';
+        return;
+      }
+
+      const turnoProf = turnosProfDia.find(solapa);
+      if (turnoProf) {
+        const pacNombre = turnoProf.pacientes?.nombre_completo || 'otro paciente';
+        const horaExistente = (turnoProf.hora || '').slice(0, 5);
+        toast(
+          `El profesional ya tiene un turno con ${pacNombre} a las ${horaExistente}. ` +
+          `Debe haber al menos ${DURACION_SESION} min entre turnos.`,
+          'bad'
+        );
+        btn.disabled = false;
+        btn.textContent = 'Crear turno';
+        return;
       }
     }
 
@@ -246,7 +266,8 @@ async function cambiarEstado(id, estado) {
         if (!profPresente || !pacPresente) {
           const quien = (!profPresente && !pacPresente) ? 'el profesional ni el paciente'
             : !profPresente ? 'el profesional' : 'el paciente';
-          toast(`No se puede marcar atendido: ${quien} no figura presente en la asistencia de hoy.`, 'bad');
+          const cuando = turno.fecha === hoyISO() ? 'de hoy' : 'de ese día';
+          toast(`No se puede marcar atendido: ${quien} no figura presente en la asistencia ${cuando}.`, 'bad');
           revertir();
           return;
         }

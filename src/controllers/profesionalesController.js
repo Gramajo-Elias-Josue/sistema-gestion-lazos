@@ -1,9 +1,10 @@
 // =====================================================================
 // CONTROLADOR: Profesionales
 // ---------------------------------------------------------------------
-// CAPA CONTROLADOR. Maneja el CRUD del equipo: listar, crear, editar y
-// eliminar profesionales. Pide datos a los modelos, conecta los eventos
-// del HTML que arma la vista y maneja los estados de carga/error.
+// CAPA CONTROLADOR. Maneja el ABM del equipo: listar, crear, editar y dar
+// de baja profesionales. Pide datos a los modelos, conecta los eventos del
+// HTML que arma la vista y maneja los estados de carga/error.
+// La baja es LÓGICA (estado inactivo): no hay borrado real.
 // =====================================================================
 
 import * as profesionalModel from '../models/profesionalModel.js';
@@ -35,9 +36,9 @@ async function cargarLista() {
     caja.querySelectorAll('.btn-editar-prof').forEach(btn => {
       btn.addEventListener('click', () => editar(btn.dataset.id));
     });
-    // Botones "Eliminar" de cada fila.
-    caja.querySelectorAll('.btn-eliminar-prof').forEach(btn => {
-      btn.addEventListener('click', () => eliminar(btn.dataset.id, btn.dataset.nombre));
+    // Botones "Dar de baja" / "Reactivar" de cada fila.
+    caja.querySelectorAll('.btn-baja-prof').forEach(btn => {
+      btn.addEventListener('click', () => cambiarEstado(btn.dataset.id, btn.dataset.estado, btn.dataset.nombre));
     });
   } catch (err) {
     console.error('Error listando profesionales:', err);
@@ -93,6 +94,11 @@ function abrirForm(prof = {}) {
         await profesionalModel.actualizarProfesional(prof.id, datos);
         toast('Profesional actualizado.');
       } else {
+        // `estado` se fuerza acá en vez de confiar en el default de la base:
+        // el formulario ya no lo pide, y si la columna no tuviera default
+        // quedaría en NULL y el profesional no aparecería en los listados
+        // que filtran por estado = 'activo' (turnos, agenda, fichaje).
+        datos.estado = 'activo';
         await profesionalModel.crearProfesional(datos);
         toast('Profesional creado.');
       }
@@ -108,21 +114,22 @@ function abrirForm(prof = {}) {
 }
 
 // ---------------------------------------------------------------------
-// ELIMINAR (Delete)
+// BAJA LÓGICA / REACTIVAR (no borra: cambia el estado)
 // ---------------------------------------------------------------------
-async function eliminar(id, nombre) {
-  // Confirmación: es una acción irreversible.
-  if (!window.confirm(`¿Eliminar a ${nombre}? Esta acción no se puede deshacer.`)) return;
+// Espejo de la baja de pacientes. El profesional nunca se borra: se marca
+// inactivo, así conserva sus turnos, sus fichajes y la autoría de los
+// informes que firmó, y se puede reactivar cuando haga falta.
+async function cambiarEstado(id, estadoActual, nombre) {
+  const darBaja = estadoActual === 'activo';
+  if (darBaja && !window.confirm(`¿Dar de baja a ${nombre}? Quedará como inactivo (no se borra y conserva sus turnos e informes).`)) {
+    return;
+  }
   try {
-    await profesionalModel.eliminarProfesional(id);
-    toast('Profesional eliminado.');
+    await profesionalModel.cambiarEstadoProfesional(id, darBaja ? 'inactivo' : 'activo');
+    toast(darBaja ? 'Profesional dado de baja.' : 'Profesional reactivado.');
     await cargarLista();
   } catch (err) {
-    console.error('Error eliminando profesional:', err);
-    // El error típico es por clave foránea: tiene pacientes asignados.
-    const msg = /foreign key|violates|asignaciones/i.test(err.message || '')
-      ? 'No se puede eliminar: tiene pacientes asignados. Marcalo como "Inactivo" en su lugar.'
-      : 'Error al eliminar: ' + (err.message || '');
-    toast(msg, 'bad');
+    console.error('Error cambiando estado:', err);
+    toast(mensajeError(err, 'No se pudo cambiar el estado.'), 'bad');
   }
 }

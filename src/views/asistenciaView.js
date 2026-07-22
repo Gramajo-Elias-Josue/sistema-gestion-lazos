@@ -111,7 +111,7 @@ export function filaHtml(p, { seleccion, notas, mesStats, guardado, editando, bl
   // data-buscar: texto plano (nombre + diagnóstico) para el filtro.
   return `
     <div class="asis-row" data-fila="${p.id}" data-buscar="${esc(((p.nombre_completo || '') + ' ' + (p.diagnostico || '')).toLowerCase())}">
-      <div class="pav">${iniciales(p.nombre_completo)}</div>
+      <div class="pav">${esc(iniciales(p.nombre_completo))}</div>
       <div class="nm"><b>${esc(p.nombre_completo)}</b><br><small>${esc(p.diagnostico || '')}</small></div>
       ${tick}
       ${mesHtml}

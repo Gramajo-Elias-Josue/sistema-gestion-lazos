@@ -116,7 +116,7 @@ export function renderTabla(pacientes) {
       <tr data-id="${p.id}" style="${activo ? '' : 'opacity:.55'}">
         <td>
           <div class="pname">
-            <div class="pav">${iniciales(p.nombre_completo)}</div>
+            <div class="pav">${esc(iniciales(p.nombre_completo))}</div>
             <div><b>${esc(p.nombre_completo)}${tagInactivo}</b><br><small>${sub}</small></div>
           </div>
         </td>
@@ -158,7 +158,7 @@ export function renderFicha(paciente) {
   return `
     <button class="back" id="btn-volver">‹ Volver al listado</button>
     <div class="legajo-top">
-      <div class="bigav">${iniciales(paciente.nombre_completo)}</div>
+      <div class="bigav">${esc(iniciales(paciente.nombre_completo))}</div>
       <div style="flex:1">
         <h2>${esc(paciente.nombre_completo)}</h2>
         <div class="meta">${esc(paciente.diagnostico || 'Sin diagnóstico')} · ${calcularEdad(paciente.fecha_nacimiento)} años · DNI ${esc(paciente.dni || '—')}</div>
@@ -415,7 +415,7 @@ export function renderHistoria(paciente, evaluaciones = []) {
   return `
     <button class="back" id="btn-volver">‹ Volver al listado</button>
     <div class="legajo-top">
-      <div class="bigav">${iniciales(paciente.nombre_completo)}</div>
+      <div class="bigav">${esc(iniciales(paciente.nombre_completo))}</div>
       <div style="flex:1">
         <h2>${esc(paciente.nombre_completo)}</h2>
         <div class="meta">Historia clínica · DNI ${esc(paciente.dni || '—')}</div>
@@ -470,12 +470,9 @@ export function renderFormPaciente(paciente = {}) {
               <div class="form-field"><label>Obra social</label><input name="obra_social" value="${v('obra_social')}"></div>
               <div class="form-field"><label>N° de afiliado</label><input name="numero_afiliado" value="${v('numero_afiliado')}"></div>
               <div class="form-field"><label>Fecha de ingreso</label><input type="date" name="fecha_ingreso" value="${v('fecha_ingreso')}"></div>
-              <div class="form-field"><label>Estado</label>
-                <select name="estado">
-                  <option value="activo" ${(paciente.estado === 'activo' || !esEdicion) ? 'selected' : ''}>Activo</option>
-                  <option value="inactivo" ${paciente.estado === 'inactivo' ? 'selected' : ''}>Inactivo</option>
-                </select>
-              </div>
+              <!-- El campo estado (activo/inactivo) NO se pide acá: es estado
+                   interno del sistema. El paciente nace activo y solo cambia
+                   con "Dar de baja" / "Reactivar" desde el listado. -->
             </div>
           </div>
           <div class="modal-f">

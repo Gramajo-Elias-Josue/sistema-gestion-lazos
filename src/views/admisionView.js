@@ -44,7 +44,7 @@ export function renderLista(pacientes) {
     <tr data-id="${p.id}">
       <td>
         <div class="pname">
-          <div class="pav">${iniciales(p.nombre_completo)}</div>
+          <div class="pav">${esc(iniciales(p.nombre_completo))}</div>
           <div><b>${esc(p.nombre_completo)}</b><br><small>DNI ${esc(p.dni || '—')}</small></div>
         </div>
       </td>
@@ -94,7 +94,7 @@ export function renderAdmision(paciente, checklist = []) {
   return `
     <button class="back" id="btn-volver-adm">‹ Volver a la lista</button>
     <div class="legajo-top">
-      <div class="bigav">${iniciales(paciente.nombre_completo)}</div>
+      <div class="bigav">${esc(iniciales(paciente.nombre_completo))}</div>
       <div style="flex:1">
         <h2>${esc(paciente.nombre_completo)}</h2>
         <div class="meta">DNI ${esc(paciente.dni || '—')} · ${paciente.fecha_nacimiento ? calcularEdad(paciente.fecha_nacimiento) + ' años' : 'Sin fecha de nac.'} · ${esc(paciente.diagnostico || 'Sin diagnóstico')}</div>

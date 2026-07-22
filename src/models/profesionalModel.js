@@ -68,12 +68,21 @@ export async function actualizarProfesional(id, datos) {
   return data;
 }
 
-// Elimina un profesional. Puede fallar si tiene asignaciones (clave
-// foránea): en ese caso conviene marcarlo inactivo en lugar de borrarlo.
-export async function eliminarProfesional(id) {
-  const { error } = await supabase
+// Cambia el estado del profesional ('activo' / 'inactivo').
+// Se usa para la BAJA LÓGICA: no se borra el registro, solo se marca
+// inactivo. Es lo mismo que hace pacienteModel.cambiarEstadoPaciente.
+//
+// No existe un borrado real a propósito: si se eliminara el registro se
+// perderían sus turnos, sus fichajes de asistencia y la AUTORÍA de los
+// informes que firmó. En una historia clínica el autor de un informe no
+// puede desaparecer. Un profesional dado de baja se puede reactivar.
+export async function cambiarEstadoProfesional(id, estado) {
+  const { data, error } = await supabase
     .from(TABLA)
-    .delete()
-    .eq('id', id);
+    .update({ estado })
+    .eq('id', id)
+    .select()
+    .single();
   if (error) throw error;
+  return data;
 }
