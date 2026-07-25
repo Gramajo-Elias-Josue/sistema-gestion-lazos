@@ -15,6 +15,9 @@ import { iniciarRouter, registrarControlador } from './router.js';
 import { iniciarSidebar } from './sidebar.js';
 import { iniciarTema } from './tema.js';
 import { obtenerSesion, cerrarSesion, alCambiarSesion } from './auth.js';
+import { obtenerPerfil } from './perfil.js';
+import { setPerfil, rolActual } from './sesion.js';
+import { seccionesDe, etiquetaRol } from './permisos.js';
 import { montarLogin } from './controllers/loginController.js';
 import { iniciarInicio } from './controllers/inicioController.js';
 import { iniciarAdmision } from './controllers/admisionController.js';
@@ -52,10 +55,17 @@ function registrarControladores() {
 }
 
 // Muestra la app y arranca la navegación (idempotente).
-function arrancarApp(sesion) {
+async function arrancarApp(sesion) {
   loginRoot.innerHTML = '';
   appEl.classList.remove('hidden');
   mostrarUsuario(sesion);
+
+  // Cargar el perfil (rol) del usuario ANTES de arrancar el router, para
+  // poder mostrar/ocultar las secciones según el rol desde el primer render.
+  const perfil = await obtenerPerfil(sesion);
+  setPerfil(perfil);
+  aplicarPermisos(rolActual());
+  mostrarRol(rolActual());
 
   if (appIniciada) return;
   appIniciada = true;
@@ -65,10 +75,31 @@ function arrancarApp(sesion) {
   iniciarRouter();
 }
 
-// Muestra la pantalla de login y oculta la app.
+// Muestra la pantalla de login y oculta la app. Limpia el perfil anterior.
 function mostrarLogin() {
+  setPerfil(null);
   appEl.classList.add('hidden');
   montarLogin(loginRoot, (sesion) => arrancarApp(sesion));
+}
+
+// Aplica los permisos del rol: oculta del menú las secciones que no puede
+// ver y, si está parado en una sección no permitida, lo manda a Inicio.
+function aplicarPermisos(rol) {
+  const permitidas = seccionesDe(rol);
+  document.querySelectorAll('#nav button[data-v]').forEach(b => {
+    // Se usa style.display inline (no la clase .hidden) porque el botón del
+    // nav tiene su propio display por CSS con más especificidad, que le
+    // ganaría a .hidden y no lo ocultaría.
+    b.style.display = permitidas.includes(b.dataset.v) ? '' : 'none';
+  });
+  const actual = location.hash.slice(1);
+  if (actual && !permitidas.includes(actual)) location.hash = 'inicio';
+}
+
+// Muestra el rol del usuario en el encabezado (debajo del email).
+function mostrarRol(rol) {
+  const subEl = document.getElementById('who-sub');
+  if (subEl) subEl.textContent = etiquetaRol(rol);
 }
 
 // Escribe el email del usuario logueado en el encabezado.
