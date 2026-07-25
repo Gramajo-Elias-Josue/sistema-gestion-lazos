@@ -385,13 +385,15 @@ tbody tr:last-child td{border-bottom:none}
 /* Panel de marca con el degradé del membrete del PDF: naranja -> celeste
    (colores fijos de la clínica, no dependen del tema). El texto va en
    navy oscuro, como en el membrete, y se lee bien sobre todo el degradé. */
-.login-side{position:relative;flex:0 0 46%;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:18px;padding:40px 38px 92px;color:#15294a;background:linear-gradient(180deg,#7bcbf0 0%,#f3915a 66%,#ee7623 100%);clip-path:polygon(0 0,100% 0,calc(100% - 46px) 100%,0 100%)}
+.login-side{position:relative;flex:0 0 46%;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;gap:0;padding:40px 38px 92px;color:#000;background:linear-gradient(180deg,#7bcbf0 0%,#f3915a 66%,#ee7623 100%);clip-path:polygon(0 0,100% 0,calc(100% - 46px) 100%,0 100%)}
 /* Logo limpio y redondo, SIN recuadro, flotando sobre el degradé (como en
    el PDF). Una sombra suave le da profundidad. */
-.login-logo{width:134px;height:134px;display:grid;place-items:center;color:#15294a;font-weight:700;font-size:34px}
+.login-logo{width:134px;height:134px;display:grid;place-items:center;color:#000;font-weight:700;font-size:34px;margin-bottom:22px}
 .login-logo img{width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 8px 18px rgba(0,0,0,.28))}
-.login-side-name{margin:4px 0 0;font-size:30px;font-weight:700;letter-spacing:.3px;color:#15294a}
-.login-side-sub{margin:0;font-size:14.5px;max-width:230px;color:#1b3865;font-weight:600}
+/* Título y subtítulo en Comic Sans (la misma tipografía del membrete del
+   PDF), en negro. El subtítulo va pegado al título como una sola unidad. */
+.login-side-name{margin:0;font-size:36px;font-weight:700;font-style:italic;letter-spacing:.2px;color:#000;font-family:'ComicSansMS','Comic Sans MS',cursive}
+.login-side-sub{margin:7px 0 0;font-size:17px;max-width:260px;color:#000;font-weight:600;font-style:italic;font-family:'ComicSansMS','Comic Sans MS',cursive}
 
 /* --- Panel del formulario (derecha) --- */
 .login-main{position:relative;flex:1;display:flex;align-items:center;justify-content:center;padding:44px 46px}
