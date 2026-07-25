@@ -25,7 +25,8 @@ create table if not exists public.perfiles (
                    check (rol in ('director','secretaria','profesional')),
   -- Si el usuario es un profesional, a qué fila de `profesionales` mapea
   -- (sirve para "sus pacientes / su agenda"). Opcional.
-  profesional_id bigint references public.profesionales(id) on delete set null,
+  -- profesionales.id es uuid (la tabla se creó directo en Supabase).
+  profesional_id uuid references public.profesionales(id) on delete set null,
   creado_en      timestamptz not null default now()
 );
 
