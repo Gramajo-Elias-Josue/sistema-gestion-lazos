@@ -16,8 +16,8 @@ import { iniciarSidebar } from './sidebar.js';
 import { iniciarTema } from './tema.js';
 import { obtenerSesion, cerrarSesion, alCambiarSesion } from './auth.js';
 import { obtenerPerfil } from './perfil.js';
-import { setPerfil, rolActual } from './sesion.js';
-import { seccionesDe, etiquetaRol } from './permisos.js';
+import { setPerfil, perfilActual, rolActual } from './sesion.js';
+import { seccionesEfectivas, etiquetaRol } from './permisos.js';
 import { montarLogin } from './controllers/loginController.js';
 import { iniciarInicio } from './controllers/inicioController.js';
 import { iniciarAdmision } from './controllers/admisionController.js';
@@ -64,7 +64,7 @@ async function arrancarApp(sesion) {
   // poder mostrar/ocultar las secciones según el rol desde el primer render.
   const perfil = await obtenerPerfil(sesion);
   setPerfil(perfil);
-  aplicarPermisos(rolActual());
+  aplicarPermisos(perfilActual());
   mostrarRol(rolActual());
 
   if (appIniciada) return;
@@ -84,8 +84,8 @@ function mostrarLogin() {
 
 // Aplica los permisos del rol: oculta del menú las secciones que no puede
 // ver y, si está parado en una sección no permitida, lo manda a Inicio.
-function aplicarPermisos(rol) {
-  const permitidas = seccionesDe(rol);
+function aplicarPermisos(perfil) {
+  const permitidas = seccionesEfectivas(perfil);
   document.querySelectorAll('#nav button[data-v]').forEach(b => {
     // Se usa style.display inline (no la clase .hidden) porque el botón del
     // nav tiene su propio display por CSS con más especificidad, que le

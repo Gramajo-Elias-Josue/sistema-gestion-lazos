@@ -8,7 +8,7 @@
 // =====================================================================
 
 import { fechaLarga } from './utils/fechas.js';
-import { rolActual } from './sesion.js';
+import { perfilActual } from './sesion.js';
 import { puedeVer } from './permisos.js';
 
 // Metadatos de cada sección. `iniciar` se completa con registrarControlador().
@@ -32,7 +32,7 @@ async function mostrar(nombre) {
   if (!SECCIONES[nombre]) nombre = 'inicio'; // fallback ante un hash inválido
   // Guard por rol: si el usuario no puede ver esa sección (aunque haya
   // forzado el hash), se lo manda a Inicio.
-  if (!puedeVer(rolActual(), nombre)) nombre = 'inicio';
+  if (!puedeVer(perfilActual(), nombre)) nombre = 'inicio';
 
   // Resalta el botón activo en la barra lateral.
   document.querySelectorAll('#nav button[data-v]').forEach(b =>

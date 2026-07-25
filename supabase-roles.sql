@@ -30,6 +30,11 @@ create table if not exists public.perfiles (
   creado_en      timestamptz not null default now()
 );
 
+-- Secciones que ESTE usuario puede ver. NULL/vacío = usar las del rol por
+-- defecto (ver permisos.js). El director las tilda/destilda por usuario
+-- desde la pantalla "Usuarios". El director siempre ve todo (no se guarda).
+alter table public.perfiles add column if not exists secciones text[];
+
 alter table public.perfiles enable row level security;
 
 -- ---------------------------------------------------------------------
