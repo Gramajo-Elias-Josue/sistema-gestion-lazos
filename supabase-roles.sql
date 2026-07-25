@@ -35,6 +35,14 @@ create table if not exists public.perfiles (
 -- desde la pantalla "Usuarios". El director siempre ve todo (no se guarda).
 alter table public.perfiles add column if not exists secciones text[];
 
+-- Email del usuario, denormalizado desde auth.users (el cliente no puede
+-- leer auth.users). Lo llena la Edge Function al crear; acá se backfillea.
+alter table public.perfiles add column if not exists email text;
+update public.perfiles p
+   set email = u.email
+  from auth.users u
+ where u.id = p.id and p.email is null;
+
 alter table public.perfiles enable row level security;
 
 -- ---------------------------------------------------------------------
