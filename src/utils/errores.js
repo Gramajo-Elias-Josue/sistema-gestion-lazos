@@ -9,6 +9,7 @@
 //   23505 -> valor duplicado (violación de índice único)
 //   23503 -> clave foránea (el registro está referenciado por otro)
 //   23502 -> NOT NULL (falta un dato obligatorio)
+//   42501 -> sin permisos (lo rechazó la RLS por rol de la base)
 // =====================================================================
 
 export function mensajeError(err, respaldo = 'No se pudo completar la operación.') {
@@ -30,6 +31,13 @@ export function mensajeError(err, respaldo = 'No se pudo completar la operación
   }
   if (codigo === '23502') {
     return 'Falta completar un dato obligatorio.';
+  }
+
+  // Sin permisos: la RLS por rol de la base rechazó la operación. Pasa
+  // cuando el rol no puede hacer eso, o cuando al usuario le falta su fila
+  // en `perfiles` (queda sin permisos de escritura).
+  if (codigo === '42501' || /row-level security|row level security/.test(texto)) {
+    return 'No tenés permisos para hacer esto con tu rol.';
   }
 
   // Error típico de Storage cuando no está creado el bucket "documentos".
