@@ -12,7 +12,7 @@ import {
 } from '../src/views/pacientesView.js';
 import { renderTabla as tablaProfesionales, renderFormProfesional } from '../src/views/profesionalesView.js';
 import { renderAlertas } from '../src/views/inicioView.js';
-import { renderLista as listaTurnos, renderFormTurno } from '../src/views/turnosView.js';
+import { renderLista as listaTurnos, renderFormTurno, renderEstructura } from '../src/views/turnosView.js';
 import { renderLista as listaAdmision, renderAdmision } from '../src/views/admisionView.js';
 import { renderFilas as filasAsistencia, filaHtml as filaAsistencia } from '../src/views/asistenciaView.js';
 import { filaHtml as filaFichaje, renderFilas as filasFichaje } from '../src/views/asistenciaProfView.js';
@@ -139,6 +139,35 @@ describe('turnosView.renderLista', () => {
     const html = listaTurnos([{ ...turno, pacientes: { nombre_completo: '<x>', dni: '1' } }]);
     expect(html).not.toContain('<x>');
     expect(html).toContain('&lt;x&gt;');
+  });
+
+  it('[agenda de la secretaría] en modo consulta no hay selector de estado ni Eliminar', () => {
+    const html = listaTurnos([turno], false); // puedeOperar = false (profesional)
+    expect(html).not.toContain('turno-estado');       // no puede marcar "Atendido"
+    expect(html).not.toContain('btn-eliminar-turno'); // ni eliminar
+    expect(html).toContain('Ana Test');               // pero sí ve el turno
+    expect(html).toContain('Programado');             // (la pill de estado sigue visible)
+  });
+
+  it('quien gestiona la agenda sí ve el selector y Eliminar', () => {
+    const html = listaTurnos([turno], true);
+    expect(html).toContain('turno-estado');
+    expect(html).toContain('btn-eliminar-turno');
+  });
+});
+
+describe('turnosView.renderEstructura (según el rol)', () => {
+  it('quien gestiona la agenda ve "+ Nuevo turno"', () => {
+    const html = renderEstructura('2026-07-16', true);
+    expect(html).toContain('btn-nuevo-turno');
+    expect(html).not.toContain('Solo consulta');
+  });
+
+  it('[agenda de la secretaría] el profesional ve "Solo consulta", sin crear turnos', () => {
+    const html = renderEstructura('2026-07-16', false);
+    expect(html).not.toContain('btn-nuevo-turno');
+    expect(html).toContain('Solo consulta');
+    expect(html).toContain('t-fecha'); // pero puede navegar las fechas
   });
 });
 

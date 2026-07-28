@@ -30,6 +30,7 @@ begin
     execute format('drop policy if exists "turnos_insert" on public.%I;', t);
     execute format('drop policy if exists "turnos_update" on public.%I;', t);
     execute format('drop policy if exists "turnos_delete" on public.%I;', t);
+    execute format('drop policy if exists "turnos_escritura" on public.%I;', t);
     execute format('drop policy if exists "eval_select" on public.%I;', t);
     execute format('drop policy if exists "eval_insert" on public.%I;', t);
     execute format('drop policy if exists "eval_update" on public.%I;', t);

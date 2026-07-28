@@ -16,6 +16,8 @@ import { hoyISO, sumarDias, nombreDia, horaEnRango, horaAMinutos } from '../util
 import { htmlCargando, htmlError, toast, confirmar } from '../utils/ui.js';
 import { validarTurno } from '../utils/validacion.js';
 import { mensajeError } from '../utils/errores.js';
+import { perfilActual } from '../sesion.js';
+import { puedeOperar } from '../permisos.js';
 
 let fechaActual = hoyISO();
 let turnosCargados = [];  // turnos de la fecha visible (para buscar por id)
@@ -23,14 +25,19 @@ let turnosCargados = [];  // turnos de la fecha visible (para buscar por id)
 // Punto de entrada de la sección Agenda (lo llama el router).
 export async function iniciarTurnos() {
   fechaActual = hoyISO();
+  // La agenda la gestionan director y secretaría. El profesional la ve en
+  // modo consulta: no crea turnos ni cambia su estado (lo hace cumplir la
+  // RLS de la base; acá sólo se evita mostrarle controles que fallarían).
+  const gestiona = puedeOperar(perfilActual());
   const cont = document.getElementById('v-agenda');
-  cont.innerHTML = renderEstructura(fechaActual);
+  cont.innerHTML = renderEstructura(fechaActual, gestiona);
 
   document.getElementById('t-prev').addEventListener('click', () => irAFecha(sumarDias(fechaActual, -1)));
   document.getElementById('t-next').addEventListener('click', () => irAFecha(sumarDias(fechaActual, 1)));
   document.getElementById('t-hoy').addEventListener('click', () => irAFecha(hoyISO()));
   document.getElementById('t-fecha').addEventListener('change', (e) => { if (e.target.value) irAFecha(e.target.value); });
-  document.getElementById('btn-nuevo-turno').addEventListener('click', nuevoTurno);
+  const btnNuevo = document.getElementById('btn-nuevo-turno');
+  if (btnNuevo) btnNuevo.addEventListener('click', nuevoTurno);
 
   await cargarFecha(fechaActual);
 }
@@ -54,7 +61,7 @@ async function cargarFecha(fecha) {
     // una fecha que ya no es la visible).
     if (fecha !== fechaActual) return;
     turnosCargados = turnos;
-    caja.innerHTML = renderLista(turnos);
+    caja.innerHTML = renderLista(turnos, puedeOperar(perfilActual()));
     caja.querySelectorAll('.turno-estado').forEach(sel =>
       sel.addEventListener('change', () => cambiarEstado(sel.dataset.id, sel.value)));
     caja.querySelectorAll('.btn-eliminar-turno').forEach(b =>

@@ -22,7 +22,12 @@ function hhmm(t) {
 }
 
 // Encabezado con navegación de fecha + botón de nuevo turno.
-export function renderEstructura(fecha) {
+// `puedeOperar` = el usuario gestiona la agenda (director / secretaría). El
+// profesional entra en modo consulta: navega las fechas pero no crea turnos.
+export function renderEstructura(fecha, puedeOperar = true) {
+  const btnNuevo = puedeOperar
+    ? `<button class="btn" id="btn-nuevo-turno" style="margin-left:auto">+ Nuevo turno</button>`
+    : `<span class="pill" style="margin-left:auto">Solo consulta</span>`;
   return `
     <div class="asis-head">
       <div class="datenav">
@@ -33,15 +38,17 @@ export function renderEstructura(fecha) {
         <button class="btn ghost" id="t-hoy">Hoy</button>
       </div>
       <div class="datechip" id="t-dia">${nombreDia(fecha)}</div>
-      <button class="btn" id="btn-nuevo-turno" style="margin-left:auto">+ Nuevo turno</button>
+      ${btnNuevo}
     </div>
     <div id="turnos-lista"></div>`;
 }
 
-// Tabla de turnos del día.
-export function renderLista(turnos) {
+// Tabla de turnos del día. `puedeOperar` = puede cambiar el estado del turno
+// (marcar "Atendido") y eliminarlo; el profesional lo ve en modo consulta.
+export function renderLista(turnos, puedeOperar = true) {
   if (!turnos.length) {
-    return `<div class="tablewrap"><div class="state">No hay turnos para este día. Usá “+ Nuevo turno”.</div></div>`;
+    const ayuda = puedeOperar ? ' Usá “+ Nuevo turno”.' : '';
+    return `<div class="tablewrap"><div class="state">No hay turnos para este día.${ayuda}</div></div>`;
   }
 
   const filas = turnos.map(t => {
@@ -64,8 +71,9 @@ export function renderLista(turnos) {
         <td><b>${esc(prof.nombre_completo || '—')}</b><br><small style="color:var(--ink-faint)">${esc(prof.profesion || '')}</small></td>
         <td>${pill(est.clase, est.etiqueta)}</td>
         <td style="white-space:nowrap;text-align:right">
+          ${puedeOperar ? `
           <select class="turno-estado" data-id="${t.id}" style="font-family:var(--body);font-size:14px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--card-2);color:var(--ink)">${opciones}</select>
-          <button class="btn ghost btn-eliminar-turno" data-id="${t.id}" style="padding:6px 11px;color:var(--red-600)">Eliminar</button>
+          <button class="btn ghost btn-eliminar-turno" data-id="${t.id}" style="padding:6px 11px;color:var(--red-600)">Eliminar</button>` : ''}
         </td>
       </tr>`;
   }).join('');

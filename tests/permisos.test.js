@@ -2,7 +2,7 @@
 // da un set por defecto, cada perfil puede tener secciones propias, y el
 // director siempre ve todo. La seguridad real la pone la RLS (Fase C).
 import { describe, it, expect } from 'vitest';
-import { seccionesPorDefecto, seccionesEfectivas, puedeVer, etiquetaRol, SECCIONES } from '../src/permisos.js';
+import { seccionesPorDefecto, seccionesEfectivas, puedeVer, puedeOperar, etiquetaRol, SECCIONES } from '../src/permisos.js';
 
 // Helper: perfil de prueba.
 const perfil = (rol, secciones) => ({ rol, secciones });
@@ -71,6 +71,19 @@ describe('permisos.seccionesPorDefecto', () => {
 describe('permisos.seccionesEfectivas', () => {
   it('inicio siempre presente', () => {
     expect(seccionesEfectivas(perfil('secretaria', ['pacientes']))).toContain('inicio');
+  });
+});
+
+describe('permisos.puedeOperar (gestionar lo administrativo: agenda, altas…)', () => {
+  it('director y secretaría operan; el profesional no', () => {
+    expect(puedeOperar(perfil('director'))).toBe(true);
+    expect(puedeOperar(perfil('secretaria'))).toBe(true);
+    expect(puedeOperar(perfil('profesional'))).toBe(false);
+  });
+
+  it('sin perfil no opera (conservador)', () => {
+    expect(puedeOperar(null)).toBe(false);
+    expect(puedeOperar({})).toBe(false);
   });
 });
 

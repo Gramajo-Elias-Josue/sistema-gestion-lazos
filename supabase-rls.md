@@ -31,17 +31,22 @@ alguien llame a la API desde la consola del navegador, no pasa.
 | Leer todo | ✅ | ✅ | ✅ |
 | Pacientes / admisión / asistencia (escribir) | ✅ | ✅ | ❌ |
 | Profesionales (alta/baja del equipo) | ✅ | ✅ | ❌ |
+| Ver la agenda de turnos | ✅ | ✅ | ✅ (solo consulta) |
 | Crear / eliminar turnos | ✅ | ✅ | ❌ |
-| Marcar turno "Atendido" | ✅ | ✅ | ✅ |
+| Marcar turno "Atendido" | ✅ | ✅ | ❌ |
 | Cargar / editar informes | ✅ | ✅ | ✅ |
 | Adjuntar documentos | ✅ | ✅ | ✅ |
 | Editar / borrar documentos | ✅ | ✅ | ❌ |
 | Sin sesión (anon) | — | — | ❌ nada |
 
-**Por qué el profesional puede actualizar turnos y adjuntar documentos:**
-marcar "Atendido" es un `UPDATE` en `turnos`, y sin eso no puede cargar el
-informe (la carga exige turno atendido). Y al guardar un informe, el PDF se
-adjunta como fila en `documentos` + archivo en Storage.
+**La agenda es de la secretaría.** El profesional la ve en modo consulta (sin
+el selector de estado ni el botón de eliminar). El circuito queda así:
+
+> la secretaría marca el turno como **Atendido** → recién entonces el
+> profesional puede cargar el **informe** de ese paciente.
+
+**Por qué el profesional sí puede adjuntar documentos:** al guardar un
+informe, el PDF se adjunta como fila en `documentos` + archivo en Storage.
 
 ---
 
@@ -59,8 +64,11 @@ adjunta como fila en `documentos` + archivo en Storage.
 
 ### 3. Profesional
 - [ ] Ve **Inicio, Pacientes y Turnos** (nada más).
-- [ ] Puede marcar un turno como **Atendido**.
-- [ ] Puede cargar un **informe** y el PDF **se adjunta** a la historia.
+- [ ] En **Turnos** ve la agenda pero en **modo consulta**: dice "Solo
+      consulta", sin "+ Nuevo turno", sin selector de estado ni "Eliminar".
+- [ ] Abre la **historia clínica** de un paciente y la consulta.
+- [ ] Con un turno que la **secretaría** marcó Atendido, puede cargar el
+      **informe** y el PDF **se adjunta** a la historia.
 - [ ] **NO** puede dar de alta un paciente ni un profesional (si el front lo
       permitiera, la base lo rechaza).
 

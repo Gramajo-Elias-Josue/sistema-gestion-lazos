@@ -13,9 +13,10 @@
 --   director    -> todo.
 --   secretaria  -> todo lo operativo (pacientes, admisión, turnos,
 --                  asistencia, profesionales, documentos).
---   profesional -> LEE todo, y sólo ESCRIBE lo suyo: informes
---                  (evaluaciones), los documentos que adjunta, y el
---                  estado de los turnos (para marcar "Atendido").
+--   profesional -> LEE todo (historia clínica, agenda), y sólo ESCRIBE lo
+--                  suyo: informes (evaluaciones) y los documentos que
+--                  adjunta. La AGENDA es de la secretaría: el profesional
+--                  no crea turnos ni los marca "Atendido".
 --   anon (sin sesión) -> NADA. Ahora hay que iniciar sesión.
 --
 -- ⚠️ Si algo queda bloqueado de más, corré `supabase-rls-revertir.sql`
@@ -80,11 +81,12 @@ end $$;
 
 
 -- ---------------------------------------------------------------------
--- 3) TURNOS
---    El profesional necesita ACTUALIZAR el turno para marcarlo "Atendido"
---    (sin eso no puede cerrar la sesión ni cargar el informe, porque la
---    carga exige un turno atendido). Crear y eliminar turnos sigue siendo
---    de la agenda: director / secretaría.
+-- 3) TURNOS — la agenda es de la secretaría
+--    El profesional puede CONSULTAR la agenda, pero no crear turnos, no
+--    eliminarlos y no cambiar su estado: marcar "Atendido" lo hace la
+--    secretaría (que además lleva la planilla de asistencia).
+--    Flujo: la secretaría marca el turno como atendido -> recién entonces
+--    el profesional puede cargar el informe de ese paciente.
 -- ---------------------------------------------------------------------
 alter table public.turnos enable row level security;
 drop policy if exists "acceso_anon" on public.turnos;
@@ -93,19 +95,16 @@ drop policy if exists "turnos_select" on public.turnos;
 drop policy if exists "turnos_insert" on public.turnos;
 drop policy if exists "turnos_update" on public.turnos;
 drop policy if exists "turnos_delete" on public.turnos;
+drop policy if exists "turnos_escritura" on public.turnos;
 
 create policy "turnos_select" on public.turnos
   for select to authenticated using (true);
 
-create policy "turnos_insert" on public.turnos
-  for insert to authenticated with check (public.puede_operar());
-
--- Update abierto a todo usuario logueado: es lo que permite marcar "Atendido".
-create policy "turnos_update" on public.turnos
-  for update to authenticated using (true) with check (true);
-
-create policy "turnos_delete" on public.turnos
-  for delete to authenticated using (public.puede_operar());
+-- Crear, editar (incluido el estado) y eliminar: sólo director / secretaría.
+create policy "turnos_escritura" on public.turnos
+  for all to authenticated
+  using (public.puede_operar())
+  with check (public.puede_operar());
 
 
 -- ---------------------------------------------------------------------
