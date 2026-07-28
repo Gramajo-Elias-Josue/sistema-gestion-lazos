@@ -56,6 +56,12 @@ export async function crearUsuario({ email, password, nombre, rol, secciones }) 
       const ctx = await error.context?.json?.();
       if (ctx?.error) msg = ctx.error;
     } catch { /* sin cuerpo legible */ }
+    // "Failed to send a request" = no se llegó a ejecutar la función. Suele
+    // ser que no está deployada o que tiene "Verify JWT" activo (rechaza el
+    // preflight CORS). Se traduce a algo accionable.
+    if (/failed to send a request|fetch/i.test(msg)) {
+      msg = 'No se pudo contactar la función "crear-usuario". Verificá que esté deployada y con "Verify JWT" desactivado.';
+    }
     throw new Error(msg);
   }
   if (data?.error) throw new Error(data.error);

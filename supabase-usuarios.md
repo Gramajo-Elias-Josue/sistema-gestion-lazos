@@ -25,6 +25,27 @@ En el dashboard de Supabase:
 > No hace falta cargar secretos: `SUPABASE_URL`, `SUPABASE_ANON_KEY` y
 > `SUPABASE_SERVICE_ROLE_KEY` ya vienen disponibles en la función.
 
+### 2.b ⚠️ Desactivar "Verify JWT" (si no, falla por CORS)
+
+En la función `crear-usuario` → **Settings** (o "Function configuration") →
+destildá **Verify JWT** / *"Enforce JWT verification"* → Guardar.
+
+**Por qué:** con esa opción activa, el gateway de Supabase rechaza el
+**preflight `OPTIONS`** del navegador (que viaja sin `Authorization`), y
+el pedido muere antes de llegar al código. El síntoma es exactamente:
+
+```
+Access to fetch ... has been blocked by CORS policy: Response to preflight
+request doesn't pass access control check: It does not have HTTP ok status.
+```
+
+**No la deja abierta:** la propia función verifica el JWT de quien llama y
+corta con 403 si no es director.
+
+### 2.c Si sigue fallando: mirá los logs
+Edge Functions → `crear-usuario` → **Logs**. Si aparece `BOOT_ERROR`, el
+código no arrancó (import mal pegado): volvé a pegar el archivo y re-deploy.
+
 ## 3. Probar en el dev server (localhost:5173)
 Entrá como **director** (admin@lazos.test).
 

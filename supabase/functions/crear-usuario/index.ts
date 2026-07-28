@@ -12,14 +12,20 @@
 // nombre exacto `crear-usuario`, pegá este archivo y Deploy. Las variables
 // SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY ya vienen
 // disponibles solas; no hay que cargar secretos.
+//
+// IMPORTANTE — "Verify JWT" debe estar DESACTIVADO en los ajustes de esta
+// función. Si está activo, el gateway rechaza el preflight OPTIONS (que va
+// sin Authorization) y el navegador falla con error de CORS. La función NO
+// queda abierta: verifica ella misma que quien llama sea director (paso 1).
 // =====================================================================
 
-import { createClient } from 'jsr:@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-api-version',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Max-Age': '86400',
 };
 
 // Respuesta JSON con los headers de CORS.
@@ -31,8 +37,8 @@ function json(body: unknown, status = 200): Response {
 }
 
 Deno.serve(async (req) => {
-  // Preflight de CORS.
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+  // Preflight de CORS: se responde SIEMPRE con 204 y sin tocar nada más.
+  if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors });
   if (req.method !== 'POST') return json({ error: 'Método no permitido.' }, 405);
 
   try {
