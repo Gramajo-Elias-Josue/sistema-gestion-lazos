@@ -421,3 +421,13 @@ tbody tr:last-child td{border-bottom:none}
   .login-main{padding:30px 26px 36px}
   .login-form{max-width:none}
 }
+
+/* =====================================================================
+   PERMISOS (Administración): grilla de secciones tildables. Cada sección
+   es una tarjeta clickeable, más cómoda que un checkbox suelto.
+   ===================================================================== */
+.perm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:9px;margin:6px 0 8px}
+.perm-item{display:flex;align-items:center;gap:9px;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card-2);cursor:pointer;font-size:15px;font-weight:500;color:var(--ink);transition:.15s}
+.perm-item:hover{border-color:var(--teal-500);background:var(--teal-50)}
+.perm-item input{width:17px;height:17px;accent-color:var(--teal-700);cursor:pointer;flex-shrink:0}
+.perm-item:has(input:checked){border-color:var(--teal-700);background:var(--teal-50)}

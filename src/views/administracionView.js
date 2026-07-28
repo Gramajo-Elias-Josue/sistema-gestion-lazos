@@ -2,46 +2,54 @@
 // VISTA: Administración / Usuarios (Etapa 2 · Fase B)
 // ---------------------------------------------------------------------
 // CAPA VISTA. Pantalla del director para gestionar usuarios: ver la lista,
-// asignar rol y secciones (permisos) por usuario, y dar de alta uno nuevo.
-// Funciones puras: devuelven HTML; el controlador conecta los eventos.
+// dar de alta uno nuevo y asignarle rol y secciones (permisos) desde un
+// panel dedicado. Funciones puras: devuelven HTML; el controlador conecta
+// los eventos.
+//
+// El rol DIRECTOR no se asigna desde la app (se define en la base): es el
+// dueño del sistema y tiene acceso total no editable.
 // =====================================================================
 
 import { esc, pill } from '../utils/ui.js';
-import { SECCIONES, seccionesEfectivas, etiquetaRol } from '../permisos.js';
+import { SECCIONES, seccionesEfectivas, seccionesPorDefecto, etiquetaRol } from '../permisos.js';
 
 // Secciones que el director puede TILDAR por usuario. "inicio" queda fuera
-// (siempre está disponible) y "administracion" también (reservada al director).
+// (siempre está disponible) y "administracion" también (sólo el director).
 const SECCIONES_ASIGNABLES = SECCIONES.filter(s => s.clave !== 'inicio' && s.clave !== 'administracion');
 
-const ROLES = [
+// Roles asignables desde la app (director NO: se define en la base).
+const ROLES_ASIGNABLES = [
   { clave: 'secretaria',  etiqueta: 'Secretaría' },
   { clave: 'profesional', etiqueta: 'Profesional' },
-  { clave: 'director',    etiqueta: 'Director' },
 ];
+
+// Etiqueta legible de una sección.
+function etiquetaSeccion(clave) {
+  return SECCIONES.find(s => s.clave === clave)?.etiqueta || clave;
+}
 
 // Estructura base: encabezado + botón "Nuevo usuario" + tabla.
 export function renderEstructura() {
   return `
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px">
       <p style="color:var(--ink-soft);font-size:15px">Gestión de usuarios del sistema. Asigná el rol y las secciones a las que accede cada uno. El director siempre tiene acceso total.</p>
-      <button class="btn" id="btn-nuevo-usuario">+ Nuevo usuario</button>
+      <button class="btn" id="btn-nuevo-usuario" style="white-space:nowrap">+ Nuevo usuario</button>
     </div>
     <div id="usuarios-tabla"></div>`;
 }
 
-// Fila de checkboxes de secciones para un usuario (según sus permisos efectivos).
-function checkboxesSecciones(usuario) {
-  const efectivas = seccionesEfectivas(usuario);
-  const esDirector = usuario.rol === 'director';
-  return SECCIONES_ASIGNABLES.map(s => `
-    <label style="display:inline-flex;align-items:center;gap:5px;font-weight:normal;font-size:13.5px;white-space:nowrap">
-      <input type="checkbox" class="usr-sec" data-sec="${s.clave}"
-        ${efectivas.includes(s.clave) ? 'checked' : ''} ${esDirector ? 'disabled' : ''}>
-      ${esc(s.etiqueta)}
-    </label>`).join('');
+// Resumen de las secciones de un usuario, como chips (solo lectura).
+function resumenSecciones(usuario) {
+  const efectivas = seccionesEfectivas(usuario)
+    .filter(c => c !== 'inicio' && c !== 'administracion');
+  if (!efectivas.length) return `<small style="color:var(--ink-faint)">Solo Inicio</small>`;
+  return `<div style="display:flex;flex-wrap:wrap;gap:6px">` +
+    efectivas.map(c => `<span class="pill">${esc(etiquetaSeccion(c))}</span>`).join('') +
+    `</div>`;
 }
 
-// Tabla de usuarios. Una fila por usuario con su rol (select) y secciones.
+// Tabla de usuarios. Una fila por usuario con su rol, sus secciones y el
+// botón para abrir el panel de permisos.
 export function renderListaUsuarios(usuarios) {
   if (!usuarios.length) {
     return `<div class="tablewrap"><div class="state">No hay usuarios cargados.</div></div>`;
@@ -50,8 +58,6 @@ export function renderListaUsuarios(usuarios) {
   const filas = usuarios.map(u => {
     const esDirector = u.rol === 'director';
     const nombre = u.nombre || u.email || 'Usuario';
-    const opcionesRol = ROLES.map(r =>
-      `<option value="${r.clave}" ${r.clave === u.rol ? 'selected' : ''}>${r.etiqueta}</option>`).join('');
 
     return `
       <tr data-id="${esc(u.id)}">
@@ -61,17 +67,12 @@ export function renderListaUsuarios(usuarios) {
             <div><b>${esc(nombre)}</b><br><small>${esc(u.email || '')}</small></div>
           </div>
         </td>
-        <td>
-          <select class="usr-rol" ${esDirector ? 'disabled' : ''}
-            style="font-family:var(--body);font-size:14px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--card-2);color:var(--ink)">${opcionesRol}</select>
-        </td>
-        <td>
-          ${esDirector
-            ? pill('ok', 'Acceso total')
-            : `<div style="display:flex;flex-wrap:wrap;gap:8px 14px">${checkboxesSecciones(u)}</div>`}
-        </td>
+        <td>${esDirector ? pill('ok', 'Director') : esc(etiquetaRol(u.rol))}</td>
+        <td>${esDirector ? pill('ok', 'Acceso total') : resumenSecciones(u)}</td>
         <td style="text-align:right;white-space:nowrap">
-          ${esDirector ? '' : `<button class="btn btn-guardar-usr" data-id="${esc(u.id)}" style="padding:7px 13px">Guardar</button>`}
+          ${esDirector
+            ? '<small style="color:var(--ink-faint)">No editable</small>'
+            : `<button class="btn ghost btn-permisos" data-id="${esc(u.id)}" style="padding:7px 13px">Permisos</button>`}
         </td>
       </tr>`;
   }).join('');
@@ -87,10 +88,62 @@ export function renderListaUsuarios(usuarios) {
     </div>`;
 }
 
-// Modal de alta de un usuario nuevo.
+// Panel de PERMISOS de un usuario: rol + checkboxes de secciones.
+// Se abre al crear un usuario y al tocar "Permisos" en la lista.
+export function renderModalPermisos(usuario) {
+  const nombre = usuario.nombre || usuario.email || 'Usuario';
+  const efectivas = seccionesEfectivas(usuario);
+
+  const opcionesRol = ROLES_ASIGNABLES.map(r =>
+    `<option value="${r.clave}" ${r.clave === usuario.rol ? 'selected' : ''}>${r.etiqueta}</option>`).join('');
+
+  // Cada sección como una tarjeta clickeable (más cómoda que un checkbox suelto).
+  const items = SECCIONES_ASIGNABLES.map(s => `
+    <label class="perm-item">
+      <input type="checkbox" class="usr-sec" data-sec="${s.clave}" ${efectivas.includes(s.clave) ? 'checked' : ''}>
+      <span>${esc(s.etiqueta)}</span>
+    </label>`).join('');
+
+  return `
+    <div class="overlay" id="overlay-permisos">
+      <div class="modal" style="max-width:520px">
+        <div class="modal-h">
+          <h2>Permisos · ${esc(nombre)}</h2>
+          <button class="x" data-cerrar>×</button>
+        </div>
+        <form id="form-permisos" data-id="${esc(usuario.id)}">
+          <div class="modal-b">
+            <div class="form-field full" style="margin-bottom:14px">
+              <label>Rol</label>
+              <select name="rol" id="perm-rol">${opcionesRol}</select>
+              <small style="color:var(--ink-faint)">Al cambiar el rol se marcan sus secciones por defecto; después podés ajustarlas.</small>
+            </div>
+
+            <div class="form-field full">
+              <label>Secciones que puede ver</label>
+              <div class="perm-grid" id="perm-secciones">${items}</div>
+              <small style="color:var(--ink-faint)">“Inicio” está siempre disponible. “Administración” es exclusiva del director.</small>
+            </div>
+          </div>
+          <div class="modal-f">
+            <button type="button" class="btn ghost" data-cerrar>Cancelar</button>
+            <button type="submit" class="btn" id="btn-guardar-permisos">Guardar permisos</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
+}
+
+// Marca en el panel las secciones por defecto de un rol (lo usa el
+// controlador cuando se cambia el rol en el select).
+export function seccionesDefaultDeRol(rol) {
+  return seccionesPorDefecto(rol);
+}
+
+// Modal de alta de un usuario nuevo (cuenta + rol inicial).
 export function renderFormUsuario() {
-  const opcionesRol = ROLES.filter(r => r.clave !== 'director')
-    .map(r => `<option value="${r.clave}">${r.etiqueta}</option>`).join('');
+  const opcionesRol = ROLES_ASIGNABLES.map(r =>
+    `<option value="${r.clave}">${r.etiqueta}</option>`).join('');
 
   return `
     <div class="overlay" id="overlay-usuario">
@@ -106,7 +159,7 @@ export function renderFormUsuario() {
                 <select name="rol">${opcionesRol}</select>
               </div>
               <div class="form-field full">
-                <small style="color:var(--ink-faint)">El usuario arranca con las secciones por defecto de su rol; después las ajustás desde la lista.</small>
+                <small style="color:var(--ink-faint)">Al crearlo se abre el panel de permisos para ajustar sus secciones.</small>
               </div>
             </div>
           </div>
