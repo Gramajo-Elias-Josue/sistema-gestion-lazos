@@ -19,6 +19,7 @@ import { obtenerPerfil } from './perfil.js';
 import { setPerfil, perfilActual, rolActual } from './sesion.js';
 import { seccionesEfectivas, etiquetaRol } from './permisos.js';
 import { montarLogin } from './controllers/loginController.js';
+import { abrirPerfil, pintarAvatar } from './controllers/perfilController.js';
 import { iniciarInicio } from './controllers/inicioController.js';
 import { iniciarAdmision } from './controllers/admisionController.js';
 import { iniciarPacientes } from './controllers/pacientesController.js';
@@ -44,6 +45,10 @@ if (!loginRoot) {
 // Se arranca la parte "interna" de la app una sola vez, aunque la sesión
 // cambie varias veces (p. ej. logout + login sin recargar).
 let appIniciada = false;
+// Sesión vigente. Se guarda aparte porque los listeners se conectan una
+// sola vez: si usaran la sesión del closure, tras un logout + login
+// quedarían apuntando al usuario anterior.
+let sesionActual = null;
 
 // Conecta cada sección con su controlador (solo la primera vez).
 function registrarControladores() {
@@ -58,6 +63,7 @@ function registrarControladores() {
 
 // Muestra la app y arranca la navegación (idempotente).
 async function arrancarApp(sesion) {
+  sesionActual = sesion;
   loginRoot.innerHTML = '';
   appEl.classList.remove('hidden');
   mostrarUsuario(sesion);
@@ -68,13 +74,31 @@ async function arrancarApp(sesion) {
   setPerfil(perfil);
   aplicarPermisos(perfilActual());
   mostrarRol(rolActual());
+  refrescarAvatar();
 
   if (appIniciada) return;
   appIniciada = true;
   registrarControladores();
   iniciarSidebar();
   conectarLogout();
+  conectarPerfil();
   iniciarRouter();
+}
+
+// Pinta el avatar del usuario en el encabezado (predefinido, foto o iniciales).
+function refrescarAvatar() {
+  const email = sesionActual?.user?.email || '';
+  const perfil = perfilActual();
+  pintarAvatar(document.getElementById('who-av'), perfil, perfil?.nombre || email);
+}
+
+// Tocar los datos del usuario en el encabezado abre su perfil (avatar).
+function conectarPerfil() {
+  const btn = document.getElementById('btn-perfil');
+  if (!btn) return;
+  btn.addEventListener('click', () => {
+    abrirPerfil(sesionActual?.user?.email || '', refrescarAvatar);
+  });
 }
 
 // Muestra la pantalla de login y oculta la app. Limpia el perfil anterior.

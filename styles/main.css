@@ -146,8 +146,12 @@ body{font-family:var(--body);background:var(--paper);color:var(--ink);-webkit-fo
 .theme-toggle .ic-sun{display:none}
 :root[data-theme="dark"] .theme-toggle .ic-moon{display:none}
 :root[data-theme="dark"] .theme-toggle .ic-sun{display:block}
-.who{display:flex;align-items:center;gap:10px}
-.who .av{width:40px;height:40px;border-radius:50%;background:var(--teal-100);color:var(--teal-700);display:grid;place-items:center;font-weight:600;font-size:16px}
+/* Bloque del usuario en el encabezado. Es un <button> (abre "Mi perfil"),
+   así que se resetean los estilos propios del botón. */
+.who{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;padding:5px 8px;border-radius:12px;transition:background .15s}
+.who:hover{background:var(--card-2)}
+.who > div:last-child{text-align:left}
+.who .av{width:40px;height:40px;border-radius:50%;background:var(--teal-100);color:var(--teal-700);display:grid;place-items:center;font-weight:600;font-size:16px;overflow:hidden;flex-shrink:0}
 .who small{display:block;color:var(--ink-faint);font-size:13.5px}
 .who b{font-size:16.5px;font-weight:600}
 
@@ -431,3 +435,15 @@ tbody tr:last-child td{border-bottom:none}
 .perm-item:hover{border-color:var(--teal-500);background:var(--teal-50)}
 .perm-item input{width:17px;height:17px;accent-color:var(--teal-700);cursor:pointer;flex-shrink:0}
 .perm-item:has(input:checked){border-color:var(--teal-700);background:var(--teal-50)}
+
+/* =====================================================================
+   MI PERFIL: vista previa del avatar + grilla de avatares predefinidos.
+   ===================================================================== */
+.perfil-cab{display:flex;align-items:center;gap:14px;padding:4px 0 16px;margin-bottom:12px;border-bottom:1px solid var(--line)}
+.perfil-av{width:72px;height:72px;border-radius:50%;background:var(--teal-100);color:var(--teal-700);display:grid;place-items:center;font-weight:600;font-size:28px;overflow:hidden;flex-shrink:0;border:2px solid var(--line)}
+.perfil-cab b{display:block;font-size:17px;color:var(--ink)}
+.perfil-cab small{display:block;font-size:13.5px;color:var(--ink-faint)}
+.av-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:10px;margin-top:6px}
+.av-opcion{all:unset;cursor:pointer;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;font-size:26px;border:2px solid transparent;transition:.15s}
+.av-opcion:hover{transform:scale(1.08)}
+.av-opcion.sel{border-color:var(--teal-700);box-shadow:0 0 0 3px var(--teal-100)}

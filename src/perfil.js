@@ -30,3 +30,32 @@ export async function obtenerPerfil(sesion) {
     return null;
   }
 }
+
+const BUCKET_AVATARES = 'avatares';
+
+// Guarda el avatar del usuario logueado. Se hace por una función de la base
+// (`actualizar_mi_avatar`) que sólo toca esa columna: así el usuario no
+// puede cambiarse el rol ni sus permisos al editar su perfil.
+export async function guardarAvatar(valor) {
+  const { error } = await supabase.rpc('actualizar_mi_avatar', { nuevo: valor });
+  if (error) throw error;
+}
+
+// Sube la foto de perfil al bucket "avatares" y devuelve su ruta.
+// `upsert:true` permite reemplazar una foto anterior con el mismo nombre.
+export async function subirFotoAvatar(ruta, archivo) {
+  const { error } = await supabase
+    .storage.from(BUCKET_AVATARES)
+    .upload(ruta, archivo, { cacheControl: '3600', upsert: true });
+  if (error) throw error;
+  return ruta;
+}
+
+// URL temporal firmada para mostrar una foto de perfil (el bucket es privado).
+export async function urlAvatar(ruta, segundos = 3600) {
+  const { data, error } = await supabase
+    .storage.from(BUCKET_AVATARES)
+    .createSignedUrl(ruta, segundos);
+  if (error) throw error;
+  return data.signedUrl;
+}
