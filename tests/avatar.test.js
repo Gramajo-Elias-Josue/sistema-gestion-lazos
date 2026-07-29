@@ -1,7 +1,7 @@
 // Tests del avatar del perfil (utils/avatar.js). Puro: interpreta y arma
 // el valor que se guarda en `perfiles.avatar`.
 import { describe, it, expect } from 'vitest';
-import { AVATARES, parseAvatar, valorPreset, valorFoto, rutaFoto } from '../src/utils/avatar.js';
+import { AVATARES, parseAvatar, valorPreset, valorFoto, rutaFoto, inicialesDe } from '../src/utils/avatar.js';
 
 describe('avatar.parseAvatar', () => {
   it('sin avatar guardado -> iniciales', () => {
@@ -11,10 +11,15 @@ describe('avatar.parseAvatar', () => {
   });
 
   it('reconoce un avatar predefinido y devuelve sus datos', () => {
-    const r = parseAvatar('preset:sonrisa');
+    const r = parseAvatar('preset:navy');
     expect(r.tipo).toBe('preset');
-    expect(r.preset.clave).toBe('sonrisa');
-    expect(r.preset.emoji).toBeTruthy();
+    expect(r.preset.clave).toBe('navy');
+    expect(r.preset.color).toBeTruthy();
+    expect(r.preset.texto).toBeTruthy();
+  });
+
+  it('[compatibilidad] un avatar viejo (emojis) ya no existe -> cae en iniciales', () => {
+    expect(parseAvatar('preset:gato').tipo).toBe('iniciales');
   });
 
   it('un preset inexistente cae en iniciales (no rompe)', () => {
@@ -40,8 +45,30 @@ describe('avatar: valores que se guardan', () => {
   });
 
   it('ida y vuelta: lo que se guarda se vuelve a interpretar igual', () => {
-    expect(parseAvatar(valorPreset('luna')).preset.clave).toBe('luna');
+    expect(parseAvatar(valorPreset('pizarra')).preset.clave).toBe('pizarra');
     expect(parseAvatar(valorFoto('u1/x.png')).ruta).toBe('u1/x.png');
+  });
+});
+
+describe('avatar.inicialesDe (monograma)', () => {
+  it('nombre y apellido -> una letra de cada uno', () => {
+    expect(inicialesDe('Ana Gómez')).toBe('AG');
+    expect(inicialesDe('  juan  perez  ')).toBe('JP'); // tolera espacios de más
+  });
+
+  it('nombre de una sola palabra o email -> dos primeras letras', () => {
+    expect(inicialesDe('Director')).toBe('DI');
+    expect(inicialesDe('admin@lazos.test')).toBe('AD');
+  });
+
+  it('con más de dos palabras usa las dos primeras', () => {
+    expect(inicialesDe('María del Carmen Ruiz')).toBe('MD');
+  });
+
+  it('vacío o nulo -> US (nunca queda en blanco)', () => {
+    expect(inicialesDe('')).toBe('US');
+    expect(inicialesDe(null)).toBe('US');
+    expect(inicialesDe(undefined)).toBe('US');
   });
 });
 
@@ -61,14 +88,23 @@ describe('avatar.rutaFoto', () => {
   });
 });
 
-describe('avatar.AVATARES (catálogo)', () => {
-  it('todos tienen clave, emoji y color, y las claves no se repiten', () => {
+describe('avatar.AVATARES (catálogo de monogramas)', () => {
+  it('todos tienen clave, nombre legible y colores válidos', () => {
     expect(AVATARES.length).toBeGreaterThan(4);
     AVATARES.forEach(a => {
       expect(a.clave).toBeTruthy();
-      expect(a.emoji).toBeTruthy();
-      expect(a.color).toMatch(/^#/);
+      expect(a.nombre).toBeTruthy();     // se muestra como tooltip
+      expect(a.color).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(a.texto).toMatch(/^#[0-9a-f]{6}$/i);  // color de la letra
     });
+  });
+
+  it('las claves y los colores no se repiten', () => {
     expect(new Set(AVATARES.map(a => a.clave)).size).toBe(AVATARES.length);
+    expect(new Set(AVATARES.map(a => a.color)).size).toBe(AVATARES.length);
+  });
+
+  it('[legibilidad] ningún avatar usa emojis (se ven distinto en cada sistema)', () => {
+    AVATARES.forEach(a => expect(a.emoji).toBeUndefined());
   });
 });

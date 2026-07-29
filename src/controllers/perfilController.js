@@ -9,7 +9,7 @@
 import { renderPerfil } from '../views/perfilView.js';
 import { guardarAvatar, subirFotoAvatar, urlAvatar } from '../perfil.js';
 import { perfilActual, setPerfil } from '../sesion.js';
-import { parseAvatar, valorPreset, valorFoto, rutaFoto, AVATARES } from '../utils/avatar.js';
+import { parseAvatar, valorPreset, valorFoto, rutaFoto, AVATARES, inicialesDe } from '../utils/avatar.js';
 import { toast } from '../utils/ui.js';
 import { mensajeError } from '../utils/errores.js';
 
@@ -21,18 +21,21 @@ const MAX_MB = 2;
 export async function pintarAvatar(el, perfil, textoFallback = 'US') {
   if (!el) return;
   const av = parseAvatar(perfil?.avatar);
-  const iniciales = (textoFallback || 'US').slice(0, 2).toUpperCase();
+  const iniciales = inicialesDe(textoFallback);
 
   if (av.tipo === 'preset') {
-    el.textContent = av.preset.emoji;
+    // Monograma: las iniciales sobre el color elegido.
+    el.textContent = iniciales;
     el.style.background = av.preset.color;
+    el.style.color = av.preset.texto;
     el.style.backgroundImage = '';
     return;
   }
 
-  // Iniciales por defecto (y también mientras carga la foto).
+  // Iniciales con el color por defecto (y mientras carga la foto).
   el.textContent = iniciales;
   el.style.background = '';
+  el.style.color = '';
   el.style.backgroundImage = '';
 
   if (av.tipo === 'foto') {
@@ -83,8 +86,9 @@ export function abrirPerfil(email, onGuardado) {
       cajaError.hidden = true;
       overlay.querySelectorAll('.av-opcion').forEach(b => b.classList.toggle('sel', b === btn));
       const preset = AVATARES.find(a => a.clave === presetElegido);
-      preview.textContent = preset.emoji;
+      preview.textContent = inicialesDe(nombre);
       preview.style.background = preset.color;
+      preview.style.color = preset.texto;
       preview.style.backgroundImage = '';
     });
   });
@@ -121,8 +125,9 @@ export function abrirPerfil(email, onGuardado) {
     inputFoto.value = '';
     cajaError.hidden = true;
     overlay.querySelectorAll('.av-opcion').forEach(b => b.classList.remove('sel'));
-    preview.textContent = (nombre || 'US').slice(0, 2).toUpperCase();
+    preview.textContent = inicialesDe(nombre);
     preview.style.background = '';
+    preview.style.color = '';
     preview.style.backgroundImage = '';
   });
 

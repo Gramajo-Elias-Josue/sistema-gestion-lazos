@@ -9,22 +9,43 @@
 //   'foto:ruta'     -> foto propia, en el bucket "avatares" de Storage
 // =====================================================================
 
-// Avatares predefinidos: un emoji sobre un color de la paleta de Lazos.
-// Alcanzan para que cada persona se distinga de un vistazo sin subir nada.
+// Avatares predefinidos: MONOGRAMAS. Cada uno es un color sobrio sobre el
+// que se muestran las iniciales de la persona (el estilo de las
+// herramientas de trabajo: Slack, Google Workspace, Notion).
+//
+// Se eligió monograma y no ilustraciones/emojis por tres razones:
+//   - es el registro adecuado para un ámbito profesional de salud;
+//   - los emojis se dibujan distinto en cada sistema operativo;
+//   - las iniciales identifican a la persona, no a un dibujo genérico.
+// `texto` es el color de la letra, elegido para que contraste con el fondo.
 export const AVATARES = [
-  { clave: 'sonrisa',   emoji: '🙂', color: '#7bcbf0' },
-  { clave: 'estrella',  emoji: '⭐', color: '#f6a065' },
-  { clave: 'corazon',   emoji: '💙', color: '#9bd6f2' },
-  { clave: 'flor',      emoji: '🌻', color: '#fbe9c8' },
-  { clave: 'sol',       emoji: '☀️', color: '#fde4d2' },
-  { clave: 'luna',      emoji: '🌙', color: '#dcf0fb' },
-  { clave: 'gato',      emoji: '🐱', color: '#f6d4d1' },
-  { clave: 'perro',     emoji: '🐶', color: '#fdf4ec' },
-  { clave: 'planta',    emoji: '🪴', color: '#d6f0dd' },
-  { clave: 'libro',     emoji: '📚', color: '#e6e1d7' },
-  { clave: 'musica',    emoji: '🎵', color: '#e2dcf5' },
-  { clave: 'arcoiris',  emoji: '🌈', color: '#ffe4f0' },
+  { clave: 'navy',      nombre: 'Azul marino',  color: '#1b3865', texto: '#ffffff' },
+  { clave: 'celeste',   nombre: 'Celeste',      color: '#1488c2', texto: '#ffffff' },
+  { clave: 'petroleo',  nombre: 'Petróleo',     color: '#0f6470', texto: '#ffffff' },
+  { clave: 'verde',     nombre: 'Verde',        color: '#2f6f4e', texto: '#ffffff' },
+  { clave: 'oliva',     nombre: 'Oliva',        color: '#5f6b3a', texto: '#ffffff' },
+  { clave: 'pizarra',   nombre: 'Pizarra',      color: '#475569', texto: '#ffffff' },
+  { clave: 'grafito',   nombre: 'Grafito',      color: '#2f3640', texto: '#ffffff' },
+  { clave: 'ciruela',   nombre: 'Ciruela',      color: '#5b4b8a', texto: '#ffffff' },
+  { clave: 'bordo',     nombre: 'Bordó',        color: '#7b2d3b', texto: '#ffffff' },
+  { clave: 'terracota', nombre: 'Terracota',    color: '#9a4b34', texto: '#ffffff' },
+  { clave: 'ambar',     nombre: 'Ámbar',        color: '#b06a06', texto: '#ffffff' },
+  { clave: 'arena',     nombre: 'Arena',        color: '#d8cbb4', texto: '#2b2115' },
 ];
+
+// Iniciales que se muestran en el monograma. Con nombre y apellido toma la
+// primera letra de cada uno ("Ana Gómez" -> "AG"); si es una sola palabra o
+// un email, las dos primeras letras ("admin@lazos.test" -> "AD"). Se usa en
+// el encabezado y en el panel para que siempre coincidan.
+export function inicialesDe(nombreOEmail) {
+  const texto = String(nombreOEmail || '').trim();
+  if (!texto) return 'US';
+  const palabras = texto.split(/\s+/).filter(Boolean);
+  if (palabras.length >= 2) {
+    return (palabras[0][0] + palabras[1][0]).toUpperCase();
+  }
+  return texto.slice(0, 2).toUpperCase();
+}
 
 // Interpreta el valor guardado. Devuelve siempre un objeto con `tipo`:
 //   { tipo:'preset', preset:{…} } | { tipo:'foto', ruta } | { tipo:'iniciales' }
