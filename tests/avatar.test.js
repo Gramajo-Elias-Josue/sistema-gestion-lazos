@@ -1,7 +1,11 @@
 // Tests del avatar del perfil (utils/avatar.js). Puro: interpreta y arma
 // el valor que se guarda en `perfiles.avatar`.
+//
+// Los avatares predefinidos son ARCHIVOS de src/assets/avatares/, así que
+// el catálogo puede estar vacío (si todavía no se cargó ninguno). Por eso
+// los tests del catálogo verifican REGLAS, no una lista fija.
 import { describe, it, expect } from 'vitest';
-import { AVATARES, parseAvatar, valorPreset, valorFoto, rutaFoto, inicialesDe } from '../src/utils/avatar.js';
+import { AVATARES, parseAvatar, valorPreset, valorFoto, rutaFoto, inicialesDe, claveDeArchivo } from '../src/utils/avatar.js';
 
 describe('avatar.parseAvatar', () => {
   it('sin avatar guardado -> iniciales', () => {
@@ -10,20 +14,19 @@ describe('avatar.parseAvatar', () => {
     expect(parseAvatar('').tipo).toBe('iniciales');
   });
 
-  it('reconoce un avatar predefinido y devuelve sus datos', () => {
-    const r = parseAvatar('preset:navy');
+  it('reconoce un avatar del catálogo', () => {
+    if (!AVATARES.length) return; // todavía no hay archivos cargados
+    const primero = AVATARES[0];
+    const r = parseAvatar(valorPreset(primero.clave));
     expect(r.tipo).toBe('preset');
-    expect(r.preset.clave).toBe('navy');
-    expect(r.preset.color).toBeTruthy();
-    expect(r.preset.texto).toBeTruthy();
+    expect(r.preset.clave).toBe(primero.clave);
+    expect(r.preset.url).toBeTruthy();
   });
 
-  it('[compatibilidad] un avatar viejo (emojis) ya no existe -> cae en iniciales', () => {
-    expect(parseAvatar('preset:gato').tipo).toBe('iniciales');
-  });
-
-  it('un preset inexistente cae en iniciales (no rompe)', () => {
-    expect(parseAvatar('preset:no_existe').tipo).toBe('iniciales');
+  it('[robustez] si el archivo del avatar ya no existe -> cae en iniciales', () => {
+    // Pasa si se borra un archivo que algún usuario tenía elegido: se
+    // muestran sus iniciales en vez de romper la pantalla.
+    expect(parseAvatar('preset:archivo_que_no_existe').tipo).toBe('iniciales');
   });
 
   it('reconoce una foto y extrae su ruta', () => {
@@ -40,17 +43,32 @@ describe('avatar.parseAvatar', () => {
 
 describe('avatar: valores que se guardan', () => {
   it('arma el valor de un preset y de una foto', () => {
-    expect(valorPreset('gato')).toBe('preset:gato');
+    expect(valorPreset('medico')).toBe('preset:medico');
     expect(valorFoto('u1/123-x.png')).toBe('foto:u1/123-x.png');
   });
 
-  it('ida y vuelta: lo que se guarda se vuelve a interpretar igual', () => {
-    expect(parseAvatar(valorPreset('pizarra')).preset.clave).toBe('pizarra');
+  it('ida y vuelta de una foto', () => {
     expect(parseAvatar(valorFoto('u1/x.png')).ruta).toBe('u1/x.png');
   });
 });
 
-describe('avatar.inicialesDe (monograma)', () => {
+describe('avatar.rutaFoto', () => {
+  it('[seguridad] la primera carpeta es el id del usuario', () => {
+    // Las políticas del bucket comparan esa carpeta con auth.uid(): así
+    // nadie puede pisar la foto de otro.
+    const ruta = rutaFoto('usuario-123', 'foto.png');
+    expect(ruta.split('/')[0]).toBe('usuario-123');
+  });
+
+  it('limpia el nombre del archivo', () => {
+    const ruta = rutaFoto('u1', 'mi foto (1).png');
+    expect(ruta).not.toContain(' ');
+    expect(ruta).not.toContain('(');
+    expect(ruta.endsWith('.png')).toBe(true);
+  });
+});
+
+describe('avatar.inicialesDe (cuando no hay avatar elegido)', () => {
   it('nombre y apellido -> una letra de cada uno', () => {
     expect(inicialesDe('Ana Gómez')).toBe('AG');
     expect(inicialesDe('  juan  perez  ')).toBe('JP'); // tolera espacios de más
@@ -72,39 +90,48 @@ describe('avatar.inicialesDe (monograma)', () => {
   });
 });
 
-describe('avatar.rutaFoto', () => {
-  it('[seguridad] la primera carpeta es el id del usuario', () => {
-    // Las políticas del bucket comparan esa carpeta con auth.uid(): así
-    // nadie puede pisar la foto de otro.
-    const ruta = rutaFoto('usuario-123', 'foto.png');
-    expect(ruta.split('/')[0]).toBe('usuario-123');
-  });
-
-  it('limpia el nombre del archivo', () => {
-    const ruta = rutaFoto('u1', 'mi foto (1).png');
-    expect(ruta).not.toContain(' ');
-    expect(ruta).not.toContain('(');
-    expect(ruta.endsWith('.png')).toBe(true);
-  });
-});
-
-describe('avatar.AVATARES (catálogo de monogramas)', () => {
-  it('todos tienen clave, nombre legible y colores válidos', () => {
-    expect(AVATARES.length).toBeGreaterThan(4);
+describe('avatar.AVATARES (catálogo leído de la carpeta)', () => {
+  it('cada avatar tiene clave, nombre legible y url', () => {
     AVATARES.forEach(a => {
       expect(a.clave).toBeTruthy();
-      expect(a.nombre).toBeTruthy();     // se muestra como tooltip
-      expect(a.color).toMatch(/^#[0-9a-f]{6}$/i);
-      expect(a.texto).toMatch(/^#[0-9a-f]{6}$/i);  // color de la letra
+      expect(a.nombre).toBeTruthy();
+      expect(a.url).toBeTruthy();
     });
   });
 
-  it('las claves y los colores no se repiten', () => {
+  it('las claves no se repiten (dos archivos no pueden pisarse)', () => {
     expect(new Set(AVATARES.map(a => a.clave)).size).toBe(AVATARES.length);
-    expect(new Set(AVATARES.map(a => a.color)).size).toBe(AVATARES.length);
   });
 
-  it('[legibilidad] ningún avatar usa emojis (se ven distinto en cada sistema)', () => {
-    AVATARES.forEach(a => expect(a.emoji).toBeUndefined());
+  it('las claves sirven como valor a guardar: sin espacios ni mayúsculas', () => {
+    AVATARES.forEach(a => {
+      expect(a.clave).toBe(a.clave.toLowerCase());
+      expect(a.clave).not.toMatch(/\s/);
+      expect(a.clave).toMatch(/^[a-z0-9-]+$/);
+    });
+  });
+});
+
+describe('avatar.claveDeArchivo (el archivo se puede llamar como venga)', () => {
+  it('saca la extensión y pasa a minúsculas', () => {
+    expect(claveDeArchivo('Secretaria2.png')).toBe('secretaria2');
+    expect(claveDeArchivo('doctor.svg')).toBe('doctor');
+  });
+
+  it('reemplaza espacios y símbolos por guiones', () => {
+    // Nombres típicos de una descarga: "empresario (1).png"
+    expect(claveDeArchivo('empresario (1).png')).toBe('empresario-1');
+    expect(claveDeArchivo('perfil (2).png')).toBe('perfil-2');
+    expect(claveDeArchivo('mujer de negocios.png')).toBe('mujer-de-negocios');
+  });
+
+  it('saca los acentos', () => {
+    expect(claveDeArchivo('médico.png')).toBe('medico');
+    expect(claveDeArchivo('Psicólogá.webp')).toBe('psicologa');
+  });
+
+  it('no deja guiones sueltos en los bordes', () => {
+    expect(claveDeArchivo('  perfil  .png')).toBe('perfil');
+    expect(claveDeArchivo('(1).png')).toBe('1');
   });
 });

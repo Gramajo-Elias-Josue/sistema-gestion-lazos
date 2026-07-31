@@ -8,7 +8,7 @@
 
 import { esc } from '../utils/ui.js';
 import { etiquetaRol } from '../permisos.js';
-import { AVATARES, parseAvatar, inicialesDe } from '../utils/avatar.js';
+import { AVATARES, parseAvatar } from '../utils/avatar.js';
 
 // Panel de perfil. `perfil` = fila de `perfiles` del usuario logueado;
 // `email` = su email (viene de la sesión).
@@ -16,13 +16,15 @@ export function renderPerfil(perfil = {}, email = '') {
   const actual = parseAvatar(perfil.avatar);
   const nombre = perfil.nombre || email || 'Usuario';
 
-  // Monogramas: las iniciales de la persona sobre cada color disponible.
-  const ini = esc(inicialesDe(nombre));
-  const opciones = AVATARES.map(a => `
-    <button type="button" class="av-opcion ${actual.tipo === 'preset' && actual.preset.clave === a.clave ? 'sel' : ''}"
-      data-avatar="${a.clave}" style="background:${a.color};color:${a.texto}" title="${esc(a.nombre)}">
-      <span>${ini}</span>
-    </button>`).join('');
+  // Avatares disponibles (archivos de src/assets/avatares/). Si todavía no
+  // hay ninguno, se avisa en vez de mostrar un hueco vacío.
+  const opciones = AVATARES.length
+    ? AVATARES.map(a => `
+        <button type="button" class="av-opcion ${actual.tipo === 'preset' && actual.preset.clave === a.clave ? 'sel' : ''}"
+          data-avatar="${esc(a.clave)}" title="${esc(a.nombre)}" aria-label="${esc(a.nombre)}">
+          <img src="${esc(a.url)}" alt="">
+        </button>`).join('')
+    : `<small style="color:var(--ink-faint)">Todavía no hay avatares cargados. Se agregan poniendo los archivos en <code>src/assets/avatares/</code>.</small>`;
 
   return `
     <div class="overlay" id="overlay-perfil">
@@ -44,7 +46,7 @@ export function renderPerfil(perfil = {}, email = '') {
           </div>
 
           <div class="form-field full">
-            <label>Elegí un color para tus iniciales</label>
+            <label>Elegí un avatar</label>
             <div class="av-grid" id="av-opciones">${opciones}</div>
           </div>
 

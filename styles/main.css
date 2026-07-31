@@ -443,7 +443,10 @@ tbody tr:last-child td{border-bottom:none}
 .perfil-av{width:72px;height:72px;border-radius:50%;background:var(--teal-100);color:var(--teal-700);display:grid;place-items:center;font-weight:600;font-size:28px;overflow:hidden;flex-shrink:0;border:2px solid var(--line)}
 .perfil-cab b{display:block;font-size:17px;color:var(--ink)}
 .perfil-cab small{display:block;font-size:13.5px;color:var(--ink-faint)}
-.av-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(56px,1fr));gap:10px;margin-top:6px}
-.av-opcion{all:unset;cursor:pointer;aspect-ratio:1;border-radius:50%;display:grid;place-items:center;font-size:26px;border:2px solid transparent;transition:.15s}
+.av-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(60px,1fr));gap:10px;margin-top:6px}
+.av-opcion{all:unset;cursor:pointer;aspect-ratio:1;border-radius:50%;display:block;overflow:hidden;border:2px solid transparent;transition:.15s}
+.av-opcion img{width:100%;height:100%;display:block;object-fit:cover}
 .av-opcion:hover{transform:scale(1.08)}
 .av-opcion.sel{border-color:var(--teal-700);box-shadow:0 0 0 3px var(--teal-100)}
+/* El avatar elegido llena el círculo (encabezado y vista previa). */
+.perfil-av img,.who .av img{width:100%;height:100%;display:block;object-fit:cover}

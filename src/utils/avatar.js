@@ -5,38 +5,81 @@
 //
 // El avatar se guarda en `perfiles.avatar` como un texto con prefijo:
 //   null            -> iniciales del nombre (por defecto)
-//   'preset:sonrisa'-> uno de los avatares predefinidos (AVATARES)
+//   'preset:medico' -> uno de los avatares de src/assets/avatares/
 //   'foto:ruta'     -> foto propia, en el bucket "avatares" de Storage
+//
+// LOS AVATARES PREDEFINIDOS SON ARCHIVOS: se detectan solos desde
+// `src/assets/avatares/`. Para agregar o sacar uno, se agrega o se borra
+// el archivo; no hay que tocar el código.
+//   - Formatos: .svg (ideal), .png o .webp
+//   - El NOMBRE del archivo es la clave que se guarda en la base, así que
+//     conviene que sea corto, en minúsculas y sin acentos ni espacios:
+//     medico.svg, secretaria.svg, directora.svg, kinesiologo.svg…
 // =====================================================================
 
-// Avatares predefinidos: MONOGRAMAS. Cada uno es un color sobrio sobre el
-// que se muestran las iniciales de la persona (el estilo de las
-// herramientas de trabajo: Slack, Google Workspace, Notion).
-//
-// Se eligió monograma y no ilustraciones/emojis por tres razones:
-//   - es el registro adecuado para un ámbito profesional de salud;
-//   - los emojis se dibujan distinto en cada sistema operativo;
-//   - las iniciales identifican a la persona, no a un dibujo genérico.
-// `texto` es el color de la letra, elegido para que contraste con el fondo.
-export const AVATARES = [
-  { clave: 'navy',      nombre: 'Azul marino',  color: '#1b3865', texto: '#ffffff' },
-  { clave: 'celeste',   nombre: 'Celeste',      color: '#1488c2', texto: '#ffffff' },
-  { clave: 'petroleo',  nombre: 'Petróleo',     color: '#0f6470', texto: '#ffffff' },
-  { clave: 'verde',     nombre: 'Verde',        color: '#2f6f4e', texto: '#ffffff' },
-  { clave: 'oliva',     nombre: 'Oliva',        color: '#5f6b3a', texto: '#ffffff' },
-  { clave: 'pizarra',   nombre: 'Pizarra',      color: '#475569', texto: '#ffffff' },
-  { clave: 'grafito',   nombre: 'Grafito',      color: '#2f3640', texto: '#ffffff' },
-  { clave: 'ciruela',   nombre: 'Ciruela',      color: '#5b4b8a', texto: '#ffffff' },
-  { clave: 'bordo',     nombre: 'Bordó',        color: '#7b2d3b', texto: '#ffffff' },
-  { clave: 'terracota', nombre: 'Terracota',    color: '#9a4b34', texto: '#ffffff' },
-  { clave: 'ambar',     nombre: 'Ámbar',        color: '#b06a06', texto: '#ffffff' },
-  { clave: 'arena',     nombre: 'Arena',        color: '#d8cbb4', texto: '#2b2115' },
-];
+// Vite lee la carpeta en tiempo de compilación y devuelve la URL final de
+// cada archivo (ya optimizada y con control de caché).
+const ARCHIVOS = import.meta.glob('../assets/avatares/*.{svg,png,webp,jpg,jpeg}', {
+  eager: true,
+  query: '?url',
+  import: 'default',
+});
 
-// Iniciales que se muestran en el monograma. Con nombre y apellido toma la
-// primera letra de cada uno ("Ana Gómez" -> "AG"); si es una sola palabra o
-// un email, las dos primeras letras ("admin@lazos.test" -> "AD"). Se usa en
-// el encabezado y en el panel para que siempre coincidan.
+// Etiquetas legibles para las claves más habituales (se muestran como
+// ayuda al pasar el mouse). Si un archivo no está acá, se arma un nombre
+// a partir del propio nombre del archivo.
+const ETIQUETAS = {
+  medico: 'Médico', medica: 'Médica',
+  enfermero: 'Enfermero', enfermera: 'Enfermera',
+  secretario: 'Secretario', secretaria: 'Secretaria',
+  director: 'Director', directora: 'Directora',
+  psicologo: 'Psicólogo', psicologa: 'Psicóloga',
+  fonoaudiologo: 'Fonoaudiólogo', fonoaudiologa: 'Fonoaudióloga',
+  kinesiologo: 'Kinesiólogo', kinesiologa: 'Kinesióloga',
+  terapista: 'Terapista', docente: 'Docente',
+  psicopedagogo: 'Psicopedagogo', psicopedagoga: 'Psicopedagoga',
+  administrativo: 'Administrativo', administrativa: 'Administrativa',
+};
+
+// Normaliza el nombre del archivo para usarlo como clave en la base:
+// minúsculas, sin acentos y sin espacios ni símbolos.
+//   "Secretaria2.png"     -> "secretaria2"
+//   "empresario (1).png"  -> "empresario-1"
+// Así el archivo se puede llamar como venga del banco de iconos y la clave
+// guardada sigue siendo limpia y estable.
+export function claveDeArchivo(nombreArchivo) {
+  return String(nombreArchivo)
+    .replace(/\.[^.]+$/, '')                            // saca la extensión
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')   // saca los acentos
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')                        // todo lo demás -> guion
+    .replace(/^-+|-+$/g, '');                           // sin guiones al borde
+}
+
+// "medico-general" -> "Medico general" (respaldo si no está en ETIQUETAS).
+function etiquetaDe(clave) {
+  if (ETIQUETAS[clave]) return ETIQUETAS[clave];
+  const texto = clave.replace(/[-_]+/g, ' ').trim();
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
+// Catálogo de avatares disponibles, ordenado alfabéticamente.
+// Cada uno: { clave (del nombre del archivo), nombre (legible), url }.
+// Si dos archivos dieran la misma clave, se conserva el primero para que
+// una elección guardada no cambie de dibujo por sorpresa.
+const vistas = new Set();
+export const AVATARES = Object.entries(ARCHIVOS)
+  .map(([ruta, url]) => {
+    const clave = claveDeArchivo(ruta.split('/').pop());
+    return { clave, nombre: etiquetaDe(clave), url };
+  })
+  .filter(a => a.clave && !vistas.has(a.clave) && vistas.add(a.clave))
+  .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+
+// Iniciales que se muestran cuando no hay avatar elegido. Con nombre y
+// apellido toma la primera letra de cada uno ("Ana Gómez" -> "AG"); si es
+// una sola palabra o un email, las dos primeras ("admin@lazos.test" ->
+// "AD"). Se usa en el encabezado y en el panel para que siempre coincidan.
 export function inicialesDe(nombreOEmail) {
   const texto = String(nombreOEmail || '').trim();
   if (!texto) return 'US';
@@ -49,6 +92,8 @@ export function inicialesDe(nombreOEmail) {
 
 // Interpreta el valor guardado. Devuelve siempre un objeto con `tipo`:
 //   { tipo:'preset', preset:{…} } | { tipo:'foto', ruta } | { tipo:'iniciales' }
+// Si el avatar guardado ya no existe (se borró el archivo), cae en
+// iniciales en vez de romper.
 export function parseAvatar(valor) {
   if (typeof valor === 'string') {
     if (valor.startsWith('preset:')) {

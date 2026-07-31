@@ -24,18 +24,16 @@ export async function pintarAvatar(el, perfil, textoFallback = 'US') {
   const iniciales = inicialesDe(textoFallback);
 
   if (av.tipo === 'preset') {
-    // Monograma: las iniciales sobre el color elegido.
-    el.textContent = iniciales;
-    el.style.background = av.preset.color;
-    el.style.color = av.preset.texto;
+    // Avatar elegido de los archivos de src/assets/avatares/.
+    el.innerHTML = `<img src="${av.preset.url}" alt="">`;
+    el.style.background = '';
     el.style.backgroundImage = '';
     return;
   }
 
-  // Iniciales con el color por defecto (y mientras carga la foto).
+  // Iniciales (por defecto y mientras carga la foto).
   el.textContent = iniciales;
   el.style.background = '';
-  el.style.color = '';
   el.style.backgroundImage = '';
 
   if (av.tipo === 'foto') {
@@ -86,9 +84,8 @@ export function abrirPerfil(email, onGuardado) {
       cajaError.hidden = true;
       overlay.querySelectorAll('.av-opcion').forEach(b => b.classList.toggle('sel', b === btn));
       const preset = AVATARES.find(a => a.clave === presetElegido);
-      preview.textContent = inicialesDe(nombre);
-      preview.style.background = preset.color;
-      preview.style.color = preset.texto;
+      preview.innerHTML = `<img src="${preset.url}" alt="">`;
+      preview.style.background = '';
       preview.style.backgroundImage = '';
     });
   });
