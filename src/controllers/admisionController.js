@@ -10,7 +10,8 @@ import * as pacienteModel from '../models/pacienteModel.js';
 import * as admisionModel from '../models/admisionModel.js';
 import { renderEstructura, renderLista, renderAdmision } from '../views/admisionView.js';
 import { abrirFormPaciente } from './pacientesController.js';
-import { htmlCargando, htmlError, toast, pill } from '../utils/ui.js';
+import { htmlCargando, htmlError, toast, pill, confirmar } from '../utils/ui.js';
+import { mensajeError } from '../utils/errores.js';
 
 // Punto de entrada de la sección Admisión (lo llama el router).
 export async function iniciarAdmision() {
@@ -116,7 +117,7 @@ async function onChecklistChange(e, pacienteId) {
     actualizarProgreso();
   } catch (err) {
     console.error('Error guardando requisito de admisión:', err);
-    toast('No se pudo guardar el cambio.', 'bad');
+    toast('No se pudo guardar. Probá de nuevo.', 'bad');
     if (t.classList.contains('adm-check')) check.checked = !presentado; // revertir
   }
 }
@@ -136,28 +137,44 @@ function actualizarProgreso() {
 async function aprobar(id, nombre) {
   const checks = document.querySelectorAll('#adm-checklist .adm-check');
   const faltan = [...checks].filter(c => !c.checked).length;
-  let aviso = `¿Aprobar la admisión de ${nombre}? Pasará a ser un paciente activo.`;
-  if (checks.length && faltan) aviso += `\n\nOjo: faltan ${faltan} documento(s) por marcar como presentados.`;
-  if (!window.confirm(aviso)) return;
+
+  const mensaje = faltan
+    ? `${nombre} pasa a ser paciente del centro. Todavía ${faltan === 1 ? 'falta 1 documento' : `faltan ${faltan} documentos`} por presentar.`
+    : `${nombre} pasa a ser paciente del centro.`;
+
+  const seguir = await confirmar({
+    titulo: 'Aprobar admisión',
+    mensaje,
+    textoOk: faltan ? 'Aprobar igual' : 'Aprobar',
+    textoCancelar: 'Volver',
+  });
+  if (!seguir) return;
 
   try {
     await pacienteModel.cambiarEstadoAdmision(id, 'admitido');
-    toast('Admisión aprobada. El paciente ya está activo.');
+    toast(`Listo, ${nombre} ya figura entre los pacientes.`);
     await cargarLista();
   } catch (err) {
     console.error('Error aprobando admisión:', err);
-    toast('No se pudo aprobar la admisión.', 'bad');
+    toast(mensajeError(err, 'No se pudo aprobar la admisión. Probá de nuevo.'), 'bad');
   }
 }
 
 async function rechazar(id, nombre) {
-  if (!window.confirm(`¿Rechazar la admisión de ${nombre}? Quedará fuera del listado de admisión.`)) return;
+  const seguir = await confirmar({
+    titulo: 'Rechazar admisión',
+    mensaje: `${nombre} deja de figurar en la lista de admisión. Sus datos no se borran.`,
+    textoOk: 'Rechazar',
+    textoCancelar: 'Volver',
+    peligro: true,
+  });
+  if (!seguir) return;
   try {
     await pacienteModel.cambiarEstadoAdmision(id, 'rechazado');
     toast('Admisión rechazada.');
     await cargarLista();
   } catch (err) {
     console.error('Error rechazando admisión:', err);
-    toast('No se pudo rechazar la admisión.', 'bad');
+    toast(mensajeError(err, 'No se pudo rechazar la admisión. Probá de nuevo.'), 'bad');
   }
 }

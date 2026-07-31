@@ -104,7 +104,7 @@ async function guardar(pacienteId) {
   // Gate: solo se evalúa a un paciente YA ATENDIDO (turno 'atendido').
   const it = items.find(i => String(i.pacienteId) === String(pacienteId));
   if (!it || it.estado !== 'atendido') {
-    toast('Primero marcá el turno como Atendido en Agenda para poder evaluar.', 'bad');
+    toast('Este paciente todavía no figura atendido hoy. La evaluación se habilita cuando su turno esté marcado como Atendido.', 'bad');
     return;
   }
   const ta = document.querySelector(`.evo-eval[data-paciente="${pacienteId}"]`);
@@ -121,13 +121,13 @@ async function guardar(pacienteId) {
     toast('Evaluación guardada.');
   } catch (err) {
     console.error('Error guardando evaluación:', err);
-    toast(mensajeError(err, 'No se pudo guardar la evaluación.'), 'bad');
+    toast(mensajeError(err, 'No se pudo guardar la evaluación. Probá de nuevo.'), 'bad');
   }
 }
 
 // Genera y descarga el informe diario en PDF del profesional elegido.
 async function descargarPdf() {
-  if (bloqueado) { toast('No se puede generar el informe de una fecha futura.', 'bad'); return; }
+  if (bloqueado) { toast('No se puede generar un informe de una fecha que todavía no llegó.', 'bad'); return; }
   if (!profId) { toast('Elegí un profesional.', 'bad'); return; }
   const profesional = profesionales.find(p => String(p.id) === String(profId)) || {};
 
@@ -153,6 +153,6 @@ async function descargarPdf() {
     generarInformeDiario({ profesional, fecha: fechaActual, evaluaciones, fichaje });
   } catch (err) {
     console.error('Error generando PDF:', err);
-    toast('No se pudo generar el informe PDF.', 'bad');
+    toast('No se pudo generar el PDF. Probá de nuevo.', 'bad');
   }
 }

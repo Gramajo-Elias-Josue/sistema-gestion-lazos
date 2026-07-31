@@ -68,7 +68,7 @@ async function cargarFecha(fecha) {
       b.addEventListener('click', () => eliminar(b.dataset.id)));
   } catch (err) {
     console.error('Error listando turnos:', err);
-    caja.innerHTML = htmlError('No se pudieron cargar los turnos.');
+    caja.innerHTML = htmlError('No se pudo cargar la agenda. Revisá la conexión.');
   }
 }
 
@@ -84,7 +84,7 @@ async function nuevoTurno() {
     ]);
   } catch (err) {
     console.error('Error cargando listas para turno:', err);
-    toast('No se pudieron cargar pacientes / profesionales.', 'bad');
+    toast('No se pudo cargar la información. Revisá la conexión.', 'bad');
     return;
   }
 
@@ -130,7 +130,7 @@ async function nuevoTurno() {
         // Si no se pudo verificar (p. ej. corte de red), NO se crea el turno
         // a ciegas: se aborta y se avisa, para no dejar pasar superposiciones.
         console.error('Error al verificar superposiciones de turnos:', err);
-        toast('No se pudo verificar la disponibilidad. Revisá la conexión e intentá de nuevo.', 'bad');
+        toast('No se pudo verificar si el horario está libre. Revisá la conexión.', 'bad');
         btn.disabled = false;
         btn.textContent = 'Crear turno';
         return;
@@ -148,7 +148,7 @@ async function nuevoTurno() {
         const horaExistente = (turnoPac.hora || '').slice(0, 5);
         toast(
           `El paciente ya tiene un turno a las ${horaExistente} con ${profNombre}. ` +
-          `Debe haber al menos ${DURACION_SESION} min entre turnos.`,
+          `Dejá al menos ${DURACION_SESION} minutos entre turnos.`,
           'bad'
         );
         btn.disabled = false;
@@ -161,8 +161,8 @@ async function nuevoTurno() {
         const pacNombre = turnoProf.pacientes?.nombre_completo || 'otro paciente';
         const horaExistente = (turnoProf.hora || '').slice(0, 5);
         toast(
-          `El profesional ya tiene un turno con ${pacNombre} a las ${horaExistente}. ` +
-          `Debe haber al menos ${DURACION_SESION} min entre turnos.`,
+          `Ese profesional ya atiende a ${pacNombre} a las ${horaExistente}. ` +
+          `Dejá al menos ${DURACION_SESION} minutos entre turnos.`,
           'bad'
         );
         btn.disabled = false;
@@ -192,9 +192,9 @@ async function nuevoTurno() {
         const nombreProf = prof?.nombre_completo || 'el profesional';
         const seguir = await confirmar({
           titulo: 'Día no laboral',
-          mensaje: `${nombreProf} no trabaja los días ${diaSemana.toLowerCase()}. ¿Querés crear el turno igual?`,
-          textoOk: 'Crear igual',
-          textoCancelar: 'Cancelar',
+          mensaje: `${nombreProf} no atiende los ${diaSemana.toLowerCase()}. ¿Lo agendás igual?`,
+          textoOk: 'Agendar igual',
+          textoCancelar: 'Volver',
         });
         if (!seguir) {
           btn.disabled = false;
@@ -210,9 +210,9 @@ async function nuevoTurno() {
       const nombreProf = prof?.nombre_completo || 'el profesional';
       const seguir = await confirmar({
         titulo: 'Turno fuera de horario',
-        mensaje: `El turno de las ${datos.hora} queda fuera del horario de ${nombreProf} (${entrada}–${salida}). ¿Querés crearlo igual?`,
-        textoOk: 'Crear igual',
-        textoCancelar: 'Cancelar',
+        mensaje: `${nombreProf} atiende de ${entrada} a ${salida}. El turno de las ${datos.hora} queda fuera de ese horario. ¿Lo agendás igual?`,
+        textoOk: 'Agendar igual',
+        textoCancelar: 'Volver',
       });
       if (!seguir) {
         btn.disabled = false;
@@ -239,7 +239,7 @@ async function nuevoTurno() {
       console.error('Error creando turno:', err);
       btn.disabled = false;
       btn.textContent = 'Crear turno';
-      toast(mensajeError(err, 'No se pudo crear el turno.'), 'bad');
+      toast(mensajeError(err, 'No se pudo crear el turno. Probá de nuevo.'), 'bad');
     }
   });
 }
@@ -271,16 +271,17 @@ async function cambiarEstado(id, estado) {
           String(a.paciente_id) === String(turno.paciente_id) && a.estado === 'presente');
 
         if (!profPresente || !pacPresente) {
-          const quien = (!profPresente && !pacPresente) ? 'el profesional ni el paciente'
+          // Se dice QUIÉN falta y QUÉ hacer, sin explicar el mecanismo.
+          const quien = (!profPresente && !pacPresente) ? 'el profesional y el paciente'
             : !profPresente ? 'el profesional' : 'el paciente';
           const cuando = turno.fecha === hoyISO() ? 'de hoy' : 'de ese día';
-          toast(`No se puede marcar atendido: ${quien} no figura presente en la asistencia ${cuando}.`, 'bad');
+          toast(`Para marcar Atendido, ${quien} tiene que figurar presente. Completá la asistencia ${cuando}.`, 'bad');
           revertir();
           return;
         }
       } catch (err) {
         console.error('Error verificando la presencia para "atendido":', err);
-        toast('No se pudo verificar la presencia; intentá de nuevo.', 'bad');
+        toast('No se pudo verificar la asistencia. Probá de nuevo.', 'bad');
         revertir();
         return;
       }
@@ -293,18 +294,30 @@ async function cambiarEstado(id, estado) {
     await cargarFecha(fechaActual);
   } catch (err) {
     console.error('Error actualizando turno:', err);
-    toast('No se pudo actualizar el turno.', 'bad');
+    toast('No se pudo actualizar el turno. Probá de nuevo.', 'bad');
   }
 }
 
 async function eliminar(id) {
-  if (!window.confirm('¿Eliminar este turno?')) return;
+  const turno = turnosCargados.find(t => String(t.id) === String(id));
+  const paciente = turno?.pacientes?.nombre_completo;
+  const hora = (turno?.hora || '').slice(0, 5);
+  const seguir = await confirmar({
+    titulo: 'Eliminar turno',
+    mensaje: paciente
+      ? `Se borra el turno de ${paciente}${hora ? ` de las ${hora}` : ''}. Esta acción no se puede deshacer.`
+      : 'Se borra este turno. Esta acción no se puede deshacer.',
+    textoOk: 'Eliminar',
+    textoCancelar: 'Volver',
+    peligro: true,
+  });
+  if (!seguir) return;
   try {
     await turnoModel.eliminarTurno(id);
     toast('Turno eliminado.');
     await cargarFecha(fechaActual);
   } catch (err) {
     console.error('Error eliminando turno:', err);
-    toast('No se pudo eliminar el turno.', 'bad');
+    toast('No se pudo eliminar el turno. Probá de nuevo.', 'bad');
   }
 }

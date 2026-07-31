@@ -141,7 +141,7 @@ async function cargarFecha(fecha) {
     recalcular();
   } catch (err) {
     console.error('Error cargando asistencia:', err);
-    caja.innerHTML = htmlError('No se pudo cargar la asistencia.');
+    caja.innerHTML = htmlError('No se pudo cargar la asistencia. Revisá la conexión.');
   }
 }
 
@@ -203,7 +203,7 @@ async function guardarMarca(pacienteId, estado, observaciones) {
     guardado[pacienteId] = prevGuardado;
     refrescarFila(pacienteId);
     recalcular();
-    toast('No se pudo guardar la marca.', 'bad');
+    toast('No se pudo guardar la asistencia. Probá de nuevo.', 'bad');
     return false;
   }
 }
@@ -226,7 +226,7 @@ async function marcarTodosPresentes() {
   if (bloqueado) return;
   const sinMarca = pacientes.filter(p => !seleccion[p.id]);
   if (!sinMarca.length) {
-    toast('Todos los pacientes ya tienen su marca del día.');
+    toast('Ya está tomada la asistencia de todos.');
     return;
   }
 
@@ -240,13 +240,13 @@ async function marcarTodosPresentes() {
     );
     sinMarca.forEach(p => { guardado[p.id] = true; });
     refrescarBody();
-    toast(`${sinMarca.length} paciente${sinMarca.length === 1 ? '' : 's'} marcado${sinMarca.length === 1 ? '' : 's'} como presente.`);
+    toast(sinMarca.length === 1 ? 'Listo, 1 paciente marcado presente.' : `Listo, ${sinMarca.length} pacientes marcados presentes.`);
   } catch (err) {
     console.error('Error en marcado masivo:', err);
     sinMarca.forEach(p => { delete seleccion[p.id]; });
     refrescarBody();
     recalcular();
-    toast('No se pudo completar el marcado masivo.', 'bad');
+    toast('No se pudo marcar a todos. Probá de nuevo.', 'bad');
   }
 }
 

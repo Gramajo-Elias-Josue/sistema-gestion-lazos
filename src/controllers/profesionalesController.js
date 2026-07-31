@@ -9,7 +9,7 @@
 
 import * as profesionalModel from '../models/profesionalModel.js';
 import { renderEstructura, renderTabla, renderFormProfesional } from '../views/profesionalesView.js';
-import { htmlCargando, htmlError, toast } from '../utils/ui.js';
+import { htmlCargando, htmlError, toast, confirmar } from '../utils/ui.js';
 import { validarProfesional } from '../utils/validacion.js';
 import { mensajeError } from '../utils/errores.js';
 
@@ -42,7 +42,7 @@ async function cargarLista() {
     });
   } catch (err) {
     console.error('Error listando profesionales:', err);
-    caja.innerHTML = htmlError('No se pudieron cargar los profesionales.');
+    caja.innerHTML = htmlError('No se pudo cargar el equipo. Revisá la conexión.');
   }
 }
 
@@ -55,7 +55,7 @@ async function editar(id) {
     abrirForm(prof);
   } catch (err) {
     console.error('Error obteniendo profesional:', err);
-    toast('No se pudo abrir el profesional.', 'bad');
+    toast('No se pudo abrir el profesional. Probá de nuevo.', 'bad');
   }
 }
 
@@ -108,7 +108,7 @@ function abrirForm(prof = {}) {
       console.error('Error guardando profesional:', err);
       btn.disabled = false;
       btn.textContent = prof.id ? 'Guardar cambios' : 'Crear profesional';
-      toast(mensajeError(err, 'No se pudo guardar el profesional.'), 'bad');
+      toast(mensajeError(err, 'No se pudo guardar el profesional. Probá de nuevo.'), 'bad');
     }
   });
 }
@@ -121,15 +121,22 @@ function abrirForm(prof = {}) {
 // informes que firmó, y se puede reactivar cuando haga falta.
 async function cambiarEstado(id, estadoActual, nombre) {
   const darBaja = estadoActual === 'activo';
-  if (darBaja && !window.confirm(`¿Dar de baja a ${nombre}? Quedará como inactivo (no se borra y conserva sus turnos e informes).`)) {
-    return;
+  if (darBaja) {
+    const seguir = await confirmar({
+      titulo: 'Dar de baja',
+      mensaje: `${nombre} deja de aparecer para asignar turnos. Sus turnos e informes se conservan y podés reactivarlo cuando quieras.`,
+      textoOk: 'Dar de baja',
+      textoCancelar: 'Volver',
+      peligro: true,
+    });
+    if (!seguir) return;
   }
   try {
     await profesionalModel.cambiarEstadoProfesional(id, darBaja ? 'inactivo' : 'activo');
-    toast(darBaja ? 'Profesional dado de baja.' : 'Profesional reactivado.');
+    toast(darBaja ? `${nombre} quedó como inactivo.` : `${nombre} está activo de nuevo.`);
     await cargarLista();
   } catch (err) {
     console.error('Error cambiando estado:', err);
-    toast(mensajeError(err, 'No se pudo cambiar el estado.'), 'bad');
+    toast(mensajeError(err, 'No se pudo hacer el cambio. Probá de nuevo.'), 'bad');
   }
 }

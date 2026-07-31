@@ -23,11 +23,11 @@ export function mensajeError(err, respaldo = 'No se pudo completar la operación
     if (texto.includes('dni')) return 'Ya existe un paciente con ese DNI.';
     if (texto.includes('email')) return 'Ya existe un profesional con ese email.';
     if (texto.includes('matricula')) return 'Ya existe un profesional con esa matrícula.';
-    return 'Ese registro ya existe (hay un dato duplicado).';
+    return 'Ese dato ya está cargado.';
   }
 
   if (codigo === '23503') {
-    return 'No se puede completar: el registro está relacionado con otros datos.';
+    return 'No se puede borrar porque está en uso en otra parte del sistema.';
   }
   if (codigo === '23502') {
     return 'Falta completar un dato obligatorio.';
@@ -37,14 +37,16 @@ export function mensajeError(err, respaldo = 'No se pudo completar la operación
   // cuando el rol no puede hacer eso, o cuando al usuario le falta su fila
   // en `perfiles` (queda sin permisos de escritura).
   if (codigo === '42501' || /row-level security|row level security/.test(texto)) {
-    return 'No tenés permisos para hacer esto con tu rol.';
+    return 'Tu usuario no tiene permiso para hacer esto.';
   }
 
   // Error típico de Storage cuando no está creado el bucket "documentos".
   if (/bucket|not found/.test(texto)) {
-    return 'No se pudo subir el archivo: falta crear el bucket "documentos" en Supabase Storage.';
+    return 'No se pudo subir el archivo. Avisale al administrador del sistema.';
   }
 
   // Si no lo reconocemos, devolvemos el respaldo + el detalle técnico.
-  return respaldo + (err?.message ? ` (${err.message})` : '');
+  // No se agrega el error técnico: al usuario no le dice nada y asusta.
+  // El detalle completo queda en la consola (console.error de cada llamada).
+  return respaldo;
 }

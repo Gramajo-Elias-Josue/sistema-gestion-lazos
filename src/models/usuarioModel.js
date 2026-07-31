@@ -60,7 +60,7 @@ export async function crearUsuario({ email, password, nombre, rol, secciones }) 
     // ser que no está deployada o que tiene "Verify JWT" activo (rechaza el
     // preflight CORS). Se traduce a algo accionable.
     if (/failed to send a request|fetch/i.test(msg)) {
-      msg = 'No se pudo contactar la función "crear-usuario". Verificá que esté deployada y con "Verify JWT" desactivado.';
+      msg = 'No se pudo conectar con el servicio de usuarios. Revisá la conexión e intentá de nuevo.';
     }
     throw new Error(msg);
   }

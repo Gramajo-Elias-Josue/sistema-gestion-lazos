@@ -90,7 +90,7 @@ async function cargarFecha(fecha) {
     recalcularStats();
   } catch (err) {
     console.error('Error cargando fichajes:', err);
-    caja.innerHTML = htmlError('No se pudo cargar la asistencia de profesionales.');
+    caja.innerHTML = htmlError('No se pudo cargar el fichaje. Revisá la conexión.');
   }
 }
 
@@ -131,9 +131,9 @@ async function confirmarFueraDeHorario(prof, entrada, salida) {
 
   return confirmar({
     titulo: 'Fichaje fuera de horario',
-    mensaje: `${prof.nombre_completo} tiene horario habitual de ${habEnt || '—'} a ${habSal || '—'} y estás registrando ${entrada || '—'}${salida ? ` a ${salida}` : ''}. ¿Confirmás que asistió en este horario?`,
-    textoOk: 'Sí, confirmar',
-    textoCancelar: 'Cancelar',
+    mensaje: `${prof.nombre_completo} suele trabajar de ${habEnt || '—'} a ${habSal || '—'}. Estás cargando ${entrada || '—'}${salida ? ` a ${salida}` : ''}. ¿Es correcto?`,
+    textoOk: 'Sí, es correcto',
+    textoCancelar: 'Volver',
   });
 }
 
@@ -177,6 +177,6 @@ async function guardar(profId) {
     console.error('Error guardando fichaje:', err);
     btn.disabled = false;
     btn.textContent = 'Guardar';
-    toast(mensajeError(err, 'No se pudo guardar el fichaje.'), 'bad');
+    toast(mensajeError(err, 'No se pudo guardar el fichaje. Probá de nuevo.'), 'bad');
   }
 }

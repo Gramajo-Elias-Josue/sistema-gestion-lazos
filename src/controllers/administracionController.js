@@ -42,7 +42,7 @@ async function cargarUsuarios() {
       b.addEventListener('click', () => abrirPermisos(b.dataset.id)));
   } catch (err) {
     console.error('Error listando usuarios:', err);
-    caja.innerHTML = htmlError('No se pudieron cargar los usuarios.');
+    caja.innerHTML = htmlError('No se pudo cargar la lista de usuarios. Revisá la conexión.');
   }
 }
 
@@ -87,7 +87,7 @@ function abrirPermisos(id) {
       console.error('Error guardando permisos:', err);
       btn.disabled = false;
       btn.textContent = 'Guardar permisos';
-      toast(mensajeError(err, 'No se pudieron guardar los permisos.'), 'bad');
+      toast(mensajeError(err, 'No se pudieron guardar los permisos. Probá de nuevo.'), 'bad');
     }
   });
 }
@@ -114,7 +114,7 @@ function abrirFormUsuario() {
       rol: fd.get('rol'),
     };
     if (!datos.email || datos.password.length < 6) {
-      toast('Completá el email y una contraseña de al menos 6 caracteres.', 'bad');
+      toast('Completá el email y una contraseña de 6 caracteres o más.', 'bad');
       return;
     }
 
@@ -132,7 +132,7 @@ function abrirFormUsuario() {
       console.error('Error creando usuario:', err);
       btn.disabled = false;
       btn.textContent = 'Crear usuario';
-      toast(mensajeError(err, 'No se pudo crear el usuario.'), 'bad');
+      toast(mensajeError(err, 'No se pudo crear el usuario. Probá de nuevo.'), 'bad');
     }
   });
 }

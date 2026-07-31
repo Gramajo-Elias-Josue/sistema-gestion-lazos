@@ -154,7 +154,7 @@ export function abrirPerfil(email, onGuardado) {
       console.error('Error guardando el avatar:', err);
       btn.disabled = false;
       btn.textContent = 'Guardar';
-      mostrarError(mensajeError(err, 'No se pudo guardar el avatar.'));
+      mostrarError(mensajeError(err, 'No se pudo guardar el avatar. Probá de nuevo.'));
     }
   });
 }

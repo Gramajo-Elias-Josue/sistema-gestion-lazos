@@ -15,7 +15,7 @@ import {
   renderEstructura, renderTabla, renderFicha, renderHistoria, renderCategorias,
   renderFormPaciente, renderFormDocumento, renderFormEvaluacion, renderVistaEvaluacion,
 } from '../views/pacientesView.js';
-import { htmlCargando, htmlError, toast } from '../utils/ui.js';
+import { htmlCargando, htmlError, toast, confirmar } from '../utils/ui.js';
 import { hoyISO } from '../utils/fechas.js';
 import { validarPaciente, validarDocumento, normalizarDni } from '../utils/validacion.js';
 import { parseEvaluacion, serializarEvaluacion, tituloPorTipo } from '../utils/evaluacion.js';
@@ -56,7 +56,7 @@ async function cargarLista() {
       b.addEventListener('click', () => cambiarEstado(b.dataset.id, b.dataset.estado, b.dataset.nombre)));
   } catch (err) {
     console.error('Error listando pacientes:', err);
-    caja.innerHTML = htmlError('No se pudieron cargar los pacientes.');
+    caja.innerHTML = htmlError('No se pudo cargar la lista de pacientes. Revisá la conexión.');
   }
 }
 
@@ -89,7 +89,7 @@ async function abrirFicha(id) {
     document.getElementById('btn-abrir-historia').addEventListener('click', () => abrirHistoria(id));
   } catch (err) {
     console.error('Error abriendo legajo:', err);
-    mostrarErrorDetalle(ficha, 'No se pudo abrir el legajo.');
+    mostrarErrorDetalle(ficha, 'No se pudo abrir el legajo. Revisá la conexión.');
   }
 }
 
@@ -143,7 +143,7 @@ async function abrirHistoria(id) {
     });
   } catch (err) {
     console.error('Error abriendo historia clínica:', err);
-    mostrarErrorDetalle(ficha, 'No se pudo abrir la historia clínica.');
+    mostrarErrorDetalle(ficha, 'No se pudo abrir la historia clínica. Revisá la conexión.');
   }
 }
 
@@ -163,7 +163,7 @@ async function editarPaciente(id) {
     abrirFormPaciente(paciente);
   } catch (err) {
     console.error('Error obteniendo paciente:', err);
-    toast('No se pudo abrir el paciente.', 'bad');
+    toast('No se pudo abrir el paciente. Probá de nuevo.', 'bad');
   }
 }
 
@@ -172,16 +172,23 @@ async function editarPaciente(id) {
 // ---------------------------------------------------------------------
 async function cambiarEstado(id, estadoActual, nombre) {
   const darBaja = estadoActual === 'activo';
-  if (darBaja && !window.confirm(`¿Dar de baja a ${nombre}? Quedará como inactivo (no se borra y conserva su historia clínica).`)) {
-    return;
+  if (darBaja) {
+    const seguir = await confirmar({
+      titulo: 'Dar de baja',
+      mensaje: `${nombre} deja de aparecer en las listas del día a día. Su historia clínica se conserva y podés reactivarlo cuando quieras.`,
+      textoOk: 'Dar de baja',
+      textoCancelar: 'Volver',
+      peligro: true,
+    });
+    if (!seguir) return;
   }
   try {
     await pacienteModel.cambiarEstadoPaciente(id, darBaja ? 'inactivo' : 'activo');
-    toast(darBaja ? 'Paciente dado de baja.' : 'Paciente reactivado.');
+    toast(darBaja ? `${nombre} quedó como inactivo.` : `${nombre} está activo de nuevo.`);
     await cargarLista();
   } catch (err) {
     console.error('Error cambiando estado:', err);
-    toast('No se pudo cambiar el estado.', 'bad');
+    toast(mensajeError(err, 'No se pudo hacer el cambio. Probá de nuevo.'), 'bad');
   }
 }
 
@@ -233,7 +240,7 @@ export function abrirFormPaciente(paciente = {}, opts = {}) {
       if (datos.dni) {
         const dup = await pacienteModel.buscarPorDni(datos.dni, paciente.id || null);
         if (dup) {
-          toast(`Ya existe un paciente con el DNI ${datos.dni} (${dup.nombre_completo}).`, 'bad');
+          toast(`Ese DNI ya está cargado: ${dup.nombre_completo}.`, 'bad');
           reactivar();
           return;
         }
@@ -266,7 +273,7 @@ export function abrirFormPaciente(paciente = {}, opts = {}) {
     } catch (err) {
       console.error('Error guardando paciente:', err);
       reactivar();
-      toast(mensajeError(err, 'No se pudo guardar el paciente.'), 'bad');
+      toast(mensajeError(err, 'No se pudo guardar el paciente. Probá de nuevo.'), 'bad');
     }
   });
 }
@@ -323,7 +330,7 @@ function abrirFormDocumento(pacienteId, tipoDefault = 'cud') {
       console.error('Error guardando documento:', err);
       btn.disabled = false;
       btn.textContent = 'Guardar';
-      toast(mensajeError(err, 'No se pudo guardar el documento.'), 'bad');
+      toast(mensajeError(err, 'No se pudo guardar el documento. Probá de nuevo.'), 'bad');
     }
   });
 }
@@ -347,11 +354,11 @@ async function abrirFormEvaluacion(paciente, evalsPaciente = []) {
     turnos = await turnoModel.listarAtendidosPacienteFecha(pacienteId, hoy);
   } catch (err) {
     console.error('Error buscando la atención de hoy:', err);
-    toast('No se pudo verificar la atención de hoy.', 'bad');
+    toast('No se pudo consultar la atención de hoy. Revisá la conexión.', 'bad');
     return;
   }
   if (!turnos.length) {
-    toast('El paciente no registra atención de hoy. Se evalúa después de marcar el turno como Atendido.', 'bad');
+    toast('Este paciente todavía no figura atendido hoy. El informe se habilita cuando su turno esté marcado como Atendido.', 'bad');
     return;
   }
 
@@ -422,10 +429,10 @@ async function abrirFormEvaluacion(paciente, evalsPaciente = []) {
           pacienteId, tipo: 'informe', archivo, fechaEmision: hoy,
           observaciones: `${datos.titulo} — ${turnoSel.profesionales?.nombre_completo || ''}`.trim(),
         });
-        toast('Informe guardado y PDF adjuntado a la historia clínica.');
+        toast('Informe guardado y adjuntado a la historia clínica.');
       } catch (errPdf) {
         console.error('Informe guardado, pero falló el PDF/adjunto:', errPdf);
-        toast(mensajeError(errPdf, 'Informe guardado. No se pudo adjuntar el PDF.'), 'bad');
+        toast('Se guardó el informe, pero no se pudo adjuntar el PDF.', 'bad');
       }
 
       cerrar();
@@ -434,7 +441,7 @@ async function abrirFormEvaluacion(paciente, evalsPaciente = []) {
       console.error('Error guardando el informe:', err);
       btn.disabled = false;
       btn.textContent = 'Guardar y generar PDF';
-      toast(mensajeError(err, 'No se pudo guardar el informe.'), 'bad');
+      toast(mensajeError(err, 'No se pudo guardar el informe. Probá de nuevo.'), 'bad');
     }
   });
 }
@@ -452,7 +459,7 @@ async function descargarPdfEvaluacion(paciente, ev) {
     });
   } catch (err) {
     console.error('Error generando el PDF del informe:', err);
-    toast('No se pudo generar el PDF.', 'bad');
+    toast('No se pudo generar el PDF. Probá de nuevo.', 'bad');
   }
 }
 
@@ -481,7 +488,7 @@ function abrirVistaEvaluacion(paciente, ev, evalsPaciente = []) {
 // ---------------------------------------------------------------------
 async function verDocumento(storagePath) {
   if (!storagePath) {
-    toast('Este documento no tiene archivo adjunto.', 'bad');
+    toast('Este documento no tiene un archivo para ver.', 'bad');
     return;
   }
   try {
@@ -489,6 +496,6 @@ async function verDocumento(storagePath) {
     window.open(url, '_blank'); // abre en otra pestaña (ver o descargar)
   } catch (err) {
     console.error('Error abriendo documento:', err);
-    toast('No se pudo abrir el documento.', 'bad');
+    toast('No se pudo abrir el archivo. Probá de nuevo.', 'bad');
   }
 }
