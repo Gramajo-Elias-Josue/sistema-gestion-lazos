@@ -79,22 +79,30 @@ create policy "perfil_director_all" on public.perfiles
   with check (public.rol_actual() = 'director');
 
 -- ---------------------------------------------------------------------
--- 4) Bootstrap: el usuario admin ya creado pasa a ser DIRECTOR (dueño)
+-- 4) Bootstrap: convertir en DIRECTOR (dueño) al usuario administrador
 -- ---------------------------------------------------------------------
--- Cambiá el email si tu usuario admin es otro.
-insert into public.perfiles (id, nombre, rol)
-select id, 'Director', 'director'
+-- 👉 CAMBIÁ EL EMAIL por el del usuario que creaste en Authentication →
+--    Users. Es el único usuario que se define acá: desde la app, el
+--    director da de alta al resto (secretaría y profesionales).
+--
+-- Se guarda también el email, porque la pantalla de Administración lo
+-- muestra (el navegador no puede leer auth.users).
+insert into public.perfiles (id, nombre, rol, email)
+select id, 'Dirección', 'director', email
   from auth.users
- where email = 'admin@lazos.test'
-on conflict (id) do update set rol = 'director';
+ where email = 'admin@lazos.test'   -- <-- cambiá esto
+on conflict (id) do update
+   set rol = 'director',
+       email = excluded.email;
+
+-- Verificación: debería devolver una fila con rol = director.
+-- select email, rol from public.perfiles where rol = 'director';
 
 -- =====================================================================
 -- Listo. El front ya puede leer el rol de cada usuario y mostrar/ocultar
--- las secciones. Para dar de alta más usuarios (secretaría, profesionales)
--- creá el usuario en Authentication → Users y agregá su fila acá, p. ej.:
+-- las secciones.
 --
---   insert into public.perfiles (id, nombre, rol)
---   select id, 'Ana (secretaría)', 'secretaria'
---     from auth.users where email = 'secretaria@lazos.test'
---   on conflict (id) do update set rol = excluded.rol;
+-- El resto de los usuarios NO hace falta crearlos por SQL: el director
+-- los da de alta desde la sección Administración de la app, y ahí mismo
+-- les asigna el rol y las secciones que puede ver cada uno.
 -- =====================================================================
