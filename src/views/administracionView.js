@@ -21,6 +21,9 @@ const SECCIONES_ASIGNABLES = SECCIONES.filter(s => s.clave !== 'inicio' && s.cla
 const ROLES_ASIGNABLES = [
   { clave: 'secretaria',  etiqueta: 'Secretaría' },
   { clave: 'profesional', etiqueta: 'Profesional' },
+  // Community manager: entra solo a la galería, a buscar material para
+  // el contenido. No ve pacientes ni nada clínico.
+  { clave: 'cm',          etiqueta: 'Contenido (CM)' },
 ];
 
 // Etiqueta legible de una sección.

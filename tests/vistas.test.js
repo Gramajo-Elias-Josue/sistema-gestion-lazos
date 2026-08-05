@@ -11,12 +11,19 @@ import {
   renderTabla as tablaPacientes, renderFormPaciente, renderEvaluacionesHistoria,
 } from '../src/views/pacientesView.js';
 import { renderTabla as tablaProfesionales, renderFormProfesional } from '../src/views/profesionalesView.js';
-import { renderAlertas } from '../src/views/inicioView.js';
+import { renderAlertas, renderEntregas } from '../src/views/inicioView.js';
 import { renderLista as listaTurnos, renderFormTurno, renderEstructura } from '../src/views/turnosView.js';
 import { renderLista as listaAdmision, renderAdmision } from '../src/views/admisionView.js';
 import { renderFilas as filasAsistencia, filaHtml as filaAsistencia } from '../src/views/asistenciaView.js';
 import { filaHtml as filaFichaje, renderFilas as filasFichaje } from '../src/views/asistenciaProfView.js';
 import { renderLogin } from '../src/views/loginView.js';
+import { renderCalendario, renderModalCalendario } from '../src/views/calendarioAsistenciaView.js';
+import {
+  renderEstructura as galeriaEstructura,
+  renderPendientes as galeriaPendientes,
+  renderFotos as galeriaFotos,
+} from '../src/views/galeriaView.js';
+import { armarCalendario } from '../src/utils/calendario.js';
 
 // Fecha ISO a N días de hoy (para armar vencimientos relativos).
 const isoDesdeHoy = (dias) => {
@@ -108,6 +115,117 @@ describe('inicioView.renderAlertas (gramática de vencimientos)', () => {
 
   it('sin vencimientos próximos muestra el estado tranquilo', () => {
     expect(renderAlertas([doc(200)])).toContain('Sin documentos');
+  });
+});
+
+describe('galeriaView (solo fotos)', () => {
+  const equipo = [
+    { id: 'x1', nombre_completo: 'Flores Ingrid', profesion: 'Psicología' },
+    { id: 'x2', nombre_completo: 'Villafañe Mirka', profesion: 'Fonoaudiología' },
+  ];
+
+  it('[regresión] la Galería no habla de informes: son del paciente', () => {
+    const pantalla = [
+      galeriaEstructura('2026-08'),
+      galeriaPendientes({ periodo: '2026-08', fotos: equipo }),
+      galeriaFotos({ fotos: [], profesionales: equipo, periodo: '2026-08' }),
+    ].join(' ');
+    expect(pantalla.toLowerCase()).not.toContain('informe');
+  });
+
+  it('avisa quién todavía no subió su foto, con singular y plural', () => {
+    expect(galeriaPendientes({ periodo: '2026-08', fotos: [equipo[0]] }))
+      .toContain('1 profesional todavía no subió su foto');
+    expect(galeriaPendientes({ periodo: '2026-08', fotos: equipo }))
+      .toContain('2 profesionales todavía no subieron su foto');
+  });
+
+  it('cuando están todas subidas, lo dice', () => {
+    expect(galeriaPendientes({ periodo: '2026-08', fotos: [] })).toContain('Todo el equipo subió su foto');
+  });
+
+  it('el formulario aclara que la foto se borra sola', () => {
+    const html = galeriaFotos({ fotos: [], profesionales: equipo, periodo: '2026-08' });
+    expect(html).toContain('se borra a los 3 meses');
+    expect(html).toContain('Flores Ingrid'); // se elige de quién es la foto
+  });
+
+  it('el CM ve las fotos pero no el formulario de carga', () => {
+    const html = galeriaFotos({
+      fotos: [{ id: 'f1', storage_path: 'x', url: '', profesionales: { nombre_completo: 'Flores Ingrid' } }],
+      profesionales: equipo, periodo: '2026-08', puedeSubir: false,
+    });
+    expect(html).toContain('gal-foto');
+    expect(html).not.toContain('gal-form-foto');
+    expect(html).not.toContain('gal-borrar');
+  });
+});
+
+describe('inicioView.renderEntregas (lo que debe cada profesional)', () => {
+  const periodo = '2026-08';
+  const uno = [{ id: 'x1', nombre_completo: 'Flores Ingrid' }];
+  const dos = [...uno, { id: 'x2', nombre_completo: 'Villafañe Mirka' }];
+
+  it('dice quién debe el informe y quién la foto, con el mes', () => {
+    const html = renderEntregas({ periodo, informes: dos, fotos: uno });
+    expect(html).toContain('Agosto 2026');
+    expect(html).toContain('Flores Ingrid');
+    expect(html).toContain('Villafañe Mirka');
+  });
+
+  it('[regresión] singular y plural bien escritos', () => {
+    const html = renderEntregas({ periodo, informes: uno, fotos: uno });
+    expect(html).toContain('1 profesional debe el informe del mes');
+    expect(html).toContain('1 profesional no subió su foto del mes');
+    expect(html).not.toContain('1 profesional no subieron');
+
+    const plural = renderEntregas({ periodo, informes: dos, fotos: dos });
+    expect(plural).toContain('2 profesionales deben el informe del mes');
+    expect(plural).toContain('2 profesionales no subieron su foto del mes');
+  });
+
+  it('cuando está todo entregado, lo dice y no muestra listas', () => {
+    const html = renderEntregas({ periodo, informes: [], fotos: [], alDia: true });
+    expect(html).toContain('Todo el equipo entregó');
+    expect(html).not.toContain('alert');
+  });
+});
+
+describe('calendarioAsistenciaView.renderCalendario', () => {
+  const calendario = armarCalendario({
+    anio: 2026, mes: 7, hoy: '2026-07-20',
+    registros: [
+      { fecha: '2026-07-01', estado: 'presente' },
+      { fecha: '2026-07-02', estado: 'ausente' },
+      { fecha: '2026-07-03', estado: 'ausente_con_aviso', observaciones: 'Control médico' },
+    ],
+  });
+
+  it('pinta verde lo asistido, rojo lo faltado y gris el fin de semana', () => {
+    const html = renderCalendario(calendario);
+    expect(html).toContain('cal-ok');    // presente
+    expect(html).toContain('cal-bad');   // ausente
+    expect(html).toContain('cerrado');   // sábado / domingo: la clínica no abre
+  });
+
+  it('el motivo del aviso se lee al pasar el mouse por el día', () => {
+    expect(renderCalendario(calendario)).toContain('Control médico');
+  });
+
+  it('muestra el resumen del mes y la referencia de colores', () => {
+    const html = renderCalendario(calendario);
+    expect(html).toContain('Presentes');
+    expect(html).toContain('Asistió');
+    expect(html).toContain('Fin de semana (la clínica no abre)');
+  });
+
+  it('el modal trae el nombre de la persona y el botón de PDF', () => {
+    const html = renderModalCalendario({
+      persona: { nombre_completo: 'Ana Test' }, subtitulo: 'Psicología', anio: 2026, mes: 7,
+    });
+    expect(html).toContain('Ana Test');
+    expect(html).toContain('Julio 2026');
+    expect(html).toContain('cal-pdf');
   });
 });
 
@@ -219,7 +337,8 @@ describe('admisionView', () => {
 
 // Helper: arma el objeto `vista` que espera asistenciaView.filaHtml.
 const vistaAsis = (over = {}) => ({
-  seleccion: {}, notas: {}, mesStats: {}, guardado: {}, editando: {}, bloqueado: false, ...over,
+  seleccion: {}, notas: {}, calendarios: {}, guardado: {}, editando: {},
+  bloqueado: false, fecha: '2026-07-20', ...over,
 });
 
 describe('asistenciaView.filaHtml (planilla de pacientes)', () => {
@@ -251,9 +370,30 @@ describe('asistenciaView.filaHtml (planilla de pacientes)', () => {
     expect(html).toContain('on-p'); // clase del botón "Presente" activo
   });
 
-  it('muestra el porcentaje mensual si hay datos', () => {
-    const html = filaAsistencia(pac, vistaAsis({ mesStats: { 1: { presentes: 8, total: 10, pct: 80 } } }));
-    expect(html).toContain('80%');
+  it('la fila trae la tira del mes con sus colores y el porcentaje', () => {
+    const calendario = armarCalendario({
+      anio: 2026, mes: 7, hoy: '2026-07-20',
+      registros: [
+        { fecha: '2026-07-01', estado: 'presente' },
+        { fecha: '2026-07-02', estado: 'presente' },
+        { fecha: '2026-07-03', estado: 'ausente' },
+      ],
+    });
+    const html = filaAsistencia(pac, vistaAsis({ calendarios: { 1: calendario } }));
+    expect(html).toContain('mini-cal');
+    expect(html).toContain('cal-ok');
+    expect(html).toContain('cal-bad');
+    expect(html).toContain('67%');       // 2 presentes sobre 3 registros
+    expect(html).toContain('data-ficha="1"'); // la tira abre la ficha grande
+  });
+
+  it('sin datos del mes la fila no se rompe', () => {
+    expect(filaAsistencia(pac, vistaAsis())).toContain('mini-cal');
+  });
+
+  it('[regresión] el botón de corregir se lee, no es solo un ícono', () => {
+    const html = filaAsistencia(pac, vistaAsis({ seleccion: { 1: 'presente' }, guardado: { 1: true } }));
+    expect(html).toContain('Corregir');
   });
 });
 

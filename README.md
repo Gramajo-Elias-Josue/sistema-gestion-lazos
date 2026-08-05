@@ -178,9 +178,10 @@ Sin este bucket, la subida de documentos y de los informes PDF falla con un avis
 ### 2. Migración de esquema
 Ejecutá una vez **`supabase-migracion.sql`** en el **SQL Editor**. Crea/ajusta las
 tablas y columnas que usan las secciones (pacientes, turnos, asistencias de
-profesionales, evaluaciones, documentos) y **actualiza el CHECK de `documentos.tipo`**
-para incluir el tipo `'informe'` (si no, adjuntar el PDF del informe falla con
-`documentos_tipo_check`).
+profesionales, evaluaciones, documentos, **grilla de atención**) y **actualiza el CHECK de
+`documentos.tipo`** para incluir el tipo `'informe'` (si no, adjuntar el PDF del informe
+falla con `documentos_tipo_check`). Es re-ejecutable: si ya la corriste antes, volvé a
+correrla para que se agreguen las columnas nuevas de `asignaciones`.
 
 ### 3. Políticas de acceso (sin login)
 Como todavía no hay autenticación, hay que permitir el acceso anónimo (rol `anon`) a las
@@ -197,7 +198,8 @@ pegalo y ejecutalo.
 
 - **pacientes** — `id, nombre_completo, dni, fecha_nacimiento, domicilio, telefono,
   escuela, referente_familiar, diagnostico, tiene_cud, obra_social, numero_afiliado,
-  fecha_ingreso, estado, estado_admision`
+  fecha_ingreso, estado, estado_admision, turno` — `turno` es el "HS DE ASIST" de la
+  planilla (mañana / tarde).
 - **contactos_emergencia** — `id, paciente_id, nombre, vinculo, telefono`
 - **admision_documentos** — `id, paciente_id, requisito, presentado, observaciones`
 - **profesionales** — `id, nombre_completo, profesion, especialidad, matricula, dni,
@@ -209,10 +211,26 @@ pegalo y ejecutalo.
 - **asistencias** — `id, paciente_id, fecha, estado, observaciones` — único por `(paciente_id, fecha)`
 - **asistencias_profesionales** — `id, profesional_id, fecha, hora_entrada, hora_salida,
   estado, observaciones` — único por `(profesional_id, fecha)`
-- **evaluaciones** — `id, paciente_id, profesional_id, fecha, contenido, turno_id`
-  — único por `(paciente_id, profesional_id, fecha)`. `contenido` guarda el informe
-  serializado en **JSON** (tipo, título y secciones).
-- **asignaciones** — `id, profesional_id, paciente_id`
+- **fotos_trabajo** — `id, profesional_id, periodo, storage_path, nombre_archivo,
+  descripcion, created_at` — al menos **una foto por mes** de cada profesional, para el
+  material de difusión. Los archivos van al bucket `documentos`, carpeta `galeria/`.
+  **Se borran solas a los 3 meses** (al abrir la sección Galería).
+- **evaluaciones** — `id, paciente_id, profesional_id, fecha, tipo, contenido, turno_id`
+  — único por `(paciente_id, profesional_id, fecha, **tipo**)`. Guarda dos cosas
+  distintas y el `tipo` es lo que evita que se pisen: la **evaluación diaria**
+  (`'diaria'`, opcional, texto suelto) y los **informes** (`'mensual'`, `'anual'`,
+  `'evolucion'`, `'admision'`), que se cargan en la historia clínica del paciente y
+  guardan el `contenido` serializado en **JSON** (tipo, título y secciones).
+- **sectores** — `id, clave, etiqueta, orden, activo` — las **columnas de la grilla**
+  (Psicología, Fonoaudiología, T.O., Kinesiología, Psicopedagogía). Están en la base
+  para poder agregar una columna nueva desde la app, sin tocar el código.
+- **asignaciones** — `id, paciente_id, sector, profesional_id, profesional_nombre,
+  vigente_desde, vigente_hasta, motivo_cierre` — cada fila es una **celda de la grilla
+  de atención**: qué profesional atiende a ese paciente en ese sector.
+  `profesional_id` cuando el nombre coincide con uno cargado en el sistema;
+  `profesional_nombre` cuando se escribió a mano (o una "X"). Al cambiar de profesional
+  no se pisa la fila: se le pone `vigente_hasta` y se crea otra, así no se pierde con
+  quién se atendía antes.
 
 El **estado del CUD** que se ve en el listado de pacientes se deriva del documento de
 tipo `'cud'` de cada paciente (no es una columna de la tabla pacientes).
@@ -222,7 +240,11 @@ tipo `'cud'` de cada paciente (no es una columna de la tabla pacientes).
 ## ✅ Funcionalidad
 
 1. **Inicio (panel de dirección)** — tarjetas con pacientes activos, profesionales
-   activos, turnos de hoy y asistencias; alertas de documentos vencidos o por vencer.
+   activos, turnos de hoy y asistencias; la **grilla de atención** (los pacientes
+   activos como filas, los sectores como columnas y, en cada celda, el profesional que
+   lo atiende — se escribe a mano como en una planilla, con Enter/Tab para moverse y un
+   botón para agregar una columna nueva); disponibilidad del equipo y alertas de
+   documentos vencidos o por vencer.
 2. **Admisión** — pacientes en proceso de ingreso con checklist de documentación;
    aprobar la admisión pasa el paciente a "admitido".
 3. **Pacientes** — listado con estado del CUD y acciones por fila (historia clínica,
@@ -233,10 +255,22 @@ tipo `'cud'` de cada paciente (no es una columna de la tabla pacientes).
 5. **Turnos** — agenda de citas paciente ↔ profesional por fecha, con estado
    (programado / atendido / ausente / cancelado).
 6. **Asistencia** — asistencia diaria de pacientes (presente / ausente / etc.), con
-   upsert por paciente y fecha y porcentaje en vivo.
-7. **Asistencia de profesionales** — fichaje de entrada/salida por día.
+   upsert por paciente y fecha y porcentaje en vivo. Tocando el nombre se abre la
+   **ficha de asistencia**: el calendario del mes en grande (verde asistió, rojo
+   faltó, gris los fines de semana porque la clínica no abre) con resumen y
+   **descarga en PDF con el membrete institucional**.
+7. **Asistencia de profesionales** — fichaje de entrada/salida por día, con la misma
+   ficha de calendario mensual y su PDF (los días muestran el horario fichado).
 8. **Profesionales** — CRUD del equipo (especialidad, matrícula, contacto, estado) y
    conteo de pacientes asignados.
+9. **Galería** — las **fotos del trabajo** del mes: cada profesional sube al menos una y
+   con eso se arma el material de difusión. Se borran solas a los 3 meses. La ven **solo
+   los profesionales y el CM** (rol `cm`, que no accede a nada clínico).
+
+**Qué es obligatorio y qué no:** el **informe mensual** y el **anual** son obligatorios y
+se cargan donde siempre, en la historia clínica del paciente; el panel de inicio muestra
+quién no cargó ninguno este mes. La **evaluación diaria** es **opcional** (hay quien la
+lleva en papel) y admite hasta **una semana** de atraso.
 
 ---
 

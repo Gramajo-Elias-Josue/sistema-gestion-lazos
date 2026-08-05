@@ -64,7 +64,19 @@ describe('permisos: perfil ausente / fallback', () => {
 
 describe('permisos.seccionesPorDefecto', () => {
   it('devuelve el set por defecto del rol', () => {
-    expect(seccionesPorDefecto('profesional')).toEqual(['inicio', 'pacientes', 'agenda']);
+    expect(seccionesPorDefecto('profesional')).toEqual(['inicio', 'pacientes', 'agenda', 'galeria']);
+  });
+
+  it('la Galería es solo para el profesional (sube su foto) y el CM (usa el material)', () => {
+    expect(seccionesPorDefecto('profesional')).toContain('galeria');
+    expect(seccionesPorDefecto('cm')).toContain('galeria');
+    expect(seccionesPorDefecto('secretaria')).not.toContain('galeria');
+  });
+
+  it('el CM no ve nada clínico: solo inicio y galería', () => {
+    expect(seccionesPorDefecto('cm')).toEqual(['inicio', 'galeria']);
+    expect(seccionesPorDefecto('cm')).not.toContain('pacientes');
+    expect(seccionesPorDefecto('cm')).not.toContain('administracion');
   });
 });
 

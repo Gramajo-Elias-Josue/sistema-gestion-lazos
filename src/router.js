@@ -19,6 +19,7 @@ const SECCIONES = {
   agenda:        { titulo: 'Turnos',              sub: () => 'Turnos paciente · profesional', iniciar: null },
   asistencia:    { titulo: 'Asistencia del día',  sub: () => 'Registro diario de concurrencia', iniciar: null },
   profesionales: { titulo: 'Profesionales',       sub: () => 'Equipo interdisciplinario',     iniciar: null },
+  galeria:       { titulo: 'Galería',             sub: () => 'Fotos del trabajo del mes',     iniciar: null },
   administracion:{ titulo: 'Administración',       sub: () => 'Usuarios y permisos',           iniciar: null },
 };
 

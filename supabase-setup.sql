@@ -18,7 +18,8 @@ declare t text;
 begin
   foreach t in array array[
     'pacientes','contactos_emergencia','profesionales',
-    'documentos','asistencias','asignaciones',
+    'documentos','asistencias','asignaciones','sectores',
+    'fotos_trabajo',
     'admision_documentos','turnos','asistencias_profesionales','evaluaciones'
   ]
   loop

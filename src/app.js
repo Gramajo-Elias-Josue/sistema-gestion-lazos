@@ -26,6 +26,7 @@ import { iniciarPacientes } from './controllers/pacientesController.js';
 import { iniciarTurnos } from './controllers/turnosController.js';
 import { iniciarAsistencia } from './controllers/asistenciaController.js';
 import { iniciarProfesionales } from './controllers/profesionalesController.js';
+import { iniciarGaleria } from './controllers/galeriaController.js';
 import { iniciarAdministracion } from './controllers/administracionController.js';
 
 // El tema (claro/oscuro) es independiente de la sesión: se aplica siempre.
@@ -58,6 +59,7 @@ function registrarControladores() {
   registrarControlador('agenda', iniciarTurnos);
   registrarControlador('asistencia', iniciarAsistencia);
   registrarControlador('profesionales', iniciarProfesionales);
+  registrarControlador('galeria', iniciarGaleria);
   registrarControlador('administracion', iniciarAdministracion);
 }
 

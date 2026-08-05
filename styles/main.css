@@ -209,6 +209,76 @@ tbody tr:last-child td{border-bottom:none}
 .bad{background:var(--red-50);color:var(--red-600)}.bad .d{background:var(--red-600)}
 .chev{color:var(--ink-faint);font-size:18px}
 
+/* ---- Grilla de atención (pacientes × profesionales → hora) ----
+   La planilla fija del centro: se carga a mano y se repite todos los
+   días. Muchas columnas, así que scrollea en horizontal con la columna
+   del paciente fija a la izquierda. */
+.ga-ayuda{font-size:13.5px;color:var(--ink-faint);margin:2px 4px 12px}
+/* Buscador de la grilla: filtra las filas (paciente o profesional) */
+.ga-toolbar{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+.ga-toolbar input{flex:1;max-width:420px;font-family:var(--body);font-size:15px;padding:9px 13px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
+.ga-toolbar input:focus{outline:none;border-color:var(--teal-500);box-shadow:0 0 0 3px var(--teal-50)}
+.ga-contador{font-size:13px;color:var(--ink-faint);white-space:nowrap}
+/* Scroll en los dos sentidos: la cabecera de sectores queda fija arriba
+   y la columna de pacientes fija a la izquierda, así nunca se pierde de
+   vista de quién y de qué sector es la celda. */
+.ga-scroll{overflow:auto;max-height:min(62vh,620px);border:1px solid var(--line);border-radius:12px}
+.ga-tabla{width:100%;border-collapse:separate;border-spacing:0}
+.ga-tabla thead th{position:sticky;top:0;z-index:4}
+.ga-tabla th,.ga-tabla td{border-bottom:1px solid var(--line-soft);border-right:1px solid var(--line-soft)}
+.ga-tabla tr:last-child th,.ga-tabla tr:last-child td{border-bottom:none}
+.ga-tabla th:last-child,.ga-tabla td:last-child{border-right:none}
+/* Encabezado: un sector por columna (Psicología, Fono, T.O., …) */
+.ga-col-sector{padding:12px;min-width:132px;background:var(--card-2);text-align:center;font-size:12.5px;white-space:nowrap}
+.ga-sector-nombre{vertical-align:middle}
+/* La × para quitar la columna: discreta, aparece al pasar el mouse */
+.ga-del-sector{all:unset;cursor:pointer;margin-left:6px;width:18px;height:18px;border-radius:50%;display:inline-grid;place-items:center;font-size:14px;line-height:1;color:var(--ink-faint);vertical-align:middle;opacity:0;transition:.15s}
+.ga-col-sector:hover .ga-del-sector{opacity:1}
+.ga-del-sector:hover{background:var(--red-50);color:var(--red-600)}
+.ga-del-sector:focus-visible{opacity:1;outline:2px solid var(--teal-500);outline-offset:1px}
+/* Última columna: turno del paciente + botón para sumar un sector */
+.ga-col-turno{padding:8px 12px;min-width:132px;background:var(--card-2);text-align:center;white-space:nowrap}
+.ga-tabla tbody .ga-col-turno{background:var(--card)}
+.ga-turno{font-family:var(--body);font-size:13.5px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+.ga-add-sector{all:unset;cursor:pointer;margin-left:8px;padding:4px 9px;border-radius:7px;background:var(--teal-600);color:#fff;font-size:11.5px;font-weight:600;text-transform:none;letter-spacing:0}
+.ga-add-sector:hover{background:var(--teal-700)}
+/* Columna del paciente: fija a la izquierda */
+.ga-col-pac{position:sticky;left:0;z-index:2;background:var(--card);text-align:left;padding:8px 14px;min-width:210px;display:table-cell}
+/* La esquina (Pacientes) queda fija arriba Y a la izquierda a la vez,
+   así que va por encima del resto de la cabecera. */
+.ga-tabla thead .ga-col-pac{position:sticky;top:0;left:0;background:var(--card-2);z-index:6}
+.ga-esquina{font-size:12.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint)}
+.ga-col-pac .pav{width:32px;height:32px;border-radius:9px;display:inline-grid;place-items:center;font-size:12px;font-weight:600;color:var(--teal-700);background:var(--teal-100);vertical-align:middle;margin-right:9px}
+.ga-pac-nombre{display:inline-block;vertical-align:middle}
+.ga-pac-nombre b{display:block;font-size:14.5px;font-weight:600}
+.ga-pac-nombre small{font-size:11.5px;color:var(--ink-faint)}
+/* Celdas: se escribe el nombre del profesional, como en una planilla */
+.ga-celda{text-align:center;padding:0 8px;cursor:text;transition:.12s;height:42px;vertical-align:middle;font-size:13.5px}
+.ga-celda:hover{background:var(--teal-50);box-shadow:inset 0 0 0 1px var(--teal-100)}
+.ga-celda.bloqueada{cursor:default}
+.ga-celda.bloqueada:hover{background:transparent;box-shadow:none}
+.ga-nombre{font-weight:500}
+/* "X" = ese sector no le corresponde al paciente (como en el papel) */
+.ga-equis{color:var(--ink-faint);font-size:14px;font-weight:600}
+/* La celda en edición: el campo ocupa TODA la celda (se estira sobre el
+   padding con el margen negativo) y lleva él mismo el recuadro, así se
+   ve como una celda de planilla al escribir. */
+.ga-celda{position:relative}
+.ga-input{position:absolute;inset:0;width:100%;height:100%;box-sizing:border-box;border:none;outline:none;border-radius:0;box-shadow:inset 0 0 0 2px var(--teal-500);background:var(--card);color:var(--ink);font-family:var(--body);font-size:13.5px;text-align:center;padding:0 6px}
+
+/* ---- Galería del trabajo del mes ---- */
+.gal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
+.gal-foto{position:relative;background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);margin:0}
+.gal-foto img{width:100%;aspect-ratio:4/3;object-fit:cover;display:block;background:var(--card-2)}
+.gal-foto figcaption{padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.gal-foto figcaption b{font-size:14px;font-weight:600}
+.gal-foto figcaption span{font-size:13px;color:var(--ink-soft)}
+.gal-foto figcaption small{font-size:11.5px;color:var(--ink-faint)}
+.gal-borrar{all:unset;cursor:pointer;position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;background:rgba(13,28,48,.6);color:#fff;font-size:16px;opacity:0;transition:.15s}
+.gal-foto:hover .gal-borrar{opacity:1}
+.gal-borrar:hover{background:var(--red-600)}
+.gal-form .form-grid{margin-bottom:0}
+
 /* ---- Buttons / generic ---- */
 .btn{all:unset;cursor:pointer;font-family:var(--body);font-weight:600;font-size:16px;padding:10px 17px;border-radius:10px;background:var(--teal-600);color:#fff;transition:.15s}
 .btn:hover{background:var(--teal-700)}
@@ -239,7 +309,9 @@ tbody tr:last-child td{border-bottom:none}
 .livestat div{text-align:right}
 .livestat .n{font-family:var(--display);font-size:29px;font-weight:600;line-height:1}
 .livestat small{font-size:12.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.4px}
-.asis-row{display:flex;align-items:center;gap:14px;padding:14px 18px;border-bottom:1px solid var(--line-soft)}
+/* La fila es ancha (nombre + tira del mes + estados): si no entra,
+   envuelve en vez de cortarse. */
+.asis-row{display:flex;align-items:center;flex-wrap:wrap;gap:14px;padding:14px 18px;border-bottom:1px solid var(--line-soft)}
 .asis-row:last-child{border-bottom:none}
 .asis-row .nm{flex:1;min-width:0}
 .asis-row .nm b{font-size:16.5px;font-weight:600}.asis-row .nm small{color:var(--ink-faint);font-size:14px}
@@ -251,8 +323,6 @@ tbody tr:last-child td{border-bottom:none}
 .seg button.on-a{background:var(--red-600);color:#fff}
 .seg button.on-av{background:#e09a26;color:#fff}
 .seg button.on-e{background:#6b7c98;color:#fff}
-.mes{width:82px;text-align:right;font-size:13.5px;color:var(--ink-soft);flex-shrink:0}
-.mes b{color:var(--teal-700)}
 /* Navegación de fecha (día anterior / siguiente) */
 .datenav{display:flex;align-items:center;gap:8px}
 .nav-dia{all:unset;cursor:pointer;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--card);box-shadow:var(--shadow);display:grid;place-items:center;color:var(--ink-soft);font-size:18px;font-weight:600;transition:.15s}
@@ -261,12 +331,13 @@ tbody tr:last-child td{border-bottom:none}
 .asis-toolbar{display:flex;gap:12px;margin-bottom:16px;align-items:center}
 .asis-toolbar input{flex:1;font-family:var(--body);font-size:15.5px;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--card);box-shadow:var(--shadow)}
 .asis-toolbar input:focus{outline:none;border-color:var(--teal-500);box-shadow:0 0 0 3px var(--teal-50)}
-/* Lápiz: ÚNICA función es reabrir una fila guardada para editarla */
-.btn-editar{all:unset;cursor:pointer;width:34px;height:34px;border-radius:9px;display:grid;place-items:center;font-size:15px;color:var(--ink-faint);border:1px solid transparent;transition:.15s;flex-shrink:0}
-.btn-editar:hover{background:var(--card-2);color:var(--ink);border-color:var(--line)}
-.btn-editar.activo{background:var(--teal-50);color:var(--teal-700);border-color:var(--teal-100)}
-.btn-editar[disabled]{opacity:.3;cursor:default}
-.btn-editar[disabled]:hover{background:transparent;color:var(--ink-faint);border-color:transparent}
+/* Corregir: ÚNICA función es reabrir una fila guardada para editarla.
+   Va con ícono Y texto para que se vea que se puede corregir. */
+.btn-editar{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:9px;font-size:14px;font-weight:600;color:var(--teal-700);background:var(--teal-50);border:1px solid var(--teal-100);transition:.15s;flex-shrink:0;white-space:nowrap}
+.btn-editar:hover{background:var(--teal-100);color:var(--teal-800)}
+.btn-editar.activo{background:#e09a26;border-color:#e09a26;color:#fff}
+.btn-editar[disabled]{opacity:.35;cursor:default;background:var(--card-2);color:var(--ink-faint);border-color:var(--line)}
+.btn-editar[disabled]:hover{background:var(--card-2);color:var(--ink-faint);border-color:var(--line)}
 /* Tilde permanente de guardado por fila: verde = en la base, gris = sin guardar */
 .gtick{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:14px;font-weight:700;flex-shrink:0}
 .gtick.ok{background:var(--teal-600);color:#fff}
@@ -278,6 +349,103 @@ tbody tr:last-child td{border-bottom:none}
 @media(max-width:760px){
   .asis-row{flex-wrap:wrap}
   .asis-row .seg{margin-left:auto}
+}
+
+/* Nombre de la fila: es un botón que abre la ficha de asistencia
+   (el calendario mensual grande de esa persona). */
+.ficha-asis{all:unset;cursor:pointer;flex:1;min-width:0;display:flex;align-items:center;gap:12px;padding:6px 8px;margin:-6px -8px;border-radius:11px;transition:.15s}
+.ficha-asis:hover{background:var(--card-2)}
+.ficha-asis:focus-visible{outline:2px solid var(--teal-500);outline-offset:2px}
+.ficha-asis .nm{flex:1;min-width:0}
+.ficha-asis .nm b{font-size:16.5px;font-weight:600}
+.ficha-asis .nm small{color:var(--ink-faint);font-size:14px}
+.ficha-asis .pav{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-weight:600;font-size:14px;color:var(--teal-700);background:var(--teal-100);flex-shrink:0}
+
+/* ---- Tira mensual dentro de la fila de la planilla ----
+   Un cuadradito por día del mes: se ve cómo viene el paciente sin abrir
+   la ficha. Es un botón: al tocarla se abre el calendario grande. */
+.mini-cal{all:unset;cursor:pointer;display:flex;align-items:center;gap:2px;padding:6px 8px;border-radius:10px;border:1px solid transparent;flex-shrink:0;transition:.15s}
+.mini-cal:hover{background:var(--card-2);border-color:var(--line)}
+.mini-cal:focus-visible{outline:2px solid var(--teal-500);outline-offset:2px}
+.mini-cal .m-dia{width:9px;height:20px;border-radius:3px;display:block;background:var(--card-2);border:1px solid var(--line)}
+.mini-cal .m-dia.cal-ok{background:#2a9d6e;border-color:#2a9d6e}
+.mini-cal .m-dia.cal-bad{background:#d44242;border-color:#d44242}
+.mini-cal .m-dia.cal-avi{background:#e09a26;border-color:#e09a26}
+.mini-cal .m-dia.cal-enf{background:#8a6cd6;border-color:#8a6cd6}
+.mini-cal .m-dia.cerrado{background:transparent;border-style:dashed;opacity:.5}
+.mini-cal .m-dia.futuro{background:transparent;opacity:.35}
+.mini-cal .m-dia.sinreg{background:var(--card-2)}
+/* El día que se está registrando queda remarcado en la tira. */
+.mini-cal .m-dia.hoy{outline:2px solid var(--ink-soft);outline-offset:1px}
+.mini-cal .m-pct{margin-left:8px;font-size:13.5px;font-weight:600;color:var(--ink-soft)}
+.mini-cal.vacia{color:var(--ink-faint)}
+@media(max-width:1180px){ .mini-cal .m-dia{width:7px;height:17px} }
+
+/* ---- Calendario de asistencia (ficha grande de una persona) ----
+   Entra completo en el modal: sin scroll interno. Las celdas se miden
+   en vh para achicarse en pantallas bajas en vez de desbordar. */
+.cal-modal{max-width:820px;max-height:94vh;display:flex;flex-direction:column}
+/* El cuerpo es una columna flexible y el calendario se estira para
+   ocupar lo que sobra: el mes entra entero, sin scroll. Queda overflow
+   auto solo como red de seguridad en pantallas muy chicas. */
+.cal-modal .modal-b{flex:1;min-height:0;overflow:auto;display:flex;flex-direction:column}
+.cal-modal #cal-contenido{flex:1;min-height:0;display:flex;flex-direction:column}
+.cal-titulo{display:flex;align-items:center;gap:13px}
+.cal-titulo small{color:var(--ink-faint);font-size:13.5px}
+.cal-nav{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.cal-nav b{font-family:var(--display);font-size:19px;font-weight:600;min-width:150px;text-align:center}
+.cal-resumen{display:flex;gap:20px;flex-wrap:wrap;justify-content:space-between;background:var(--card-2);border:1px solid var(--line);border-radius:12px;padding:9px 18px;margin-bottom:12px}
+.cal-resumen .n{font-family:var(--display);font-size:23px;font-weight:600;line-height:1}
+.cal-resumen small{font-size:11.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.4px}
+/* Fila 1 = nombres de los días (alto natural); las semanas se reparten
+   el espacio que queda (1fr), con un mínimo para que sigan legibles. */
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:auto;grid-auto-rows:minmax(clamp(26px,4.6vh,46px),1fr);gap:5px;flex:1;min-height:0}
+.cal-dow{text-align:center;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);padding-bottom:2px}
+.cal-dow.finde{color:var(--ink-faint);opacity:.6}
+/* Sin alto propio: lo define la fila de la grilla, que se adapta al
+   espacio libre del modal (así el mes entra siempre, sin scroll). */
+.cal-dia{min-height:0;border-radius:10px;border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-size:15px;font-weight:600;color:var(--ink-soft);background:var(--card)}
+.cal-dia small{font-size:10px;font-weight:500;opacity:.9}
+.cal-dia.vacia{border:none;background:transparent}
+.cal-dia.cerrado{background:var(--card-2);color:var(--ink-faint);border-style:dashed}
+.cal-dia.futuro{color:var(--ink-faint);opacity:.5}
+.cal-dia.sinreg{border-style:dashed;color:var(--ink-faint)}
+/* Colores del calendario: van fijos (no usan la paleta celeste del
+   sistema) para que el verde sea VERDE y coincidan exactamente con los
+   del PDF — ver ESTADOS_CALENDARIO en utils/calendario.js. */
+.cal-dia.cal-ok{background:#2a9d6e;border-color:#2a9d6e;color:#fff}
+.cal-dia.cal-bad{background:#d44242;border-color:#d44242;color:#fff}
+.cal-dia.cal-avi{background:#e09a26;border-color:#e09a26;color:#fff}
+.cal-dia.cal-enf{background:#8a6cd6;border-color:#8a6cd6;color:#fff}
+/* Referencia de colores debajo del calendario */
+.cal-ref{display:flex;flex-wrap:wrap;gap:12px;margin-top:12px;font-size:12px;color:var(--ink-soft)}
+.cal-ref span{display:flex;align-items:center;gap:6px}
+.cal-ref i{width:13px;height:13px;border-radius:4px;display:inline-block;border:1px solid var(--line)}
+.cal-ref i.cal-ok{background:#2a9d6e}
+.cal-ref i.cal-bad{background:#d44242}
+.cal-ref i.cal-avi{background:#e09a26}
+.cal-ref i.cal-enf{background:#8a6cd6}
+.cal-ref i.cerrado{background:var(--card-2);border-style:dashed}
+.cal-ref i.sinreg{background:transparent;border-style:dashed}
+@media(max-width:560px){
+  .cal-dia{font-size:13px}
+  .cal-resumen{gap:12px}
+  .cal-resumen .n{font-size:20px}
+}
+/* Pantallas bajas (notebooks): se compacta todo lo de alrededor para que
+   el mes siga entrando entero sin scroll. */
+@media(max-height:760px){
+  .cal-modal .modal-h{padding:12px 20px}
+  .cal-modal .modal-f{padding:12px 20px}
+  .cal-titulo h2{font-size:19px}
+  .cal-nav{margin-bottom:8px}
+  .cal-nav b{font-size:17px}
+  .cal-resumen{padding:6px 14px;margin-bottom:8px}
+  .cal-resumen .n{font-size:18px}
+  .cal-resumen small{font-size:10px}
+  .cal-grid{gap:4px;grid-auto-rows:minmax(22px,1fr)}
+  .cal-dia{font-size:13px}
+  .cal-ref{gap:10px;margin-top:8px;font-size:11px}
 }
 
 .footnote{margin-top:30px;font-size:13px;color:var(--ink-faint);text-align:center;line-height:1.6}

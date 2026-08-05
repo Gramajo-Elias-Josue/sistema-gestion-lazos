@@ -21,6 +21,7 @@ export const SECCIONES = [
   { clave: 'agenda',         etiqueta: 'Turnos' },
   { clave: 'asistencia',     etiqueta: 'Asistencia' },
   { clave: 'profesionales',  etiqueta: 'Profesionales' },
+  { clave: 'galeria',        etiqueta: 'Galería' },
   { clave: 'estadisticas',   etiqueta: 'Estadísticas' },
   { clave: 'administracion', etiqueta: 'Administración' },
 ];
@@ -31,13 +32,21 @@ const TODAS = SECCIONES.map(s => s.clave);
 const POR_DEFECTO = {
   director:    TODAS,
   secretaria:  ['inicio', 'admision', 'pacientes', 'agenda', 'asistencia', 'profesionales'],
-  profesional: ['inicio', 'pacientes', 'agenda'],
+  // El profesional entra a Galería porque es donde SUBE la foto de su
+  // trabajo del mes (el informe lo carga en la historia clínica).
+  profesional: ['inicio', 'pacientes', 'agenda', 'galeria'],
+  // CM (contenido / difusión): ve SOLO la galería. No tiene por qué
+  // entrar a pacientes ni a nada clínico.
+  cm:          ['inicio', 'galeria'],
 };
 
 // Rol por defecto si el perfil no se pudo cargar (nunca da acceso de director).
 const ROL_FALLBACK = 'secretaria';
 
-const ETIQUETAS = { director: 'Director', secretaria: 'Secretaría', profesional: 'Profesional' };
+const ETIQUETAS = {
+  director: 'Director', secretaria: 'Secretaría',
+  profesional: 'Profesional', cm: 'Contenido (CM)',
+};
 
 // Lista de secciones por defecto de un rol.
 export function seccionesPorDefecto(rol) {

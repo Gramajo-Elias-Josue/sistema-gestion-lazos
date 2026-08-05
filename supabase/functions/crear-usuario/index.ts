@@ -66,7 +66,8 @@ Deno.serve(async (req) => {
     if (!email || !password || !rol) {
       return json({ error: 'Faltan email, contraseña o rol.' }, 400);
     }
-    if (!['director', 'secretaria', 'profesional'].includes(rol)) {
+    // 'cm' = community manager: solo entra a la galería del trabajo.
+    if (!['director', 'secretaria', 'profesional', 'cm'].includes(rol)) {
       return json({ error: 'Rol inválido.' }, 400);
     }
 
