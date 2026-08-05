@@ -11,9 +11,13 @@ import * as asistenciaModel from '../models/asistenciaModel.js';
 import * as documentoModel from '../models/documentoModel.js';
 import * as turnoModel from '../models/turnoModel.js';
 import * as asistenciaProfModel from '../models/asistenciaProfesionalModel.js';
-import { renderInicio, renderKpis, renderAlertas, renderGrillaDia, renderDisponibilidad } from '../views/inicioView.js';
+import * as fotoModel from '../models/fotoModel.js';
+import * as evaluacionModel from '../models/evaluacionModel.js';
+import { renderInicio, renderKpis, renderAlertas, renderDisponibilidad, renderEntregas } from '../views/inicioView.js';
+import { iniciarGrillaAtencion } from './grillaAtencionController.js';
 import { htmlCargando, htmlError } from '../utils/ui.js';
-import { hoyISO } from '../utils/fechas.js';
+import { hoyISO, rangoMes } from '../utils/fechas.js';
+import { periodoMensual, pendientesDelMes } from '../utils/periodos.js';
 
 // Punto de entrada de la sección Inicio (lo llama el router).
 export async function iniciarInicio() {
@@ -24,8 +28,9 @@ export async function iniciarInicio() {
   const cajaGrilla = document.getElementById('inicio-grilla');
   const cajaDisp = document.getElementById('inicio-disponibilidad');
   const cajaAlertas = document.getElementById('inicio-alertas');
+  const cajaEntregas = document.getElementById('inicio-entregas');
   cajaKpis.innerHTML = htmlCargando('Cargando indicadores…');
-  cajaGrilla.innerHTML = htmlCargando('Cargando turnos del día…');
+  cajaEntregas.innerHTML = htmlCargando('Revisando entregas del mes…');
   cajaDisp.innerHTML = htmlCargando('Cargando profesionales…');
   cajaAlertas.innerHTML = htmlCargando('Buscando vencimientos…');
 
@@ -52,14 +57,10 @@ export async function iniciarInicio() {
     cajaKpis.innerHTML = htmlError('No se pudieron cargar los indicadores.');
   }
 
-  // --- Grilla del día (turnos de hoy: paciente ↔ profesional) ---
-  try {
-    const turnos = await turnoModel.listarTurnosPorFecha(hoy);
-    cajaGrilla.innerHTML = renderGrillaDia(turnos);
-  } catch (err) {
-    console.error('Error cargando la grilla del día:', err);
-    cajaGrilla.innerHTML = htmlError('No se pudo cargar la grilla del día.');
-  }
+  // --- Grilla de atención (pacientes × profesionales, editable) ---
+  // Es la planilla fija del centro: se llena a mano y se repite todos
+  // los días. La maneja su propio controlador.
+  iniciarGrillaAtencion(cajaGrilla);
 
   // --- Disponibilidad de hoy (profesionales presentes según el fichaje) ---
   try {
@@ -73,6 +74,25 @@ export async function iniciarInicio() {
   } catch (err) {
     console.error('Error cargando la disponibilidad:', err);
     cajaDisp.innerHTML = htmlError('No se pudo cargar la disponibilidad.');
+  }
+
+  // --- Entregas del mes (informe mensual + foto de trabajo) ---
+  // El informe mensual es el MISMO que se carga en la historia clínica
+  // del paciente: acá solo se mira quién cargó al menos uno este mes.
+  try {
+    const periodo = periodoMensual();
+    const { desde, hasta } = rangoMes(hoy);
+    const [profs, informes, fotos] = await Promise.all([
+      profesionalModel.listarProfesionales({ soloActivos: true }),
+      evaluacionModel.listarInformesPorRango('mensual', desde, hasta),
+      fotoModel.listarTodas(),
+    ]);
+    cajaEntregas.innerHTML = renderEntregas(
+      pendientesDelMes({ profesionales: profs, informes, fotos, periodo })
+    );
+  } catch (err) {
+    console.error('Error cargando las entregas del mes:', err);
+    cajaEntregas.innerHTML = htmlError('No se pudieron cargar las entregas del mes.');
   }
 
   // --- Panel de alertas de documentación ---

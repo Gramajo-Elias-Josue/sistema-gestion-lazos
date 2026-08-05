@@ -1,13 +1,13 @@
-// =====================================================================
+﻿// =====================================================================
 // VISTA: Inicio (panel de dirección)
 // ---------------------------------------------------------------------
 // CAPA VISTA. Solo arma HTML a partir de los datos que le pasa el
 // controlador. No accede a Supabase ni decide nada de negocio.
 // =====================================================================
 
-import { estadoVencimiento, formatearFecha, iniciales } from '../utils/fechas.js';
+import { estadoVencimiento, fechaLarga, formatearFecha, iniciales } from '../utils/fechas.js';
+import { etiquetaPeriodo } from '../utils/periodos.js';
 import { esc, pill } from '../utils/ui.js';
-import { ESTADOS_TURNO } from './turnosView.js';
 
 // Estructura general de la vista: contenedores que el controlador rellena.
 export function renderInicio() {
@@ -15,10 +15,23 @@ export function renderInicio() {
     <div id="inicio-kpis"></div>
     <div class="panel" style="margin-bottom:20px">
       <div class="panel-h">
-        <h2>Grilla del día</h2>
-        <span class="cnt">turnos de hoy</span>
+        <h2>Grilla de atención</h2>
+        <span class="cnt">${esc(fechaLarga())}</span>
       </div>
-      <div class="panel-b" id="inicio-grilla"></div>
+      <div class="panel-b">
+        <p class="ga-ayuda">
+          Tocá una celda y escribí el profesional que atiende a ese paciente.
+          Enter baja a la celda de abajo y Tab pasa a la de al lado.
+        </p>
+        <div id="inicio-grilla"></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-bottom:20px">
+      <div class="panel-h">
+        <h2>Entregas del mes</h2>
+        <span class="cnt">informes y fotos</span>
+      </div>
+      <div class="panel-b" id="inicio-entregas"></div>
     </div>
     <div class="grid2">
       <div class="panel">
@@ -101,29 +114,37 @@ export function renderDisponibilidad(profesionales, fichajesPorId = {}) {
   }).join('');
 }
 
-// Grilla del día: qué profesional atiende a cada paciente hoy (turnos).
-export function renderGrillaDia(turnos) {
-  if (!turnos.length) {
-    return `<div class="state">No hay turnos programados para hoy. Cargá turnos desde <b>Turnos</b>.</div>`;
+// Entregas del mes: quién debe el informe mensual y quién no subió
+// todavía su foto de trabajo. Es lo que evita perseguir a la gente de
+// memoria. `pendientes` viene de utils/periodos.js.
+export function renderEntregas({ periodo, informes = [], fotos = [], alDia = false } = {}) {
+  const mes = etiquetaPeriodo(periodo);
+  if (alDia) {
+    return `<div class="state">Todo el equipo entregó su informe y su foto de ${esc(mes)}. ✓</div>`;
   }
-  const filas = turnos.map(t => {
-    const est = ESTADOS_TURNO[t.estado] || ESTADOS_TURNO.programado;
-    const pac = t.pacientes || {};
-    const prof = t.profesionales || {};
-    const hora = t.hora ? String(t.hora).slice(0, 5) : '—';
+
+  // Singular y plural van separados: "1 profesional debe" / "3 profesionales deben".
+  const bloque = ({ uno, varios }, gente, clase, icono) => {
+    if (!gente.length) return '';
+    const encabezado = gente.length === 1 ? `1 profesional ${uno}` : `${gente.length} profesionales ${varios}`;
     return `
-      <tr style="cursor:default">
-        <td style="font-weight:600;white-space:nowrap">${hora}</td>
-        <td><b>${esc(pac.nombre_completo || '—')}</b></td>
-        <td>${esc(prof.nombre_completo || '—')}<br><small style="color:var(--ink-faint)">${esc(prof.profesion || '')}</small></td>
-        <td>${pill(est.clase, est.etiqueta)}</td>
-      </tr>`;
-  }).join('');
+      <div class="alert">
+        <div class="ico ${clase}">${icono}</div>
+        <div class="tx">
+          <b>${encabezado}</b>
+          <span>${gente.map(p => esc(p.nombre_completo)).join(' · ')}</span>
+        </div>
+        <span class="tag ${clase === 'i-red' ? 't-red' : 't-amber'}">${esc(mes)}</span>
+      </div>`;
+  };
+
   return `
-    <table>
-      <thead><tr><th>Hora</th><th>Paciente</th><th>Profesional</th><th>Estado</th></tr></thead>
-      <tbody>${filas}</tbody>
-    </table>`;
+    ${bloque({ uno: 'debe el informe del mes', varios: 'deben el informe del mes' }, informes, 'i-red', '📄')}
+    ${bloque({ uno: 'no subió su foto del mes', varios: 'no subieron su foto del mes' }, fotos, 'i-amber', '📷')}
+    <div class="hint" style="margin-top:10px;font-size:13.5px;color:var(--ink-faint)">
+      Los <b>informes</b> se cargan en la historia clínica de cada paciente; las
+      <b>fotos</b>, en <b>Galería</b>.
+    </div>`;
 }
 
 // Panel de alertas: lista de documentos vencidos o por vencer.

@@ -11,10 +11,14 @@ const TABLA = 'profesionales';
 // Lista profesionales ordenados por nombre.
 // Incluye el conteo de pacientes asignados embebido desde la tabla
 // `asignaciones` (PostgREST devuelve asignaciones: [{ count: N }]).
+// Solo cuenta las asignaciones VIGENTES: las cerradas (a las que se les
+// puso `vigente_hasta` al cambiar de profesional) son historia, no
+// pacientes que atienda hoy.
 export async function listarProfesionales({ soloActivos = false } = {}) {
   let query = supabase
     .from(TABLA)
     .select('*, asignaciones(count)')
+    .is('asignaciones.vigente_hasta', null)
     .order('nombre_completo', { ascending: true });
 
   if (soloActivos) query = query.eq('estado', 'activo');
