@@ -415,6 +415,9 @@ async function abrirFormEvaluacion(paciente, evalsPaciente = []) {
         fecha: hoy,
         contenido: serializarEvaluacion(datos),
         turnoId: opt ? opt.dataset.turno : null,
+        // El tipo va en la clave: así el informe del mes NO pisa la
+        // evaluación diaria del mismo paciente y el mismo día.
+        tipo: datos.tipo,
       });
 
       // 2) Genera el PDF (se descarga) y lo adjunta a la historia clínica.

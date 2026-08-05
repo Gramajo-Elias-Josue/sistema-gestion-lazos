@@ -35,19 +35,32 @@ export function renderEstructura(fecha, profesionales, profSelId) {
 
 // Lista de pacientes (turnos del profesional ese día) con su evaluación.
 // items: [{ pacienteId, turnoId, nombre, hora, estado, contenido }]
-// bloqueado=true (fecha futura): no se puede evaluar lo que todavía no
-// ocurrió -> textareas y botones deshabilitados + aviso.
+// ctx = { bloqueado, aviso, diasRestantes }:
+//   - bloqueado: la fecha ya no admite carga (futura, o pasado el plazo
+//     de una semana) -> todo en solo lectura, con el motivo escrito.
+//   - diasRestantes: cuánto queda de plazo (0 = último día).
 // Además, GATE POR ATENCIÓN: solo el turno 'atendido' habilita la
 // evaluación; los pendientes/ausentes se muestran bloqueados con la
 // razón (el paciente todavía no fue atendido).
-export function renderFilas(items, bloqueado = false) {
+export function renderFilas(items, ctx = {}) {
+  const { bloqueado = false, aviso = null, diasRestantes = null } = ctx;
+
   if (!items.length) {
     return `<div class="tablewrap"><div class="state">Este profesional no tiene turnos para esta fecha. Cargá turnos en <b>Agenda</b> para poder evaluar.</div></div>`;
   }
-  const aviso = bloqueado
-    ? `<div class="banner">📅 Fecha futura: la evaluación se carga el día de la atención.</div>`
-    : '';
-  return aviso + items.map(it => {
+
+  // La evaluación diaria NO es obligatoria: se aclara para que nadie la
+  // cargue "por las dudas" si ya la lleva en papel.
+  let banner = `<div class="banner">📝 La evaluación diaria es <b>opcional</b>: cargala solo si no la llevás en papel. Se puede cargar hasta una semana después.</div>`;
+  if (bloqueado && aviso) {
+    banner = `<div class="banner">🔒 ${esc(aviso)}</div>`;
+  } else if (diasRestantes === 0) {
+    banner = `<div class="banner">⏳ <b>Último día</b> para cargar la evaluación de esta fecha.</div>`;
+  } else if (diasRestantes !== null && diasRestantes <= 2) {
+    banner = `<div class="banner">⏳ Quedan ${diasRestantes} días para cargar la evaluación de esta fecha.</div>`;
+  }
+
+  return banner + items.map(it => {
     // Cada fila se habilita solo si el paciente fue atendido y la fecha
     // no está bloqueada. Si no, textarea de solo lectura + motivo.
     const atendido = it.estado === 'atendido';

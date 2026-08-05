@@ -12,6 +12,7 @@ import * as evaluacionModel from '../models/evaluacionModel.js';
 import * as asistenciaProfModel from '../models/asistenciaProfesionalModel.js';
 import { renderEstructura, renderFilas } from '../views/evolucionesView.js';
 import { hoyISO, sumarDias, nombreDia } from '../utils/fechas.js';
+import { estadoCargaEvaluacion, diasRestantesEvaluacion } from '../utils/evaluacion.js';
 import { htmlCargando, htmlError, toast } from '../utils/ui.js';
 import { validarEvaluacion } from '../utils/validacion.js';
 import { mensajeError } from '../utils/errores.js';
@@ -20,7 +21,8 @@ let profesionales = [];
 let profId = null;
 let fechaActual = hoyISO();
 let items = [];          // { pacienteId, turnoId, nombre, hora, contenido }
-let bloqueado = false;   // true si la fecha elegida es futura (no se evalúa)
+let bloqueado = false;   // true si la fecha no admite carga (futura o vencida)
+let avisoPlazo = null;   // el porqué, escrito para el usuario
 
 // Punto de entrada de la sección Evoluciones (lo llama el router).
 export async function iniciarEvoluciones() {
@@ -61,10 +63,16 @@ function irAFecha(fecha) {
 
 // Lista los turnos del profesional en la fecha + sus evaluaciones.
 async function cargar() {
-  bloqueado = fechaActual > hoyISO(); // fecha futura: solo lectura
-  // El informe tampoco tiene sentido para un día que no ocurrió.
+  // La evaluación diaria es opcional, pero tiene plazo: se puede cargar
+  // hasta una semana después. Fecha futura o vencida => solo lectura.
+  const plazo = estadoCargaEvaluacion(fechaActual, hoyISO());
+  bloqueado = !plazo.editable;
+  avisoPlazo = plazo.mensaje;
+
+  // El informe no tiene sentido para un día que todavía no ocurrió; sí
+  // para uno viejo (se puede reimprimir lo que ya está cargado).
   const btnPdf = document.getElementById('evo-pdf');
-  if (btnPdf) btnPdf.disabled = bloqueado;
+  if (btnPdf) btnPdf.disabled = plazo.motivo === 'futuro';
 
   const caja = document.getElementById('evo-body');
   if (!profId) {
@@ -91,7 +99,11 @@ async function cargar() {
         estado: t.estado, // solo 'atendido' habilita la evaluación
         contenido: evalPorPac[t.paciente_id] || '',
       }));
-    caja.innerHTML = renderFilas(items, bloqueado);
+    caja.innerHTML = renderFilas(items, {
+      bloqueado,
+      aviso: avisoPlazo,
+      diasRestantes: diasRestantesEvaluacion(fechaActual, hoyISO()),
+    });
   } catch (err) {
     console.error('Error cargando evoluciones:', err);
     caja.innerHTML = htmlError('No se pudieron cargar las evaluaciones.');
@@ -100,7 +112,10 @@ async function cargar() {
 
 // Guarda la evaluación de un paciente (upsert por paciente/prof/fecha).
 async function guardar(pacienteId) {
-  if (bloqueado) return; // fecha futura: no se evalúa
+  if (bloqueado) {
+    if (avisoPlazo) toast(avisoPlazo, 'bad');
+    return;
+  }
   // Gate: solo se evalúa a un paciente YA ATENDIDO (turno 'atendido').
   const it = items.find(i => String(i.pacienteId) === String(pacienteId));
   if (!it || it.estado !== 'atendido') {
@@ -117,6 +132,7 @@ async function guardar(pacienteId) {
     await evaluacionModel.guardarEvaluacion({
       pacienteId, profesionalId: profId, fecha: fechaActual,
       contenido, turnoId: ta.dataset.turno || null,
+      tipo: evaluacionModel.TIPO_DIARIA,  // no se mezcla con los informes
     });
     toast('Evaluación guardada.');
   } catch (err) {
