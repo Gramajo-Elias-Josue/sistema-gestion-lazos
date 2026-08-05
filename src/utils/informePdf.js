@@ -12,6 +12,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { fechaLarga, formatearFecha } from './fechas.js';
 import { SECCIONES_INFORME } from './evaluacion.js';
+import { DIAS_SEMANA, ESTADOS_CALENDARIO, etiquetaMes } from './calendario.js';
 import { CLINICA } from '../config/clinica.js';
 
 // Carga el logo institucional como dataURL (base64) para incrustarlo en el
@@ -75,6 +76,92 @@ async function registrarComicSans(doc) {
 
 // "HH:MM:SS" -> "HH:MM" (o '—').
 function hhmm(t) { return t ? String(t).slice(0, 5) : '—'; }
+
+// ---------------------------------------------------------------------
+// MEMBRETE INSTITUCIONAL (compartido por los documentos de la clínica)
+// ---------------------------------------------------------------------
+// Réplica del membrete en papel: banda diagonal con degradé naranja →
+// celeste, logo circular a la derecha, nombre del centro en Comic Sans y
+// los datos de contacto debajo. Devuelve la coordenada Y donde puede
+// empezar el contenido del documento.
+//
+// Es ASYNC porque el logo y la fuente se cargan por fetch (y se cachean).
+async function dibujarMembrete(doc, { W, margin, contentW }) {
+  // Banda decorativa: rectángulo partido de esquina a esquina por una
+  // diagonal; el TRIÁNGULO SUPERIOR lleva el degradé y la diagonal una
+  // línea blanca. jsPDF no tiene degradé nativo: se simula con franjas
+  // verticales finas, cada una con un color interpolado y una altura
+  // recortada a la diagonal.
+  const hbIzq = 62, hbDer = 0;            // alto de la banda: izquierda / esquina derecha
+  const NAR = [238, 118, 35], CEL = [123, 203, 240];
+  const lerp = (a, b, t) => Math.round(a + (b - a) * t);
+  const altoEn = (t) => hbIzq + (hbDer - hbIzq) * t; // diagonal (0,hbIzq)→(W,hbDer)
+  const paso = 1;                          // ancho de cada franja (pt): 1 = diagonal bien limpia
+  for (let x = 0; x < W; x += paso) {
+    const t = x / W;
+    const alto = altoEn(t);
+    if (alto <= 0) continue;               // en la esquina derecha el color se va a cero
+    doc.setFillColor(lerp(NAR[0], CEL[0], t), lerp(NAR[1], CEL[1], t), lerp(NAR[2], CEL[2], t));
+    doc.rect(x, 0, paso + 0.6, alto, 'F'); // franja recortada a la diagonal
+  }
+  doc.setDrawColor(255, 255, 255);         // borde BLANCO sobre la diagonal
+  doc.setLineWidth(2.5); doc.line(0, hbIzq, W, hbDer);
+
+  // Logo circular, arriba a la derecha, sobre la banda.
+  const logo = await cargarLogo();
+  if (logo) {
+    try { doc.addImage(logo.dataUrl, logo.formato, W - margin - 84, -4, 84, 84); }
+    catch { /* si el formato del logo falla, sigue sin él */ }
+  }
+
+  // Nombre + subtítulo SOBRE la banda, en NEGRO y centrados en la zona
+  // libre (entre el margen y el logo). Título en Comic Sans MS (embebida);
+  // si no se puede cargar, times.
+  const ff = (await registrarComicSans(doc)) ? 'ComicSansMS' : 'times';
+  const nombre = CLINICA.nombre.toUpperCase();
+  const sub = CLINICA.subtitulo.toUpperCase();
+  const gap = 9;
+  doc.setFont(ff, 'bolditalic'); doc.setFontSize(22);
+  const wNombre = doc.getTextWidth(nombre);
+  doc.setFont(ff, 'italic'); doc.setFontSize(13.5);
+  const wSub = doc.getTextWidth(sub);
+  const zonaDer = W - 96;                 // reservado para el logo a la derecha
+  const totalW = wNombre + gap + wSub;
+  const xIni = Math.max(margin, margin + (zonaDer - margin - totalW) / 2);
+  const yTit = 40;                        // baseline: alineado (centrado) con el logo
+  doc.setTextColor(0, 0, 0);
+  doc.setFont(ff, 'bolditalic'); doc.setFontSize(22);
+  doc.text(nombre, xIni, yTit);
+  doc.setFont(ff, 'italic'); doc.setFontSize(13.5);
+  doc.text(sub, xIni + wNombre + gap, yTit);
+
+  // Datos de contacto DEBAJO de la banda.
+  let y = hbIzq + 16;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(60);
+  doc.text(`DIREC: ${CLINICA.direccion}`, margin, y);
+  doc.text(`CUIT: ${CLINICA.cuit}`, margin, y + 14);
+  doc.text(`CEL: ${CLINICA.cel}`, margin + contentW * 0.55, y);
+  doc.text(`RES: ${CLINICA.resolucion}`, margin + contentW * 0.55, y + 14);
+
+  y += 30;
+  doc.setDrawColor(180); doc.setLineWidth(1); doc.line(margin, y, W - margin, y);
+  return y + 26;
+}
+
+// Firma y sello al pie del documento, con la aclaración de quien firma.
+// Devuelve la Y usada (por si hace falta seguir escribiendo).
+function dibujarFirma(doc, { W, H, margin, y, aclaracion = '' }) {
+  let yf = y;
+  if (yf > H - 90) { doc.addPage(); yf = 130; }
+  const colW = (W - margin * 2 - 50) / 2;
+  doc.setDrawColor(120); doc.setLineWidth(0.5);
+  doc.line(margin, yf, margin + colW, yf);
+  doc.line(margin + colW + 50, yf, W - margin, yf);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(90);
+  doc.text('Firma', margin, yf + 14);
+  doc.text(aclaracion || 'Aclaración y sello', margin + colW + 50, yf + 14);
+  return yf;
+}
 
 // Datos:
 //   profesional: { nombre_completo, profesion, especialidad, matricula }
@@ -173,65 +260,7 @@ export async function generarInformeEvaluacion({ paciente = {}, profesional = {}
   const asegurar = (alto) => { if (y + alto > H - 70) { doc.addPage(); y = margin; } };
 
   // --- Membrete institucional (banda diagonal + logo + datos) ---
-  // Banda decorativa: rectángulo partido de esquina a esquina por una
-  // diagonal; el TRIÁNGULO SUPERIOR se pinta con un DEGRADÉ horizontal
-  // naranja (izq) → celeste (der), y la diagonal lleva una línea navy.
-  // Debajo de la diagonal queda blanco (réplica del membrete en papel).
-  // jsPDF no tiene degradé nativo: se simula con franjas verticales finas,
-  // cada una con un color interpolado y una altura recortada a la diagonal.
-  const hbIzq = 62, hbDer = 0;            // alto de la banda: izquierda / esquina derecha
-  const NAR = [238, 118, 35], CEL = [123, 203, 240];
-  const lerp = (a, b, t) => Math.round(a + (b - a) * t);
-  const altoEn = (t) => hbIzq + (hbDer - hbIzq) * t; // diagonal (0,hbIzq)→(W,hbDer)
-  const paso = 1;                          // ancho de cada franja (pt): 1 = diagonal bien limpia
-  for (let x = 0; x < W; x += paso) {
-    const t = x / W;
-    const alto = altoEn(t);
-    if (alto <= 0) continue;               // en la esquina derecha el color se va a cero
-    doc.setFillColor(lerp(NAR[0], CEL[0], t), lerp(NAR[1], CEL[1], t), lerp(NAR[2], CEL[2], t));
-    doc.rect(x, 0, paso + 0.6, alto, 'F'); // franja recortada a la diagonal
-  }
-  doc.setDrawColor(255, 255, 255);         // borde BLANCO sobre la diagonal
-  doc.setLineWidth(2.5); doc.line(0, hbIzq, W, hbDer);
-
-  // Logo circular, arriba a la derecha, sobre la banda.
-  const logo = await cargarLogo();
-  if (logo) {
-    try { doc.addImage(logo.dataUrl, logo.formato, W - margin - 84, -4, 84, 84); }
-    catch { /* si el formato del logo falla, sigue sin él */ }
-  }
-
-  // Nombre + subtítulo SOBRE la banda, en NEGRO y centrados en la zona
-  // libre (entre el margen y el logo).
-  // Título del membrete en Comic Sans MS (embebida); si falla, times.
-  const ff = (await registrarComicSans(doc)) ? 'ComicSansMS' : 'times';
-  const nombre = CLINICA.nombre.toUpperCase();
-  const sub = CLINICA.subtitulo.toUpperCase();
-  const gap = 9;
-  doc.setFont(ff, 'bolditalic'); doc.setFontSize(22);
-  const wNombre = doc.getTextWidth(nombre);
-  doc.setFont(ff, 'italic'); doc.setFontSize(13.5);
-  const wSub = doc.getTextWidth(sub);
-  const zonaDer = W - 96;                 // reservado para el logo a la derecha
-  const totalW = wNombre + gap + wSub;
-  const xIni = Math.max(margin, margin + (zonaDer - margin - totalW) / 2);
-  const yTit = 40;                        // baseline: alineado (centrado) con el logo
-  doc.setTextColor(0, 0, 0);
-  doc.setFont(ff, 'bolditalic'); doc.setFontSize(22);
-  doc.text(nombre, xIni, yTit);
-  doc.setFont(ff, 'italic'); doc.setFontSize(13.5);
-  doc.text(sub, xIni + wNombre + gap, yTit);
-
-  // Datos de contacto DEBAJO de la banda.
-  y = hbIzq + 16;
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9.5); doc.setTextColor(60);
-  doc.text(`DIREC: ${CLINICA.direccion}`, margin, y);
-  doc.text(`CUIT: ${CLINICA.cuit}`, margin, y + 14);
-  doc.text(`CEL: ${CLINICA.cel}`, margin + contentW * 0.55, y);
-  doc.text(`RES: ${CLINICA.resolucion}`, margin + contentW * 0.55, y + 14);
-
-  y += 30;
-  doc.setDrawColor(180); doc.setLineWidth(1); doc.line(margin, y, W - margin, y); y += 26;
+  y = await dibujarMembrete(doc, { W, margin, contentW });
 
   // --- Datos del paciente (etiqueta en negrita + subrayado, como el papel) ---
   const campo = (label, value) => {
@@ -291,17 +320,9 @@ export async function generarInformeEvaluacion({ paciente = {}, profesional = {}
   seccionOpcional(etq('indicaciones'), informe.indicaciones);
 
   // --- Firma y sello (con aclaración del profesional) ---
-  let yf = y + 46;
-  if (yf > H - 90) { doc.addPage(); yf = 130; }
-  const colW = (W - margin * 2 - 50) / 2;
-  doc.setDrawColor(120); doc.setLineWidth(0.5);
-  doc.line(margin, yf, margin + colW, yf);
-  doc.line(margin + colW + 50, yf, W - margin, yf);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(90);
-  doc.text('Firma', margin, yf + 14);
   const acl = [profesional.nombre_completo, profesional.matricula ? 'Mat. ' + profesional.matricula : null]
     .filter(Boolean).join(' · ');
-  doc.text(acl || 'Aclaración y sello', margin + colW + 50, yf + 14);
+  dibujarFirma(doc, { W, H, margin, y: y + 46, aclaracion: acl });
 
   // --- Pie ---
   doc.setFontSize(8); doc.setTextColor(150);
@@ -311,5 +332,163 @@ export async function generarInformeEvaluacion({ paciente = {}, profesional = {}
   const filename = `informe-${slug}-${fecha}.pdf`;
   doc.save(filename);              // descarga inmediata para el profesional
   const blob = doc.output('blob'); // mismo PDF, para adjuntar a la historia
+  return { blob, filename };
+}
+
+// =====================================================================
+// Planilla mensual de asistencia (paciente o profesional)
+// ---------------------------------------------------------------------
+// Lleva el MISMO membrete que los informes de la clínica y reproduce en
+// papel el calendario que se ve en pantalla: verde los días que asistió,
+// rojo los que faltó, gris los fines de semana (la clínica no abre).
+// Cierra con el resumen del mes, el detalle de las ausencias y la zona
+// de firma y sello.
+// Datos:
+//   persona:    { nombre_completo, dni, ... }
+//   tipo:       'paciente' | 'profesional'
+//   subtitulo:  diagnóstico (paciente) o profesión y matrícula
+//   calendario: lo que devuelve armarCalendario() de utils/calendario.js
+// Devuelve { blob, filename }.
+export async function generarPlanillaAsistencia({ persona = {}, tipo = 'paciente', subtitulo = '', calendario }) {
+  const { anio, mes, semanas, dias, resumen } = calendario;
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+  const W = doc.internal.pageSize.getWidth();
+  const H = doc.internal.pageSize.getHeight();
+  const margin = 48;
+  const contentW = W - margin * 2;
+
+  // --- Membrete institucional (el mismo de los informes) ---
+  let y = await dibujarMembrete(doc, { W, margin, contentW });
+
+  // --- Datos de la persona (etiquetas subrayadas, como el papel) ---
+  const campo = (label, value) => {
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(10.5); doc.setTextColor(0);
+    doc.text(label, margin, y);
+    const lw = doc.getTextWidth(label);
+    doc.setDrawColor(0); doc.setLineWidth(0.5); doc.line(margin, y + 2, margin + lw, y + 2);
+    doc.setFont('helvetica', 'normal');
+    doc.text(' ' + (value || '—'), margin + lw + 2, y);
+    y += 20;
+  };
+  campo(tipo === 'profesional' ? 'PROFESIONAL:' : 'PACIENTE:', persona.nombre_completo);
+  campo(tipo === 'profesional' ? 'PROFESIÓN:' : 'DX:', subtitulo);
+  if (persona.dni) campo('DNI:', persona.dni);
+  campo('MES:', etiquetaMes(anio, mes));
+
+  // --- Título centrado y subrayado ---
+  y += 12;
+  const titulo = 'PLANILLA DE ASISTENCIA';
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(0);
+  doc.text(titulo, W / 2, y, { align: 'center' });
+  const tw = doc.getTextWidth(titulo);
+  doc.setLineWidth(0.6); doc.line(W / 2 - tw / 2, y + 3, W / 2 + tw / 2, y + 3);
+  y += 26;
+
+  // --- Calendario del mes ---
+  const colW = contentW / 7;
+  const filaH = 34;
+
+  // Encabezado de días (lunes a domingo).
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(90);
+  DIAS_SEMANA.forEach((d, i) => {
+    doc.text(d, margin + colW * i + colW / 2, y, { align: 'center' });
+  });
+  y += 8;
+
+  const GRIS_CERRADO = [232, 232, 232];  // fin de semana: la clínica no abre
+  semanas.forEach(semana => {
+    semana.forEach((dia, i) => {
+      const x = margin + colW * i;
+      if (!dia) return;                   // relleno del principio / final del mes
+
+      const est = dia.estado ? ESTADOS_CALENDARIO[dia.estado] : null;
+      let texto = [60, 60, 60];
+      if (dia.finde) {
+        doc.setFillColor(...GRIS_CERRADO);
+        doc.rect(x, y, colW - 3, filaH - 3, 'F');
+        texto = [130, 130, 130];
+      } else if (est) {
+        doc.setFillColor(...est.rgb);
+        doc.rect(x, y, colW - 3, filaH - 3, 'F');
+        texto = [255, 255, 255];          // número en blanco sobre el color
+      } else {
+        doc.setDrawColor(205); doc.setLineWidth(0.5);
+        doc.rect(x, y, colW - 3, filaH - 3, 'S');
+        texto = dia.futuro ? [185, 185, 185] : [110, 110, 110];
+      }
+
+      doc.setTextColor(...texto);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+      doc.text(String(dia.dia), x + 6, y + 14);
+
+      // Fichaje del profesional: el horario, chiquito, dentro del día.
+      if (dia.entrada || dia.salida) {
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5);
+        doc.text(`${hhmm(dia.entrada)}-${hhmm(dia.salida)}`, x + 6, y + 25);
+      }
+    });
+    y += filaH;
+  });
+
+  // --- Referencia de colores ---
+  y += 6;
+  const refs = [
+    ['Asistió', ESTADOS_CALENDARIO.presente.rgb],
+    ['No asistió', ESTADOS_CALENDARIO.ausente.rgb],
+    ['Con aviso / licencia', ESTADOS_CALENDARIO.ausente_con_aviso.rgb],
+    ['Enfermedad', ESTADOS_CALENDARIO.enfermedad.rgb],
+    ['Fin de semana (cerrado)', GRIS_CERRADO],
+  ];
+  let xr = margin;
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(80);
+  refs.forEach(([texto, rgb]) => {
+    doc.setFillColor(...rgb);
+    doc.rect(xr, y - 6, 9, 9, 'F');
+    doc.text(texto, xr + 13, y + 1);
+    xr += 13 + doc.getTextWidth(texto) + 14;
+  });
+  y += 22;
+
+  // --- Resumen del mes ---
+  autoTable(doc, {
+    startY: y,
+    head: [['Días hábiles', 'Presentes', 'Ausentes', 'Con aviso', 'Sin registro', '% asistencia']],
+    body: [[resumen.habiles, resumen.presentes, resumen.ausentes, resumen.avisados, resumen.sinRegistro, `${resumen.pct}%`]],
+    styles: { fontSize: 10, cellPadding: 6, halign: 'center', lineColor: [225, 225, 225], lineWidth: 0.5 },
+    headStyles: { fillColor: [23, 119, 179], textColor: 255, fontStyle: 'bold' },
+    margin: { left: margin, right: margin },
+  });
+  y = (doc.lastAutoTable?.finalY || y) + 22;
+
+  // --- Detalle de ausencias (solo si hubo) ---
+  const ausencias = dias.filter(d => d.estado && d.estado !== 'presente');
+  if (ausencias.length) {
+    autoTable(doc, {
+      startY: y,
+      head: [['Fecha', 'Situación', 'Observaciones']],
+      body: ausencias.map(d => [
+        formatearFecha(d.iso),
+        ESTADOS_CALENDARIO[d.estado]?.etiqueta || d.estado,
+        d.nota || '—',
+      ]),
+      styles: { fontSize: 9.5, cellPadding: 5, valign: 'top', lineColor: [225, 225, 225], lineWidth: 0.5 },
+      headStyles: { fillColor: [23, 119, 179], textColor: 255, fontStyle: 'bold' },
+      columnStyles: { 0: { cellWidth: 90 }, 1: { cellWidth: 120 }, 2: { cellWidth: 'auto' } },
+      margin: { left: margin, right: margin },
+    });
+    y = (doc.lastAutoTable?.finalY || y) + 22;
+  }
+
+  // --- Firma y sello ---
+  dibujarFirma(doc, { W, H, margin, y: y + 34, aclaracion: 'Aclaración y sello' });
+
+  // --- Pie ---
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(150);
+  doc.text(`Generado por el sistema de gestión ${CLINICA.nombre} · ${fechaLarga()}`, margin, H - 24);
+
+  const slug = (persona.nombre_completo || tipo).replace(/[^\w]+/g, '_').replace(/^_|_$/g, '');
+  const filename = `asistencia-${slug}-${anio}-${String(mes).padStart(2, '0')}.pdf`;
+  doc.save(filename);
+  const blob = doc.output('blob');
   return { blob, filename };
 }

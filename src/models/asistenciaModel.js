@@ -33,6 +33,20 @@ export async function listarAsistenciasRango(desde, hasta) {
   return data;
 }
 
+// Asistencias de UN paciente dentro de un rango (calendario mensual de
+// su ficha de asistencia y su planilla en PDF).
+export async function listarPorPacienteRango(pacienteId, desde, hasta) {
+  const { data, error } = await supabase
+    .from(TABLA)
+    .select('fecha, estado, observaciones')
+    .eq('paciente_id', pacienteId)
+    .gte('fecha', desde)
+    .lte('fecha', hasta)
+    .order('fecha', { ascending: true });
+  if (error) throw error;
+  return data;
+}
+
 // Cuenta asistencias registradas en una fecha (para el KPI de inicio).
 export async function contarAsistenciasHoy(fecha) {
   const { count, error } = await supabase

@@ -18,8 +18,10 @@ import {
   renderEstructura, renderFilas, filaHtml, renderAvisoFuturo, renderModalAviso,
 } from '../views/asistenciaView.js';
 import { iniciarAsistenciaProf } from './asistenciaProfController.js';
+import { abrirCalendarioPaciente } from './calendarioAsistenciaController.js';
 import { htmlCargando, htmlError, toast } from '../utils/ui.js';
 import { hoyISO, sumarDias, rangoMes, nombreDia } from '../utils/fechas.js';
+import { armarCalendario, mesDeFecha } from '../utils/calendario.js';
 
 // Estado en memoria de la vista mientras está abierta.
 let pacientes = [];      // pacientes activos cargados
@@ -27,14 +29,16 @@ let seleccion = {};      // { id: estado } marcado en la fecha actual
 let notas = {};          // { id: observación } del día
 let guardado = {};       // { id: true } si la marca está confirmada en la base
 let editando = {};       // { id: true } si la fila está reabierta para cambiar
-let mesStats = {};       // { id: { presentes, total, pct } } del mes
+let mesRegistros = {};   // { id: [ {fecha, estado} ] } asistencias del mes
+let calendarios = {};    // { id: calendario del mes } armado desde mesRegistros
+let mesVisible = null;   // { anio, mes } del mes que se está mostrando
 let fechaActual = hoyISO();
 let bloqueado = false;   // true si la fecha elegida es futura
 let profIniciado = false; // true si ya se cargó la pestaña de profesionales
 
 // Reúne el estado de la pantalla para pasárselo a la vista.
 function vista() {
-  return { seleccion, notas, mesStats, guardado, editando, bloqueado };
+  return { seleccion, notas, calendarios, guardado, editando, bloqueado, fecha: fechaActual };
 }
 
 // Punto de entrada de la sección Asistencia (lo llama el router).
@@ -79,7 +83,17 @@ export async function iniciarAsistencia() {
       return;
     }
     const lapiz = e.target.closest('.btn-editar');
-    if (lapiz && !lapiz.disabled) editarFila(lapiz.dataset.editar);
+    if (lapiz && !lapiz.disabled) {
+      editarFila(lapiz.dataset.editar);
+      return;
+    }
+    // Tocar el nombre abre la ficha grande: el calendario mensual de
+    // asistencia de ese paciente, con opción de descargarlo en PDF.
+    const ficha = e.target.closest('[data-ficha]');
+    if (ficha) {
+      const paciente = pacientes.find(p => String(p.id) === String(ficha.dataset.ficha));
+      if (paciente) abrirCalendarioPaciente(paciente);
+    }
   });
 
   await cargarFecha(hoyISO());
@@ -114,7 +128,9 @@ async function cargarFecha(fecha) {
 
   const caja = document.getElementById('asisbody');
   caja.innerHTML = htmlCargando('Cargando pacientes…');
-  seleccion = {}; notas = {}; guardado = {}; editando = {}; mesStats = {};
+  seleccion = {}; notas = {}; guardado = {}; editando = {};
+  mesRegistros = {}; calendarios = {};
+  mesVisible = mesDeFecha(fecha);
 
   try {
     const rango = rangoMes(fecha);
@@ -134,7 +150,10 @@ async function cargarFecha(fecha) {
       guardado[a.paciente_id] = true;
       if (a.observaciones) notas[a.paciente_id] = a.observaciones;
     });
-    mesStats = calcularMes(delMes);
+    // Un calendario del mes por paciente: alimenta la tira de la fila y
+    // el porcentaje mensual (misma lógica que la ficha grande).
+    delMes.forEach(r => { (mesRegistros[r.paciente_id] ??= []).push(r); });
+    pacientes.forEach(p => rearmarMes(p.id));
 
     caja.innerHTML = renderFilas(pacientes, vista());
     aplicarFiltro();  // respeta lo escrito en el buscador al cambiar de día
@@ -145,16 +164,24 @@ async function cargarFecha(fecha) {
   }
 }
 
-// Resumen mensual por paciente: días presente sobre días con registro.
-function calcularMes(registros) {
-  const stats = {};
-  registros.forEach(r => {
-    const s = stats[r.paciente_id] || (stats[r.paciente_id] = { presentes: 0, total: 0 });
-    s.total++;
-    if (r.estado === 'presente') s.presentes++;
+// Rearma el calendario del mes de un paciente a partir de sus registros.
+function rearmarMes(pacienteId) {
+  if (!mesVisible) return;
+  calendarios[pacienteId] = armarCalendario({
+    anio: mesVisible.anio,
+    mes: mesVisible.mes,
+    registros: mesRegistros[pacienteId] || [],
   });
-  Object.values(stats).forEach(s => { s.pct = Math.round((s.presentes / s.total) * 100); });
-  return stats;
+}
+
+// Anota (o corrige) la marca del día en el mes que se está mostrando,
+// para que la tira de la fila se actualice sin volver a consultar.
+function anotarEnMes(pacienteId, fecha, estado) {
+  const regs = (mesRegistros[pacienteId] ??= []);
+  const i = regs.findIndex(r => r.fecha === fecha);
+  if (i >= 0) regs[i] = { ...regs[i], estado };
+  else regs.push({ fecha, estado });
+  rearmarMes(pacienteId);
 }
 
 // ---------------------------------------------------------------------
@@ -194,6 +221,7 @@ async function guardarMarca(pacienteId, estado, observaciones) {
     });
     guardado[pacienteId] = true;  // ahora sí: tilde verde + fila bloqueada
     if (observaciones != null) notas[pacienteId] = observaciones;
+    anotarEnMes(pacienteId, fechaActual, estado); // la tira del mes se pone al día
     refrescarFila(pacienteId);
     return true;
   } catch (err) {
@@ -238,7 +266,10 @@ async function marcarTodosPresentes() {
     await asistenciaModel.guardarAsistencias(
       sinMarca.map(p => ({ pacienteId: p.id, fecha: fechaActual, estado: 'presente' }))
     );
-    sinMarca.forEach(p => { guardado[p.id] = true; });
+    sinMarca.forEach(p => {
+      guardado[p.id] = true;
+      anotarEnMes(p.id, fechaActual, 'presente');
+    });
     refrescarBody();
     toast(sinMarca.length === 1 ? 'Listo, 1 paciente marcado presente.' : `Listo, ${sinMarca.length} pacientes marcados presentes.`);
   } catch (err) {

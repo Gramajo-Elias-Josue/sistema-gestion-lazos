@@ -9,6 +9,7 @@
 import * as profesionalModel from '../models/profesionalModel.js';
 import * as asistenciaProfModel from '../models/asistenciaProfesionalModel.js';
 import { renderEstructura, renderFilas, filaHtml } from '../views/asistenciaProfView.js';
+import { abrirCalendarioProfesional } from './calendarioAsistenciaController.js';
 import { hoyISO, sumarDias, nombreDia, ahoraHHMM, horaAMinutos } from '../utils/fechas.js';
 import { htmlCargando, htmlError, toast, confirmar } from '../utils/ui.js';
 import { validarFichajeProfesional } from '../utils/validacion.js';
@@ -39,7 +40,17 @@ export async function iniciarAsistenciaProf() {
   // Delegación: botón "Guardar" de cada fila (sobrevive al re-render de filas).
   document.getElementById('apf-body').addEventListener('click', (e) => {
     const b = e.target.closest('.apf-guardar');
-    if (b && !b.disabled) guardar(b.dataset.prof);
+    if (b && !b.disabled) {
+      guardar(b.dataset.prof);
+      return;
+    }
+    // Tocar el nombre abre la ficha grande: el calendario mensual de
+    // fichajes de ese profesional, con opción de descargarlo en PDF.
+    const ficha = e.target.closest('[data-ficha-prof]');
+    if (ficha) {
+      const prof = profesionales.find(p => String(p.id) === String(ficha.dataset.fichaProf));
+      if (prof) abrirCalendarioProfesional(prof);
+    }
   });
 
   // Al cambiar el estado de una fila: las horas solo aplican a "presente".

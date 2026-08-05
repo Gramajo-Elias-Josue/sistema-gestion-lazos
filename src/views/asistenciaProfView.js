@@ -84,10 +84,12 @@ export function filaHtml(prof, fichaje, ctx = {}) {
 
   return `
     <div class="asis-row" data-prof="${prof.id}">
-      <div class="nm" style="flex:1.4">
-        <b>${esc(prof.nombre_completo)}</b><br>
-        <small>${esc(prof.profesion || '')}${prof.matricula ? ' · ' + esc(prof.matricula) : ''}${prof.horario_entrada ? ' · Horario ' + hhmm(prof.horario_entrada) + '–' + (hhmm(prof.horario_salida) || '?') : ''}</small>
-      </div>
+      <button class="ficha-asis" data-ficha-prof="${prof.id}" style="flex:1.4" title="Ver el calendario de asistencia de ${esc(prof.nombre_completo)}">
+        <span class="nm">
+          <b>${esc(prof.nombre_completo)}</b><br>
+          <small>${esc(prof.profesion || '')}${prof.matricula ? ' · ' + esc(prof.matricula) : ''}${prof.horario_entrada ? ' · Horario ' + hhmm(prof.horario_entrada) + '–' + (hhmm(prof.horario_salida) || '?') : ''}</small>
+        </span>
+      </button>
       <select class="apf-estado" style="${estInput}" ${bloqueado ? 'disabled' : ''}>${opts}</select>
       <label style="font-size:12.5px;color:var(--ink-faint);display:flex;flex-direction:column;gap:3px">Entrada
         <input type="time" class="apf-entrada" value="${entrada}" style="${estInput}" ${offHoras}></label>

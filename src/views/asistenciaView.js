@@ -14,6 +14,7 @@
 
 import { iniciales } from '../utils/fechas.js';
 import { esc } from '../utils/ui.js';
+import { renderMiniCalendario } from './calendarioAsistenciaView.js';
 
 // Estados posibles de asistencia. Cada uno tiene:
 //   valor -> lo que se guarda en la base
@@ -71,14 +72,15 @@ export function renderFilas(pacientes, vista) {
 
 // HTML de UNA fila. Se exporta aparte para poder re-renderizar solo la
 // fila que cambió (al marcar, editar o guardar) sin rehacer toda la lista.
-//   vista = { seleccion, notas, mesStats, guardado, editando, bloqueado }
-//     seleccion -> { id: estado } marcado en la fecha
-//     notas     -> { id: observación } del día
-//     mesStats  -> { id: { presentes, total, pct } } resumen mensual
-//     guardado  -> { id: true } si la marca está confirmada en la base
-//     editando  -> { id: true } si la fila está reabierta para cambiar
-//     bloqueado -> true si la fecha es futura (se muestra, no se edita)
-export function filaHtml(p, { seleccion, notas, mesStats, guardado, editando, bloqueado }) {
+//   vista = { seleccion, notas, calendarios, guardado, editando, bloqueado, fecha }
+//     seleccion   -> { id: estado } marcado en la fecha
+//     notas       -> { id: observación } del día
+//     calendarios -> { id: calendario del mes } (utils/calendario.js)
+//     guardado    -> { id: true } si la marca está confirmada en la base
+//     editando    -> { id: true } si la fila está reabierta para cambiar
+//     bloqueado   -> true si la fecha es futura (se muestra, no se edita)
+//     fecha       -> la fecha que se está registrando (se resalta en la tira)
+export function filaHtml(p, { seleccion, notas, calendarios = {}, guardado, editando, bloqueado, fecha = null }) {
   const sel = seleccion[p.id];
   const nota = notas[p.id];
   const yaGuardado = !!guardado[p.id];
@@ -97,22 +99,26 @@ export function filaHtml(p, { seleccion, notas, mesStats, guardado, editando, bl
     ? `<span class="gtick ok" title="Asistencia guardada">✓</span>`
     : `<span class="gtick pend" title="Sin guardar">✓</span>`;
 
-  // Porcentaje de presentismo del mes (sobre los días con registro).
-  const m = mesStats[p.id];
-  const mesHtml = m
-    ? `<div class="mes" title="${m.presentes} de ${m.total} días presente en el mes"><b>${m.pct}%</b> mes</div>`
-    : `<div class="mes">—</div>`;
+  // Mes del paciente en una tira de cuadraditos (mismos colores que la
+  // ficha grande) + su porcentaje. Al tocarla se abre la ficha completa.
+  const mesHtml = `
+    <button class="mini-cal" data-ficha="${p.id}" title="Ver la ficha de asistencia del mes de ${esc(p.nombre_completo)}">
+      ${renderMiniCalendario(calendarios[p.id], { fechaActual: fecha })}
+    </button>`;
 
-  // Lápiz: ÚNICA función es reabrir la fila para editar. Solo tiene
-  // sentido si ya hay algo guardado y la fecha no está bloqueada.
-  const lapizTitulo = nota ? `Editar — Aviso: ${esc(nota)}` : 'Editar asistencia';
-  const lapiz = `<button class="btn-editar ${enEdicion ? 'activo' : ''}" data-editar="${p.id}" title="${lapizTitulo}" ${(!yaGuardado || bloqueado) ? 'disabled' : ''}>✎</button>`;
+  // Botón de edición: ÚNICA función es reabrir la fila para cambiar la
+  // marca. Solo tiene sentido si ya hay algo guardado y la fecha no está
+  // bloqueada. Va con texto (no solo el ícono) para que se vea.
+  const lapizTitulo = nota ? `Corregir — Aviso: ${esc(nota)}` : 'Corregir la asistencia ya guardada';
+  const lapiz = `<button class="btn-editar ${enEdicion ? 'activo' : ''}" data-editar="${p.id}" title="${lapizTitulo}" ${(!yaGuardado || bloqueado) ? 'disabled' : ''}><span aria-hidden="true">✏️</span> ${enEdicion ? 'Editando' : 'Corregir'}</button>`;
 
   // data-buscar: texto plano (nombre + diagnóstico) para el filtro.
   return `
     <div class="asis-row" data-fila="${p.id}" data-buscar="${esc(((p.nombre_completo || '') + ' ' + (p.diagnostico || '')).toLowerCase())}">
-      <div class="pav">${esc(iniciales(p.nombre_completo))}</div>
-      <div class="nm"><b>${esc(p.nombre_completo)}</b><br><small>${esc(p.diagnostico || '')}</small></div>
+      <button class="ficha-asis" data-ficha="${p.id}" title="Ver el calendario de asistencia de ${esc(p.nombre_completo)}">
+        <span class="pav">${esc(iniciales(p.nombre_completo))}</span>
+        <span class="nm"><b>${esc(p.nombre_completo)}</b><br><small>${esc(p.diagnostico || '')}</small></span>
+      </button>
       ${tick}
       ${mesHtml}
       ${lapiz}
