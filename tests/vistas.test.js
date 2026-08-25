@@ -370,7 +370,7 @@ describe('asistenciaView.filaHtml (planilla de pacientes)', () => {
     expect(html).toContain('on-p'); // clase del botón "Presente" activo
   });
 
-  it('la fila trae la tira del mes con sus colores y el porcentaje', () => {
+  it('la fila trae la tira de la semana con sus colores, flechas y el porcentaje', () => {
     const calendario = armarCalendario({
       anio: 2026, mes: 7, hoy: '2026-07-20',
       registros: [
@@ -379,21 +379,23 @@ describe('asistenciaView.filaHtml (planilla de pacientes)', () => {
         { fecha: '2026-07-03', estado: 'ausente' },
       ],
     });
+    // Semana 0 (por defecto) incluye el 1, 2 y 3 de julio.
     const html = filaAsistencia(pac, vistaAsis({ calendarios: { 1: calendario } }));
     expect(html).toContain('mini-cal');
     expect(html).toContain('cal-ok');
     expect(html).toContain('cal-bad');
-    expect(html).toContain('67%');       // 2 presentes sobre 3 registros
+    expect(html).toContain('67%');       // 2 presentes sobre 3 registros del mes
     expect(html).toContain('data-ficha="1"'); // la tira abre la ficha grande
+    expect(html).toContain('sem-nav');   // flechas para moverse de semana
   });
 
   it('sin datos del mes la fila no se rompe', () => {
-    expect(filaAsistencia(pac, vistaAsis())).toContain('mini-cal');
+    expect(filaAsistencia(pac, vistaAsis())).toContain('vacia');
   });
 
-  it('[regresión] el botón de corregir se lee, no es solo un ícono', () => {
+  it('el botón de corregir tiene título accesible aunque sea solo ícono', () => {
     const html = filaAsistencia(pac, vistaAsis({ seleccion: { 1: 'presente' }, guardado: { 1: true } }));
-    expect(html).toContain('Corregir');
+    expect(html).toContain('title="Corregir la asistencia ya guardada"');
   });
 });
 

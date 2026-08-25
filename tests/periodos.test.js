@@ -5,7 +5,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   periodoMensual, periodoAnual, etiquetaPeriodo, moverPeriodo,
-  pendientesDelMes, pendientesDelAnio, fotosVencidas,
+  pendientesDelMes, pendientesDelAnio, fotosVencidas, diasHastaFinDeMes,
 } from '../src/utils/periodos.js';
 
 const equipo = [
@@ -28,6 +28,20 @@ describe('períodos', () => {
   it('cambia de año al moverse de mes', () => {
     expect(moverPeriodo('2026-01', -1)).toBe('2025-12');
     expect(moverPeriodo('2026-12', 1)).toBe('2027-01');
+  });
+});
+
+describe('diasHastaFinDeMes', () => {
+  it('cuenta lo que falta hasta el último día del mes', () => {
+    expect(diasHastaFinDeMes('2026-08-09')).toBe(22); // agosto tiene 31 días
+  });
+
+  it('0 cuando hoy es el último día del mes', () => {
+    expect(diasHastaFinDeMes('2026-08-31')).toBe(0);
+  });
+
+  it('funciona en febrero (28/29 días)', () => {
+    expect(diasHastaFinDeMes('2026-02-26')).toBe(2); // 2026 no es bisiesto
   });
 });
 

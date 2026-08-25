@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   normalizarDni, validarPaciente, validarDocumento, validarTurno,
-  validarFichajeProfesional, validarProfesional,
+  validarFichajeProfesional, validarProfesional, validarGasto,
 } from '../src/utils/validacion.js';
 import { hoyISO, sumarDias } from '../src/utils/fechas.js';
 
@@ -69,5 +69,31 @@ describe('validarProfesional', () => {
     expect(validarProfesional({ nombre_completo: '' }).ok).toBe(false);
     expect(validarProfesional({ nombre_completo: 'Lic. X', email: 'no-es-mail' }).ok).toBe(false);
     expect(validarProfesional({ nombre_completo: 'Lic. X', email: 'x@y.com' }).ok).toBe(true);
+  });
+
+  it('rechaza fecha de nacimiento futura', () => {
+    const manana = sumarDias(hoyISO(), 1);
+    expect(validarProfesional({ nombre_completo: 'Lic. X', fecha_nacimiento: manana }).ok).toBe(false);
+  });
+});
+
+describe('validarGasto', () => {
+  const base = { fecha: '2026-08-09', concepto: 'Resma de hojas A4', socio: 'Josué', monto: '3500' };
+
+  it('acepta un gasto válido', () => {
+    expect(validarGasto(base).ok).toBe(true);
+  });
+
+  it('exige fecha, concepto y socio', () => {
+    expect(validarGasto({ ...base, fecha: '' }).ok).toBe(false);
+    expect(validarGasto({ ...base, concepto: '  ' }).ok).toBe(false);
+    expect(validarGasto({ ...base, socio: '' }).ok).toBe(false);
+  });
+
+  it('el monto tiene que ser un número mayor a cero', () => {
+    expect(validarGasto({ ...base, monto: '0' }).ok).toBe(false);
+    expect(validarGasto({ ...base, monto: '-5' }).ok).toBe(false);
+    expect(validarGasto({ ...base, monto: '' }).ok).toBe(false);
+    expect(validarGasto({ ...base, monto: 'abc' }).ok).toBe(false);
   });
 });

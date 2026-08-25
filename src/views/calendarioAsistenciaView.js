@@ -44,19 +44,32 @@ export function renderModalCalendario({ persona = {}, subtitulo = '', anio, mes,
     </div>`;
 }
 
-// Mini calendario en TIRA para la fila de la planilla diaria: un
-// cuadradito por día del mes, con los mismos colores que la ficha
-// grande. Sirve para ver de un vistazo cómo viene el mes del paciente
-// sin abrir nada. `fechaActual` marca el día que se está registrando.
-export function renderMiniCalendario(calendario, { fechaActual = null } = {}) {
+// Mini calendario en TIRA para la fila de la planilla diaria: los 5 días
+// HÁBILES de una semana (la clínica no abre sábado ni domingo, así que
+// mostrarlos era espacio perdido), con los mismos colores que la ficha
+// grande y flechas para moverse semana a semana sin salir del mes.
+//   fechaActual   -> el día que se está registrando (se resalta)
+//   semanaVisible -> índice de la semana a mostrar (ver semanaDeFecha)
+//   pacienteId, nombre -> para el botón que abre la ficha completa
+// Inicial de lunes a viernes.
+const INICIALES_DIA = ['L', 'M', 'M', 'J', 'V'];
+
+export function renderMiniCalendario(calendario, { fechaActual = null, semanaVisible = 0, pacienteId = '', nombre = '' } = {}) {
   if (!calendario) return `<span class="mini-cal vacia">—</span>`;
 
-  const celdas = calendario.dias.map(d => {
+  const totalSemanas = calendario.semanas.length;
+  const indice = Math.max(0, Math.min(semanaVisible, totalSemanas - 1));
+  // Las semanas de armarCalendario siempre van Lun→Dom: nos quedamos solo
+  // con los primeros 5 (hábiles), sábado y domingo quedan afuera.
+  const semana = (calendario.semanas[indice] || []).slice(0, 5);
+
+  const celdas = semana.map((d, i) => {
+    if (!d) return `<i class="m-dia relleno"></i>`; // relleno fuera del mes (1ª/última semana)
+
     let clase = 'm-dia';
     let detalle = 'Sin registro';
 
-    if (d.finde) { clase += ' cerrado'; detalle = 'La clínica no abre'; }
-    else if (d.estado) {
+    if (d.estado) {
       const e = ESTADOS_CALENDARIO[d.estado];
       clase += ` ${e?.clase || ''}`;
       detalle = e?.etiqueta || d.estado;
@@ -65,11 +78,18 @@ export function renderMiniCalendario(calendario, { fechaActual = null } = {}) {
     else clase += ' sinreg';
 
     if (d.iso === fechaActual) clase += ' hoy';
-    return `<i class="${clase}" title="${esc(`${formatearFecha(d.iso)} · ${detalle}`)}"></i>`;
+    return `<i class="${clase}" title="${esc(`${formatearFecha(d.iso)} · ${detalle}`)}">${INICIALES_DIA[i]}</i>`;
   }).join('');
 
   const { resumen } = calendario;
-  return `${celdas}<b class="m-pct" title="${resumen.presentes} de ${resumen.registrados} días con registro">${resumen.pct}%</b>`;
+  const prevOff = indice <= 0 ? 'disabled' : '';
+  const nextOff = indice >= totalSemanas - 1 ? 'disabled' : '';
+
+  return `
+    <button class="sem-nav" data-semana-prev title="Semana anterior" ${prevOff}>‹</button>
+    <button class="mini-cal-dias" data-ficha="${pacienteId}" title="Ver la ficha de asistencia del mes de ${esc(nombre)}">${celdas}</button>
+    <button class="sem-nav" data-semana-sig title="Semana siguiente" ${nextOff}>›</button>
+    <b class="m-pct" title="${resumen.presentes} de ${resumen.registrados} días con registro">${resumen.pct}%</b>`;
 }
 
 // Calendario + resumen + referencia de colores.

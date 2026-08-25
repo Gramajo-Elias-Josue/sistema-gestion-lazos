@@ -21,7 +21,7 @@ import { iniciarAsistenciaProf } from './asistenciaProfController.js';
 import { abrirCalendarioPaciente } from './calendarioAsistenciaController.js';
 import { htmlCargando, htmlError, toast } from '../utils/ui.js';
 import { hoyISO, sumarDias, rangoMes, nombreDia } from '../utils/fechas.js';
-import { armarCalendario, mesDeFecha } from '../utils/calendario.js';
+import { armarCalendario, mesDeFecha, semanaDeFecha, semanasDelMes } from '../utils/calendario.js';
 
 // Estado en memoria de la vista mientras está abierta.
 let pacientes = [];      // pacientes activos cargados
@@ -35,10 +35,11 @@ let mesVisible = null;   // { anio, mes } del mes que se está mostrando
 let fechaActual = hoyISO();
 let bloqueado = false;   // true si la fecha elegida es futura
 let profIniciado = false; // true si ya se cargó la pestaña de profesionales
+let semanaVisible = 0;   // índice de semana que se ve en la tira de cada fila (todas comparten el mismo mes)
 
 // Reúne el estado de la pantalla para pasárselo a la vista.
 function vista() {
-  return { seleccion, notas, calendarios, guardado, editando, bloqueado, fecha: fechaActual };
+  return { seleccion, notas, calendarios, guardado, editando, bloqueado, fecha: fechaActual, semanaVisible };
 }
 
 // Punto de entrada de la sección Asistencia (lo llama el router).
@@ -87,6 +88,13 @@ export async function iniciarAsistencia() {
       editarFila(lapiz.dataset.editar);
       return;
     }
+    // Flechas de la tira: mueven la semana visible en TODAS las filas
+    // (comparten el mismo mes), sin volver a pedir datos a la base.
+    const semNav = e.target.closest('.sem-nav');
+    if (semNav && !semNav.disabled) {
+      cambiarSemana(semNav.hasAttribute('data-semana-prev') ? -1 : 1);
+      return;
+    }
     // Tocar el nombre abre la ficha grande: el calendario mensual de
     // asistencia de ese paciente, con opción de descargarlo en PDF.
     const ficha = e.target.closest('[data-ficha]');
@@ -131,6 +139,7 @@ async function cargarFecha(fecha) {
   seleccion = {}; notas = {}; guardado = {}; editando = {};
   mesRegistros = {}; calendarios = {};
   mesVisible = mesDeFecha(fecha);
+  semanaVisible = semanaDeFecha(mesVisible.anio, mesVisible.mes, fecha);
 
   try {
     const rango = rangoMes(fecha);
@@ -243,6 +252,21 @@ function editarFila(pacienteId) {
   if (bloqueado || !guardado[pacienteId]) return;
   editando[pacienteId] = true;   // desbloquea los botones de esa fila
   refrescarFila(pacienteId);
+}
+
+// ---------------------------------------------------------------------
+// SEMANA VISIBLE (flechas de la tira mensual de cada fila)
+// ---------------------------------------------------------------------
+// Mueve la semana n posiciones sin salirse del mes que se está mostrando.
+// Los datos del mes ya están en memoria (calendarios): no hace falta
+// volver a pedirlos, solo re-renderizar con el nuevo índice.
+function cambiarSemana(pasos) {
+  if (!mesVisible) return;
+  const total = semanasDelMes(mesVisible.anio, mesVisible.mes);
+  const siguiente = semanaVisible + pasos;
+  if (siguiente < 0 || siguiente >= total) return;
+  semanaVisible = siguiente;
+  refrescarBody();
 }
 
 // ---------------------------------------------------------------------

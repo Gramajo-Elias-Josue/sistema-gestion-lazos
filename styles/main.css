@@ -85,7 +85,7 @@ body{font-family:var(--body);background:var(--paper);color:var(--ink);-webkit-fo
 .nav-toggle svg{width:19px;height:19px}
 /* Expandida: chevron. Contraída: icono de menú (hamburguesa). */
 .nav-toggle .ic-burger{display:none}
-.nav{padding:14px 12px;flex:1;display:flex;flex-direction:column;gap:3px}
+.nav{padding:14px 12px;flex:1;display:flex;flex-direction:column;gap:3px;overflow-y:auto;min-height:0}
 .nav-label{font-size:11.5px;letter-spacing:1.4px;text-transform:uppercase;color:#6f93b5;padding:14px 12px 6px;white-space:nowrap}
 .nav button{all:unset;cursor:pointer;display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:9px;color:#c3d4e8;font-size:17px;font-weight:500;transition:background .15s,color .15s}
 .nav button .ic{width:21px;height:21px;flex-shrink:0;opacity:.9}
@@ -128,7 +128,6 @@ body{font-family:var(--body);background:var(--paper);color:var(--ink);-webkit-fo
 :root[data-theme="light"] .btn:not(.ghost):not(.danger){color:#0d3a56}
 :root[data-theme="light"] .btn:not(.ghost):not(.danger):hover{background:#5bbde9}
 :root[data-theme="light"] .legajo-top .bigav{color:#0d3a56}
-:root[data-theme="light"] .seg button.on-p{color:#0d3a56}
 :root[data-theme="light"] .gtick.ok{color:#0d3a56}
 :root[data-theme="light"] .kpi .sub b{color:var(--teal-700)}
 
@@ -146,6 +145,13 @@ body{font-family:var(--body);background:var(--paper);color:var(--ink);-webkit-fo
 .theme-toggle .ic-sun{display:none}
 :root[data-theme="dark"] .theme-toggle .ic-moon{display:none}
 :root[data-theme="dark"] .theme-toggle .ic-sun{display:block}
+/* Campana de notificaciones: global, en el encabezado, visible en toda
+   la app (no solo en Inicio). Reusa el círculo de .theme-toggle. */
+.notif-wrap{position:relative}
+.notif-badge{position:absolute;top:2px;right:2px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--red-600);color:#fff;font-size:10.5px;font-weight:700;display:grid;place-items:center;line-height:1;border:2px solid var(--card)}
+.notif-drop{position:absolute;top:calc(100% + 10px);right:0;width:340px;max-height:min(70vh,460px);overflow-y:auto;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);z-index:15}
+.notif-drop-h{padding:14px 16px;border-bottom:1px solid var(--line-soft);font-weight:700;font-size:15px;position:sticky;top:0;background:var(--card)}
+.notif-drop .alert{padding:12px 16px}
 /* Bloque del usuario en el encabezado. Es un <button> (abre "Mi perfil"),
    así que se resetean los estilos propios del botón. */
 .who{all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;padding:5px 8px;border-radius:12px;transition:background .15s}
@@ -159,8 +165,11 @@ body{font-family:var(--body);background:var(--paper);color:var(--ink);-webkit-fo
 @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 .hidden{display:none}
 
-/* ---- KPI ---- */
-.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:26px}
+/* ---- KPI ----
+   Quedó una sola tarjeta (Asistencias hoy: ver renderKpis). El grid de
+   4 columnas dejaba 3 huecos vacíos; con auto-fit la tarjeta ocupa su
+   ancho natural y no deja aire de más. */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,260px));gap:16px;margin-bottom:26px}
 .kpi{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px 18px 16px;box-shadow:var(--shadow);animation:rise .5s ease both}
 .kpi:nth-child(2){animation-delay:.05s}.kpi:nth-child(3){animation-delay:.1s}.kpi:nth-child(4){animation-delay:.15s}
 .kpi .lab{font-size:14px;color:var(--ink-soft);font-weight:500;display:flex;align-items:center;gap:7px}
@@ -311,7 +320,8 @@ tbody tr:last-child td{border-bottom:none}
 .livestat small{font-size:12.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:.4px}
 /* La fila es ancha (nombre + tira del mes + estados): si no entra,
    envuelve en vez de cortarse. */
-.asis-row{display:flex;align-items:center;flex-wrap:wrap;gap:14px;padding:14px 18px;border-bottom:1px solid var(--line-soft)}
+.asis-row{display:flex;align-items:center;flex-wrap:wrap;gap:14px;padding:14px 18px;border-bottom:1px solid var(--line-soft);transition:background .15s}
+.asis-row:hover{background:var(--card-2)}
 .asis-row:last-child{border-bottom:none}
 .asis-row .nm{flex:1;min-width:0}
 .asis-row .nm b{font-size:16.5px;font-weight:600}.asis-row .nm small{color:var(--ink-faint);font-size:14px}
@@ -319,10 +329,19 @@ tbody tr:last-child td{border-bottom:none}
 .seg button{all:unset;cursor:pointer;font-size:15px;font-weight:600;padding:8px 13px;border-radius:8px;color:var(--ink-soft);transition:.12s}
 .seg button:hover{background:#fff;color:var(--ink)}
 :root[data-theme="dark"] .seg button:hover{background:#2a3645;color:#fff}
-.seg button.on-p{background:var(--teal-600);color:#fff}
-.seg button.on-a{background:var(--red-600);color:#fff}
+/* Mismos colores sólidos que las casillas del calendario (cal-ok/bad/avi/enf):
+   antes "Presente" usaba el celeste pálido de --teal-600 y "Enfermo" un gris
+   azulado que no coincidía con nada; quedaban difusos y no servían de guía
+   visual clara entre la planilla y el calendario. */
+.seg button.on-p{background:#2a9d6e;color:#fff}
+.seg button.on-a{background:#d44242;color:#fff}
 .seg button.on-av{background:#e09a26;color:#fff}
-.seg button.on-e{background:#6b7c98;color:#fff}
+.seg button.on-e{background:#8a6cd6;color:#fff}
+/* Facturación: rojo = todavía no facturado, ámbar = facturado pero sin
+   cobrar, verde = cobrado. Mismo semáforo que el resto de la app. */
+.seg button.on-nf{background:#d44242;color:#fff}
+.seg button.on-fnc{background:#e09a26;color:#fff}
+.seg button.on-fc{background:#2a9d6e;color:#fff}
 /* Navegación de fecha (día anterior / siguiente) */
 .datenav{display:flex;align-items:center;gap:8px}
 .nav-dia{all:unset;cursor:pointer;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--card);box-shadow:var(--shadow);display:grid;place-items:center;color:var(--ink-soft);font-size:18px;font-weight:600;transition:.15s}
@@ -332,12 +351,27 @@ tbody tr:last-child td{border-bottom:none}
 .asis-toolbar input{flex:1;font-family:var(--body);font-size:15.5px;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--card);box-shadow:var(--shadow)}
 .asis-toolbar input:focus{outline:none;border-color:var(--teal-500);box-shadow:0 0 0 3px var(--teal-50)}
 /* Corregir: ÚNICA función es reabrir una fila guardada para editarla.
-   Va con ícono Y texto para que se vea que se puede corregir. */
-.btn-editar{all:unset;cursor:pointer;display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 12px;border-radius:9px;font-size:14px;font-weight:600;color:var(--teal-700);background:var(--teal-50);border:1px solid var(--teal-100);transition:.15s;flex-shrink:0;white-space:nowrap}
+   Solo ícono, pero grande y con fondo propio (antes era un tenue 34px
+   transparente, casi invisible sobre la fila). */
+.btn-editar{all:unset;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;color:var(--teal-700);background:var(--teal-50);border:1px solid var(--teal-100);transition:.15s;flex-shrink:0}
 .btn-editar:hover{background:var(--teal-100);color:var(--teal-800)}
 .btn-editar.activo{background:#e09a26;border-color:#e09a26;color:#fff}
 .btn-editar[disabled]{opacity:.35;cursor:default;background:var(--card-2);color:var(--ink-faint);border-color:var(--line)}
 .btn-editar[disabled]:hover{background:var(--card-2);color:var(--ink-faint);border-color:var(--line)}
+/* Fichaje profesional: selector de estado */
+.apf-estado{font-family:var(--body);font-size:14.5px;padding:9px 12px;border:1px solid var(--line);border-radius:9px;background:var(--card-2);color:var(--ink);cursor:pointer;transition:.15s;min-width:120px}
+.apf-estado:hover{border-color:var(--ink-soft)}
+.apf-estado:focus{outline:none;border-color:var(--teal-500);box-shadow:0 0 0 3px var(--teal-50)}
+.apf-estado:disabled{opacity:.45;cursor:default}
+/* Grupo de horarios en la fila del profesional */
+.apf-horas{display:flex;gap:8px;align-items:center}
+.apf-hora{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--ink-faint)}
+.apf-hora input{font-family:var(--body);font-size:14.5px;padding:9px 10px;border:1px solid var(--line);border-radius:9px;background:var(--card-2);color:var(--ink);transition:.15s;width:108px}
+.apf-hora input:hover{border-color:var(--ink-soft)}
+.apf-hora input:focus{outline:none;border-color:var(--teal-500);box-shadow:0 0 0 3px var(--teal-50)}
+.apf-hora input:disabled{opacity:.45;cursor:default}
+/* Botón Guardar del fichaje profesional */
+.apf-guardar{padding:9px 16px;font-weight:600}
 /* Tilde permanente de guardado por fila: verde = en la base, gris = sin guardar */
 .gtick{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:14px;font-weight:700;flex-shrink:0}
 .gtick.ok{background:var(--teal-600);color:#fff}
@@ -345,6 +379,11 @@ tbody tr:last-child td{border-bottom:none}
 /* Botones bloqueados (fila guardada o fecha futura): se ven pero no se tocan */
 .seg button[disabled]{opacity:.4;cursor:default}
 .seg button[disabled]:hover{background:transparent;color:var(--ink-soft)}
+/* La marca YA GUARDADA se deshabilita para no tocarla sin querer, pero
+   tiene que seguir viéndose con su color sólido (es la que confirma qué
+   se registró); el opacity:.4 de arriba la dejaba pálida otra vez. */
+.seg button.on-p[disabled], .seg button.on-a[disabled],
+.seg button.on-av[disabled], .seg button.on-e[disabled]{opacity:1}
 /* En pantallas angostas el control de estado baja a una segunda línea */
 @media(max-width:760px){
   .asis-row{flex-wrap:wrap}
@@ -361,25 +400,33 @@ tbody tr:last-child td{border-bottom:none}
 .ficha-asis .nm small{color:var(--ink-faint);font-size:14px}
 .ficha-asis .pav{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;font-weight:600;font-size:14px;color:var(--teal-700);background:var(--teal-100);flex-shrink:0}
 
-/* ---- Tira mensual dentro de la fila de la planilla ----
-   Un cuadradito por día del mes: se ve cómo viene el paciente sin abrir
-   la ficha. Es un botón: al tocarla se abre el calendario grande. */
-.mini-cal{all:unset;cursor:pointer;display:flex;align-items:center;gap:2px;padding:6px 8px;border-radius:10px;border:1px solid transparent;flex-shrink:0;transition:.15s}
+/* ---- Tira SEMANAL dentro de la fila de la planilla ----
+   Solo los 5 días hábiles (Lun-Vie: la clínica no abre fin de semana,
+   así que no ocupan lugar) + flechas para moverse semana a semana sin
+   salir del mes. Cuadraditos grandes con la inicial del día: lo va a
+   usar gente mayor, tiene que leerse bien de un vistazo. Tocar los
+   días abre el calendario grande. */
+.mini-cal{display:flex;align-items:center;gap:6px;padding:4px 6px;border-radius:10px;border:1px solid transparent;flex-shrink:0;transition:.15s}
 .mini-cal:hover{background:var(--card-2);border-color:var(--line)}
-.mini-cal:focus-visible{outline:2px solid var(--teal-500);outline-offset:2px}
-.mini-cal .m-dia{width:9px;height:20px;border-radius:3px;display:block;background:var(--card-2);border:1px solid var(--line)}
-.mini-cal .m-dia.cal-ok{background:#2a9d6e;border-color:#2a9d6e}
-.mini-cal .m-dia.cal-bad{background:#d44242;border-color:#d44242}
-.mini-cal .m-dia.cal-avi{background:#e09a26;border-color:#e09a26}
-.mini-cal .m-dia.cal-enf{background:#8a6cd6;border-color:#8a6cd6}
-.mini-cal .m-dia.cerrado{background:transparent;border-style:dashed;opacity:.5}
-.mini-cal .m-dia.futuro{background:transparent;opacity:.35}
+.sem-nav{all:unset;cursor:pointer;display:grid;place-items:center;width:24px;height:30px;border-radius:6px;color:var(--ink-faint);flex-shrink:0}
+.sem-nav:hover{background:var(--card-2);color:var(--ink)}
+.sem-nav:focus-visible{outline:2px solid var(--teal-500);outline-offset:1px}
+.sem-nav[disabled]{opacity:.25;cursor:default;pointer-events:none}
+.mini-cal-dias{all:unset;cursor:pointer;display:flex;align-items:center;gap:5px;border-radius:6px}
+.mini-cal-dias:focus-visible{outline:2px solid var(--teal-500);outline-offset:2px}
+.mini-cal .m-dia{width:26px;height:36px;border-radius:6px;display:grid;place-items:center;background:var(--card-2);border:1px solid var(--line);font-size:13px;font-weight:700;font-style:normal;color:var(--ink-faint);line-height:1}
+.mini-cal .m-dia.relleno{background:transparent;border-color:transparent;color:transparent}
+.mini-cal .m-dia.cal-ok{background:#2a9d6e;border-color:#2a9d6e;color:#fff}
+.mini-cal .m-dia.cal-bad{background:#d44242;border-color:#d44242;color:#fff}
+.mini-cal .m-dia.cal-avi{background:#e09a26;border-color:#e09a26;color:#fff}
+.mini-cal .m-dia.cal-enf{background:#8a6cd6;border-color:#8a6cd6;color:#fff}
+.mini-cal .m-dia.futuro{background:var(--card-2);border-color:transparent;opacity:.55}
 .mini-cal .m-dia.sinreg{background:var(--card-2)}
 /* El día que se está registrando queda remarcado en la tira. */
 .mini-cal .m-dia.hoy{outline:2px solid var(--ink-soft);outline-offset:1px}
-.mini-cal .m-pct{margin-left:8px;font-size:13.5px;font-weight:600;color:var(--ink-soft)}
+.mini-cal .m-pct{margin-left:4px;font-size:14.5px;font-weight:700;color:var(--ink-soft)}
 .mini-cal.vacia{color:var(--ink-faint)}
-@media(max-width:1180px){ .mini-cal .m-dia{width:7px;height:17px} }
+@media(max-width:1180px){ .mini-cal .m-dia{width:22px;height:31px;font-size:12px} }
 
 /* ---- Calendario de asistencia (ficha grande de una persona) ----
    Entra completo en el modal: sin scroll interno. Las celdas se miden

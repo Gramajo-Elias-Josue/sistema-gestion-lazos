@@ -84,6 +84,7 @@ export function renderFormProfesional(prof = {}) {
             <div class="form-grid">
               <div class="form-field full"><label>Nombre completo *</label><input name="nombre_completo" required value="${v('nombre_completo')}"></div>
               <div class="form-field"><label>DNI</label><input name="dni" value="${v('dni')}"></div>
+              <div class="form-field"><label>Fecha de nacimiento</label><input type="date" name="fecha_nacimiento" value="${v('fecha_nacimiento')}"></div>
               <div class="form-field"><label>Matrícula <small style="color:var(--ink-faint);font-weight:400">(opcional)</small></label><input name="matricula" value="${v('matricula')}" placeholder="M.P. 1234"></div>
               <div class="form-field"><label>Profesión</label><input name="profesion" value="${v('profesion')}" placeholder="Psicología, Fonoaudiología…"></div>
               <div class="form-field"><label>Especialidad</label><input name="especialidad" value="${v('especialidad')}"></div>

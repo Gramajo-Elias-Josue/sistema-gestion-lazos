@@ -20,6 +20,7 @@ import { setPerfil, perfilActual, rolActual } from './sesion.js';
 import { seccionesEfectivas, etiquetaRol } from './permisos.js';
 import { montarLogin } from './controllers/loginController.js';
 import { abrirPerfil, pintarAvatar } from './controllers/perfilController.js';
+import { conectarNotificaciones, cargarNotificaciones } from './controllers/notificacionesController.js';
 import { iniciarInicio } from './controllers/inicioController.js';
 import { iniciarAdmision } from './controllers/admisionController.js';
 import { iniciarPacientes } from './controllers/pacientesController.js';
@@ -27,6 +28,9 @@ import { iniciarTurnos } from './controllers/turnosController.js';
 import { iniciarAsistencia } from './controllers/asistenciaController.js';
 import { iniciarProfesionales } from './controllers/profesionalesController.js';
 import { iniciarGaleria } from './controllers/galeriaController.js';
+import { iniciarConvenios } from './controllers/conveniosController.js';
+import { iniciarFacturacion } from './controllers/facturacionController.js';
+import { iniciarGastos } from './controllers/gastosController.js';
 import { iniciarAdministracion } from './controllers/administracionController.js';
 
 // El tema (claro/oscuro) es independiente de la sesión: se aplica siempre.
@@ -60,6 +64,9 @@ function registrarControladores() {
   registrarControlador('asistencia', iniciarAsistencia);
   registrarControlador('profesionales', iniciarProfesionales);
   registrarControlador('galeria', iniciarGaleria);
+  registrarControlador('convenios', iniciarConvenios);
+  registrarControlador('facturacion', iniciarFacturacion);
+  registrarControlador('gastos', iniciarGastos);
   registrarControlador('administracion', iniciarAdministracion);
 }
 
@@ -77,6 +84,7 @@ async function arrancarApp(sesion) {
   aplicarPermisos(perfilActual());
   mostrarRol(rolActual());
   refrescarAvatar();
+  cargarNotificaciones();
 
   if (appIniciada) return;
   appIniciada = true;
@@ -84,6 +92,7 @@ async function arrancarApp(sesion) {
   iniciarSidebar();
   conectarLogout();
   conectarPerfil();
+  conectarNotificaciones();
   iniciarRouter();
 }
 

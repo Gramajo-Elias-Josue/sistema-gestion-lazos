@@ -101,6 +101,19 @@ export function validarProfesional(datos) {
   if (datos.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(datos.email)) {
     return error('Ese email no parece válido. Revisalo.');
   }
+  if (datos.fecha_nacimiento && datos.fecha_nacimiento > hoyISO()) {
+    return error('La fecha de nacimiento no puede ser posterior a hoy.');
+  }
+  return ok();
+}
+
+// ---- Gasto ----
+export function validarGasto(datos) {
+  if (!datos.fecha) return error('Elegí la fecha del gasto.');
+  if (!datos.concepto || !datos.concepto.trim()) return error('Escribí el concepto del gasto.');
+  if (!datos.socio || !datos.socio.trim()) return error('Indicá qué socio pagó el gasto.');
+  const monto = Number(datos.monto);
+  if (!datos.monto || Number.isNaN(monto) || monto <= 0) return error('El monto tiene que ser mayor a cero.');
   return ok();
 }
 

@@ -22,6 +22,9 @@ export const SECCIONES = [
   { clave: 'asistencia',     etiqueta: 'Asistencia' },
   { clave: 'profesionales',  etiqueta: 'Profesionales' },
   { clave: 'galeria',        etiqueta: 'Galería' },
+  { clave: 'convenios',      etiqueta: 'Convenios' },
+  { clave: 'facturacion',    etiqueta: 'Facturación' },
+  { clave: 'gastos',         etiqueta: 'Gastos' },
   { clave: 'estadisticas',   etiqueta: 'Estadísticas' },
   { clave: 'administracion', etiqueta: 'Administración' },
 ];
@@ -31,7 +34,10 @@ const TODAS = SECCIONES.map(s => s.clave);
 // Secciones por defecto de cada rol (al crear el usuario y como fallback).
 const POR_DEFECTO = {
   director:    TODAS,
-  secretaria:  ['inicio', 'admision', 'pacientes', 'agenda', 'asistencia', 'profesionales'],
+  // Convenios/facturación/gastos son gestión de los dueños (info
+  // financiera de la sociedad), pero la secretaría las opera igual que
+  // el resto de lo administrativo.
+  secretaria:  ['inicio', 'admision', 'pacientes', 'agenda', 'asistencia', 'profesionales', 'convenios', 'facturacion', 'gastos'],
   // El profesional entra a Galería porque es donde SUBE la foto de su
   // trabajo del mes (el informe lo carga en la historia clínica).
   profesional: ['inicio', 'pacientes', 'agenda', 'galeria'],

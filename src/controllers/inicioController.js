@@ -5,11 +5,9 @@
 // maneja los estados de carga/error y se los entrega a la vista.
 // =====================================================================
 
-import * as pacienteModel from '../models/pacienteModel.js';
 import * as profesionalModel from '../models/profesionalModel.js';
 import * as asistenciaModel from '../models/asistenciaModel.js';
 import * as documentoModel from '../models/documentoModel.js';
-import * as turnoModel from '../models/turnoModel.js';
 import * as asistenciaProfModel from '../models/asistenciaProfesionalModel.js';
 import * as fotoModel from '../models/fotoModel.js';
 import * as evaluacionModel from '../models/evaluacionModel.js';
@@ -43,15 +41,10 @@ export async function iniciarInicio() {
 
   const hoy = hoyISO();
 
-  // --- KPIs (consultas en paralelo) ---
+  // --- KPI (Asistencias hoy: el único número que cambia en el día) ---
   try {
-    const [pacientesActivos, profesionalesActivos, asistenciasHoy, turnosHoy] = await Promise.all([
-      pacienteModel.contarPacientesActivos(),
-      profesionalModel.contarProfesionalesActivos(),
-      asistenciaModel.contarAsistenciasHoy(hoy),
-      turnoModel.contarTurnosFecha(hoy),
-    ]);
-    cajaKpis.innerHTML = renderKpis({ pacientesActivos, profesionalesActivos, asistenciasHoy, turnosHoy });
+    const asistenciasHoy = await asistenciaModel.contarAsistenciasHoy(hoy);
+    cajaKpis.innerHTML = renderKpis({ asistenciasHoy });
   } catch (err) {
     console.error('Error cargando KPIs:', err);
     cajaKpis.innerHTML = htmlError('No se pudieron cargar los indicadores.');

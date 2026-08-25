@@ -20,6 +20,9 @@ const SECCIONES = {
   asistencia:    { titulo: 'Asistencia del día',  sub: () => 'Registro diario de concurrencia', iniciar: null },
   profesionales: { titulo: 'Profesionales',       sub: () => 'Equipo interdisciplinario',     iniciar: null },
   galeria:       { titulo: 'Galería',             sub: () => 'Fotos del trabajo del mes',     iniciar: null },
+  convenios:     { titulo: 'Convenios',           sub: () => 'Obras sociales',                iniciar: null },
+  facturacion:   { titulo: 'Facturación',         sub: () => 'Control de facturación y cobros', iniciar: null },
+  gastos:        { titulo: 'Gastos',              sub: () => 'Rendición de cuentas',          iniciar: null },
   administracion:{ titulo: 'Administración',       sub: () => 'Usuarios y permisos',           iniciar: null },
 };
 

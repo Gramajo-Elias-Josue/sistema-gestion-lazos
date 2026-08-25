@@ -7,7 +7,7 @@
 // =====================================================================
 
 import { esc } from '../utils/ui.js';
-import { nombreDia } from '../utils/fechas.js';
+import { nombreDia, iniciales } from '../utils/fechas.js';
 
 export const ESTADOS_FICHAJE = { presente: 'Presente', ausente: 'Ausente', licencia: 'Licencia' };
 
@@ -48,10 +48,6 @@ export function filaHtml(prof, fichaje, ctx = {}) {
   const f = fichaje || {};
   const estado = f.estado || 'presente';
 
-  // Entrada: lo ya fichado > (HOY: la HORA ACTUAL como ayuda intuitiva,
-  // editable — se marca presente al llegar el profesional) > (fechas
-  // pasadas: el horario habitual). Una entrada futura ya guardada (dato
-  // viejo) se reemplaza por la hora actual: no se pudo llegar en el futuro.
   const prefillEntrada = () => {
     if (f.hora_entrada) {
       if (esHoy && ahora && hhmm(f.hora_entrada) > ahora) return ahora;
@@ -60,9 +56,6 @@ export function filaHtml(prof, fichaje, ctx = {}) {
     if (esHoy && ahora) return ahora;
     return hhmm(prof.horario_entrada);
   };
-  // Salida: lo ya fichado > (HOY: vacía, se completa al retirarse) >
-  // (fechas pasadas: el horario habitual). Una salida futura ya guardada
-  // (dato viejo) se oculta: todavía no ocurrió.
   const prefillSalida = () => {
     if (f.hora_salida) {
       if (esHoy && ahora && hhmm(f.hora_salida) > ahora) return '';
@@ -71,7 +64,6 @@ export function filaHtml(prof, fichaje, ctx = {}) {
     if (esHoy) return '';
     return hhmm(prof.horario_salida);
   };
-  // Sin horas para ausente / licencia (no aplican).
   const conHoras = estado === 'presente';
   const entrada = conHoras ? prefillEntrada() : '';
   const salida = conHoras ? prefillSalida() : '';
@@ -80,23 +72,25 @@ export function filaHtml(prof, fichaje, ctx = {}) {
     .map(([v, l]) => `<option value="${v}" ${v === estado ? 'selected' : ''}>${l}</option>`).join('');
   const guardado = !!fichaje;
   const offHoras = (bloqueado || !conHoras) ? 'disabled' : '';
-  const estInput = 'font-family:var(--body);font-size:14.5px;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card-2);color:var(--ink)';
 
   return `
     <div class="asis-row" data-prof="${prof.id}">
-      <button class="ficha-asis" data-ficha-prof="${prof.id}" style="flex:1.4" title="Ver el calendario de asistencia de ${esc(prof.nombre_completo)}">
+      <button class="ficha-asis" data-ficha-prof="${prof.id}" title="Ver el calendario de asistencia de ${esc(prof.nombre_completo)}">
+        <span class="pav">${esc(iniciales(prof.nombre_completo))}</span>
         <span class="nm">
           <b>${esc(prof.nombre_completo)}</b><br>
-          <small>${esc(prof.profesion || '')}${prof.matricula ? ' · ' + esc(prof.matricula) : ''}${prof.horario_entrada ? ' · Horario ' + hhmm(prof.horario_entrada) + '–' + (hhmm(prof.horario_salida) || '?') : ''}</small>
+          <small>${esc(prof.profesion || '')}${prof.matricula ? ' · ' + esc(prof.matricula) : ''}${prof.horario_entrada ? ' · ' + hhmm(prof.horario_entrada) + '–' + (hhmm(prof.horario_salida) || '') : ''}</small>
         </span>
       </button>
-      <select class="apf-estado" style="${estInput}" ${bloqueado ? 'disabled' : ''}>${opts}</select>
-      <label style="font-size:12.5px;color:var(--ink-faint);display:flex;flex-direction:column;gap:3px">Entrada
-        <input type="time" class="apf-entrada" value="${entrada}" style="${estInput}" ${offHoras}></label>
-      <label style="font-size:12.5px;color:var(--ink-faint);display:flex;flex-direction:column;gap:3px">Salida
-        <input type="time" class="apf-salida" value="${salida}" style="${estInput}" ${offHoras}></label>
+      <select class="apf-estado" ${bloqueado ? 'disabled' : ''}>${opts}</select>
+      <div class="apf-horas">
+        <label class="apf-hora"><span>Entrada</span>
+          <input type="time" class="apf-entrada" value="${entrada}" ${offHoras}></label>
+        <label class="apf-hora"><span>Salida</span>
+          <input type="time" class="apf-salida" value="${salida}" ${offHoras}></label>
+      </div>
       <span class="gtick ${guardado ? 'ok' : 'pend'}" title="${guardado ? 'Fichaje guardado' : 'Sin guardar'}">${guardado ? '✓' : '•'}</span>
-      <button class="btn ghost apf-guardar" data-prof="${prof.id}" style="padding:7px 13px" ${bloqueado ? 'disabled' : ''}>Guardar</button>
+      <button class="btn apf-guardar" data-prof="${prof.id}" ${bloqueado ? 'disabled' : ''}>Guardar</button>
     </div>`;
 }
 

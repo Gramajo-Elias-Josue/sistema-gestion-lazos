@@ -57,18 +57,6 @@ export async function cambiarEstadoAdmision(id, estadoAdmision) {
   return data;
 }
 
-// Cuenta pacientes activos (para el KPI del panel de inicio).
-// head:true + count:'exact' trae solo el número, sin las filas.
-export async function contarPacientesActivos() {
-  const { count, error } = await supabase
-    .from(TABLA)
-    .select('*', { count: 'exact', head: true })
-    .eq('estado', 'activo')
-    .eq('estado_admision', 'admitido');
-  if (error) throw error;
-  return count ?? 0;
-}
-
 // Trae un paciente por id, con sus contactos de emergencia y todos sus
 // documentos (datos completos para armar el legajo).
 export async function obtenerPaciente(id) {

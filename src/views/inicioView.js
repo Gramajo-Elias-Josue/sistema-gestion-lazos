@@ -12,7 +12,6 @@ import { esc, pill } from '../utils/ui.js';
 // Estructura general de la vista: contenedores que el controlador rellena.
 export function renderInicio() {
   return `
-    <div id="inicio-kpis"></div>
     <div class="panel" style="margin-bottom:20px">
       <div class="panel-h">
         <h2>Grilla de atención</h2>
@@ -26,6 +25,7 @@ export function renderInicio() {
         <div id="inicio-grilla"></div>
       </div>
     </div>
+    <div id="inicio-kpis"></div>
     <div class="panel" style="margin-bottom:20px">
       <div class="panel-h">
         <h2>Entregas del mes</h2>
@@ -51,26 +51,15 @@ export function renderInicio() {
     </div>`;
 }
 
-// Las tarjetas KPI del encabezado.
-export function renderKpis({ pacientesActivos, profesionalesActivos, asistenciasHoy, turnosHoy }) {
-  // Cada tarjeta es un atajo: al tocarla, el controlador navega (data-goto).
+// Tarjeta KPI del encabezado. Antes había 4 (pacientes activos,
+// profesionales activos, turnos de hoy, asistencias hoy): la grilla de
+// atención ya reemplaza a "turnos de hoy", y los conteos fijos de
+// pacientes/profesionales activos no dicen mucho del día a día. Queda
+// solo la que sí cambia mientras transcurre la jornada.
+export function renderKpis({ asistenciasHoy }) {
+  // Es un atajo: al tocarla, el controlador navega (data-goto).
   return `
     <div class="kpis">
-      <div class="kpi" data-goto="pacientes" title="Ir a Pacientes">
-        <div class="lab"><span class="dot"></span>Pacientes activos</div>
-        <div class="num">${pacientesActivos}</div>
-        <div class="sub">en seguimiento →</div>
-      </div>
-      <div class="kpi" data-goto="profesionales" title="Ir a Profesionales">
-        <div class="lab"><span class="dot"></span>Profesionales activos</div>
-        <div class="num">${profesionalesActivos}</div>
-        <div class="sub">equipo interdisciplinario →</div>
-      </div>
-      <div class="kpi" data-goto="agenda" title="Ir a Turnos">
-        <div class="lab"><span class="dot"></span>Turnos de hoy</div>
-        <div class="num">${turnosHoy}</div>
-        <div class="sub">agenda del día →</div>
-      </div>
       <div class="kpi" data-goto="asistencia" title="Ir a Asistencia">
         <div class="lab"><span class="dot"></span>Asistencias hoy</div>
         <div class="num">${asistenciasHoy}</div>

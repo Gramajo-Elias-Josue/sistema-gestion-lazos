@@ -80,7 +80,7 @@ export function renderFilas(pacientes, vista) {
 //     editando    -> { id: true } si la fila está reabierta para cambiar
 //     bloqueado   -> true si la fecha es futura (se muestra, no se edita)
 //     fecha       -> la fecha que se está registrando (se resalta en la tira)
-export function filaHtml(p, { seleccion, notas, calendarios = {}, guardado, editando, bloqueado, fecha = null }) {
+export function filaHtml(p, { seleccion, notas, calendarios = {}, guardado, editando, bloqueado, fecha = null, semanaVisible = 0 }) {
   const sel = seleccion[p.id];
   const nota = notas[p.id];
   const yaGuardado = !!guardado[p.id];
@@ -99,20 +99,20 @@ export function filaHtml(p, { seleccion, notas, calendarios = {}, guardado, edit
     ? `<span class="gtick ok" title="Asistencia guardada">✓</span>`
     : `<span class="gtick pend" title="Sin guardar">✓</span>`;
 
-  // Mes del paciente en una tira de cuadraditos (mismos colores que la
-  // ficha grande) + su porcentaje. Al tocarla se abre la ficha completa.
+  // Semana del mes del paciente en una tira de cuadraditos (mismos colores
+  // que la ficha grande) + su porcentaje. Al tocar los días se abre la
+  // ficha completa; las flechas mueven la semana sin salir del mes.
   const mesHtml = `
-    <button class="mini-cal" data-ficha="${p.id}" title="Ver la ficha de asistencia del mes de ${esc(p.nombre_completo)}">
-      ${renderMiniCalendario(calendarios[p.id], { fechaActual: fecha })}
-    </button>`;
+    <div class="mini-cal">
+      ${renderMiniCalendario(calendarios[p.id], { fechaActual: fecha, semanaVisible, pacienteId: p.id, nombre: p.nombre_completo })}
+    </div>`;
 
   // Botón de edición: ÚNICA función es reabrir la fila para cambiar la
-  // marca. Solo tiene sentido si ya hay algo guardado y la fecha no está
-  // bloqueada. Va con texto (no solo el ícono) para que se vea.
+  // marca. Solo ícono, pero grande y con fondo propio para que se note
+  // (antes era un tenue 15px casi invisible sobre la fila).
   const lapizTitulo = nota ? `Corregir — Aviso: ${esc(nota)}` : 'Corregir la asistencia ya guardada';
-  const lapiz = `<button class="btn-editar ${enEdicion ? 'activo' : ''}" data-editar="${p.id}" title="${lapizTitulo}" ${(!yaGuardado || bloqueado) ? 'disabled' : ''}><span aria-hidden="true">✏️</span> ${enEdicion ? 'Editando' : 'Corregir'}</button>`;
+  const lapiz = `<button class="btn-editar ${enEdicion ? 'activo' : ''}" data-editar="${p.id}" title="${lapizTitulo}" ${(!yaGuardado || bloqueado) ? 'disabled' : ''}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M10.4 12.6a2 2 0 1 1 3 3L8 21l-4 1 1-4Z"/></svg></button>`;
 
-  // data-buscar: texto plano (nombre + diagnóstico) para el filtro.
   return `
     <div class="asis-row" data-fila="${p.id}" data-buscar="${esc(((p.nombre_completo || '') + ' ' + (p.diagnostico || '')).toLowerCase())}">
       <button class="ficha-asis" data-ficha="${p.id}" title="Ver el calendario de asistencia de ${esc(p.nombre_completo)}">

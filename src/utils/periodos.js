@@ -51,6 +51,15 @@ export function moverPeriodo(periodo, pasos) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
 }
 
+// Días que quedan hasta el último día del mes de `hoy`. 0 = hoy ES el
+// último día. Sirve para avisar de las entregas pendientes solo cerca
+// del límite, no todo el mes (ver DIAS_AVISO_ENTREGAS en notificaciones.js).
+export function diasHastaFinDeMes(hoy = hoyISO()) {
+  const [anio, mes, dia] = String(hoy).split('-').map(Number);
+  const ultimoDia = new Date(anio, mes, 0).getDate();
+  return ultimoDia - dia;
+}
+
 // ---------------------------------------------------------------------
 // PENDIENTES DEL MES
 // ---------------------------------------------------------------------

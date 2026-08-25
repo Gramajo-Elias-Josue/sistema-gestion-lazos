@@ -54,6 +54,22 @@ export function moverMes(anio, mes, pasos) {
   return { anio: d.getFullYear(), mes: d.getMonth() + 1 };
 }
 
+// Índice de semana (0 = primera fila del calendario) al que pertenece una
+// fecha del mes. Sirve para abrir la tira de la fila de la planilla en la
+// semana que corresponde en vez del mes entero.
+export function semanaDeFecha(anio, mes, fechaISO) {
+  const dia = Number(fechaISO.split('-')[2]);
+  const offset = (new Date(anio, mes - 1, 1).getDay() + 6) % 7;
+  return Math.floor((offset + dia - 1) / 7);
+}
+
+// Cantidad de semanas (filas de 7 días) que ocupa el mes en el calendario.
+export function semanasDelMes(anio, mes) {
+  const diasDelMes = new Date(anio, mes, 0).getDate();
+  const offset = (new Date(anio, mes - 1, 1).getDay() + 6) % 7;
+  return Math.ceil((offset + diasDelMes) / 7);
+}
+
 // Mes y año de una fecha ISO (yyyy-mm-dd). Sin argumento, el de hoy.
 export function mesDeFecha(fechaISO = hoyISO()) {
   const [a, m] = fechaISO.split('-').map(Number);

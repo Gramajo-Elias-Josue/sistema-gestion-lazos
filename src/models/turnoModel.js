@@ -21,16 +21,6 @@ export async function listarTurnosPorFecha(fecha) {
   return data;
 }
 
-// Cuenta los turnos de una fecha (para el KPI de inicio).
-export async function contarTurnosFecha(fecha) {
-  const { count, error } = await supabase
-    .from(TABLA)
-    .select('*', { count: 'exact', head: true })
-    .eq('fecha', fecha);
-  if (error) throw error;
-  return count ?? 0;
-}
-
 // Crea un turno nuevo.
 export async function crearTurno({ pacienteId, profesionalId, fecha, hora, observaciones }) {
   const { data, error } = await supabase

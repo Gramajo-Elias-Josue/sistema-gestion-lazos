@@ -28,16 +28,6 @@ export async function listarProfesionales({ soloActivos = false } = {}) {
   return data;
 }
 
-// Cuenta profesionales activos (para el KPI del panel de inicio).
-export async function contarProfesionalesActivos() {
-  const { count, error } = await supabase
-    .from(TABLA)
-    .select('*', { count: 'exact', head: true })
-    .eq('estado', 'activo');
-  if (error) throw error;
-  return count ?? 0;
-}
-
 // Trae un profesional por id.
 export async function obtenerProfesional(id) {
   const { data, error } = await supabase
