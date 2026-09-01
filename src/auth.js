@@ -34,11 +34,34 @@ export async function cerrarSesion() {
   return supabase.auth.signOut();
 }
 
-// Escucha cambios de sesión (login / logout / refresco del token) y llama
-// al callback con la sesión nueva (o null). Devuelve la suscripción por si
+// Escucha cambios de sesión (login / logout / refresco del token, y el
+// caso especial "recuperar contraseña") y llama al callback con la sesión
+// nueva (o null) y el EVENTO de Supabase. Devuelve la suscripción por si
 // se quiere desconectar. Es lo que mantiene la UI en sincronía si la
 // sesión cambia (por ejemplo, al expirar o cerrar sesión en otra pestaña).
 export function alCambiarSesion(callback) {
-  const { data } = supabase.auth.onAuthStateChange((_evento, sesion) => callback(sesion));
+  const { data } = supabase.auth.onAuthStateChange((evento, sesion) => callback(sesion, evento));
   return data.subscription;
+}
+
+// ---------------------------------------------------------------------
+// RECUPERAR CONTRASEÑA
+// ---------------------------------------------------------------------
+// 1) pedirRecuperacion(email): manda un mail con un link. Al tocarlo, el
+//    usuario vuelve a esta misma app con una sesión TEMPORAL de
+//    recuperación; Supabase avisa de eso disparando el evento
+//    'PASSWORD_RECOVERY' en alCambiarSesion (lo escucha app.js).
+// 2) establecerContrasena(password): pone la contraseña nueva. Sirve
+//    tanto para esa sesión temporal como para un usuario ya logueado que
+//    quiere cambiarla.
+//
+// redirectTo: a dónde vuelve el link del mail. Tiene que estar cargado en
+// Supabase → Authentication → URL Configuration → Redirect URLs, si no
+// Supabase rechaza el link (paso manual, no se hace desde acá).
+export async function pedirRecuperacion(email) {
+  return supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+}
+
+export async function establecerContrasena(password) {
+  return supabase.auth.updateUser({ password });
 }

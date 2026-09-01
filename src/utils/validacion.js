@@ -18,7 +18,9 @@ export function normalizarDni(dni) {
 
 // ---- Paciente ----
 // El DNI es el identificador principal del paciente: es obligatorio.
-export function validarPaciente(datos) {
+// `esNuevo` = true al CREAR (exige fecha de ingreso); al editar un
+// paciente ya cargado no se lo exige retroactivamente si le faltaba.
+export function validarPaciente(datos, { esNuevo = false } = {}) {
   if (!datos.nombre_completo || !datos.nombre_completo.trim()) {
     return error('Falta el nombre del paciente.');
   }
@@ -30,6 +32,9 @@ export function validarPaciente(datos) {
   }
   if (datos.fecha_nacimiento && datos.fecha_nacimiento > hoyISO()) {
     return error('La fecha de nacimiento no puede ser posterior a hoy.');
+  }
+  if (esNuevo && !datos.fecha_ingreso) {
+    return error('Falta la fecha de ingreso.');
   }
   if (datos.fecha_ingreso && datos.fecha_ingreso > hoyISO()) {
     return error('La fecha de ingreso no puede ser posterior a hoy.');
@@ -94,15 +99,54 @@ export function validarEvaluacion(datos) {
 }
 
 // ---- Profesional ----
-export function validarProfesional(datos) {
+// `esNuevo` = true al CREAR: ahí se exigen todos los datos (menos
+// matrícula y teléfono 2, que quedan opcionales). Al editar uno ya
+// cargado no se le exige retroactivamente lo que le faltara.
+export function validarProfesional(datos, { esNuevo = false } = {}) {
   if (!datos.nombre_completo || !datos.nombre_completo.trim()) {
     return error('Falta el nombre del profesional.');
+  }
+  if (esNuevo && (!datos.dni || !normalizarDni(datos.dni))) {
+    return error('Falta el DNI.');
+  }
+  if (datos.dni && !/^\d{6,9}$/.test(normalizarDni(datos.dni))) {
+    return error('Revisá el DNI: van solo números, sin puntos.');
+  }
+  if (esNuevo && !datos.fecha_nacimiento) {
+    return error('Falta la fecha de nacimiento.');
+  }
+  if (datos.fecha_nacimiento && datos.fecha_nacimiento > hoyISO()) {
+    return error('La fecha de nacimiento no puede ser posterior a hoy.');
+  }
+  if (esNuevo && (!datos.profesion || !datos.profesion.trim())) {
+    return error('Falta la profesión.');
+  }
+  if (esNuevo && !datos.sector) {
+    return error('Elegí el sector.');
+  }
+  if (esNuevo && (!datos.especialidad || !datos.especialidad.trim())) {
+    return error('Falta la especialidad.');
+  }
+  if (esNuevo && (!datos.telefono || !datos.telefono.trim())) {
+    return error('Falta el teléfono.');
+  }
+  if (esNuevo && (!datos.email || !datos.email.trim())) {
+    return error('Falta el email.');
   }
   if (datos.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(datos.email)) {
     return error('Ese email no parece válido. Revisalo.');
   }
-  if (datos.fecha_nacimiento && datos.fecha_nacimiento > hoyISO()) {
-    return error('La fecha de nacimiento no puede ser posterior a hoy.');
+  if (esNuevo && (!datos.direccion || !datos.direccion.trim())) {
+    return error('Falta la dirección.');
+  }
+  if (esNuevo && !datos.horario_entrada) {
+    return error('Falta el horario de entrada.');
+  }
+  if (esNuevo && !datos.horario_salida) {
+    return error('Falta el horario de salida.');
+  }
+  if (esNuevo && (!Array.isArray(datos.dias_trabajo) || !datos.dias_trabajo.length)) {
+    return error('Elegí al menos un día de trabajo.');
   }
   return ok();
 }

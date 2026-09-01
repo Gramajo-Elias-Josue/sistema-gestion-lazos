@@ -33,6 +33,16 @@ describe('validarPaciente', () => {
     expect(validarPaciente({ ...base, fecha_nacimiento: manana }).ok).toBe(false);
     expect(validarPaciente({ ...base, fecha_ingreso: manana }).ok).toBe(false);
   });
+
+  it('al CREAR (esNuevo) exige la fecha de ingreso', () => {
+    expect(validarPaciente(base, { esNuevo: true }).ok).toBe(false);
+    expect(validarPaciente({ ...base, fecha_ingreso: hoyISO() }, { esNuevo: true }).ok).toBe(true);
+  });
+
+  it('al EDITAR (esNuevo=false) no la exige retroactivamente', () => {
+    expect(validarPaciente(base, { esNuevo: false }).ok).toBe(true);
+    expect(validarPaciente(base).ok).toBe(true); // esNuevo por defecto es false
+  });
 });
 
 describe('validarDocumento', () => {
@@ -65,15 +75,44 @@ describe('validarFichajeProfesional', () => {
 });
 
 describe('validarProfesional', () => {
-  it('exige nombre y valida el email', () => {
+  it('exige nombre siempre; el resto no se exige si no es alta (esNuevo=false)', () => {
     expect(validarProfesional({ nombre_completo: '' }).ok).toBe(false);
+    expect(validarProfesional({ nombre_completo: 'Lic. X' }).ok).toBe(true); // edición, sin más datos
+  });
+
+  it('email y DNI se validan si vienen, sea alta o edición', () => {
     expect(validarProfesional({ nombre_completo: 'Lic. X', email: 'no-es-mail' }).ok).toBe(false);
     expect(validarProfesional({ nombre_completo: 'Lic. X', email: 'x@y.com' }).ok).toBe(true);
+    expect(validarProfesional({ nombre_completo: 'Lic. X', dni: 'abc' }).ok).toBe(false);
   });
 
   it('rechaza fecha de nacimiento futura', () => {
     const manana = sumarDias(hoyISO(), 1);
     expect(validarProfesional({ nombre_completo: 'Lic. X', fecha_nacimiento: manana }).ok).toBe(false);
+  });
+
+  const profesionalCompleto = {
+    nombre_completo: 'Lic. X', dni: '30111222', fecha_nacimiento: '1990-01-01',
+    profesion: 'Psicología', sector: 'psicologia', especialidad: 'Infantil',
+    telefono: '3865111222', email: 'x@y.com', direccion: 'Calle 123',
+    horario_entrada: '08:00', horario_salida: '16:00', dias_trabajo: ['Lunes'],
+  };
+
+  it('[regresión] al CREAR (esNuevo) exige todos los datos', () => {
+    expect(validarProfesional(profesionalCompleto, { esNuevo: true }).ok).toBe(true);
+    for (const campo of ['dni', 'fecha_nacimiento', 'profesion', 'sector', 'especialidad', 'telefono', 'email', 'direccion', 'horario_entrada', 'horario_salida']) {
+      const incompleto = { ...profesionalCompleto, [campo]: null };
+      expect(validarProfesional(incompleto, { esNuevo: true }).ok, `falló al faltar "${campo}"`).toBe(false);
+    }
+    expect(validarProfesional({ ...profesionalCompleto, dias_trabajo: [] }, { esNuevo: true }).ok).toBe(false);
+  });
+
+  it('matrícula y teléfono 2 quedan opcionales incluso al crear', () => {
+    expect(validarProfesional({ ...profesionalCompleto, matricula: null, telefono2: null }, { esNuevo: true }).ok).toBe(true);
+  });
+
+  it('al EDITAR no exige retroactivamente lo que falte', () => {
+    expect(validarProfesional({ nombre_completo: 'Lic. X' }, { esNuevo: false }).ok).toBe(true);
   });
 });
 

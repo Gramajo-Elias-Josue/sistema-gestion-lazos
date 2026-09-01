@@ -18,7 +18,7 @@ import { obtenerSesion, cerrarSesion, alCambiarSesion } from './auth.js';
 import { obtenerPerfil } from './perfil.js';
 import { setPerfil, perfilActual, rolActual } from './sesion.js';
 import { seccionesEfectivas, etiquetaRol } from './permisos.js';
-import { montarLogin } from './controllers/loginController.js';
+import { montarLogin, montarNuevaContrasena } from './controllers/loginController.js';
 import { abrirPerfil, pintarAvatar } from './controllers/perfilController.js';
 import { conectarNotificaciones, cargarNotificaciones } from './controllers/notificacionesController.js';
 import { iniciarInicio } from './controllers/inicioController.js';
@@ -119,6 +119,16 @@ function mostrarLogin() {
   montarLogin(loginRoot, (sesion) => arrancarApp(sesion));
 }
 
+// Muestra la pantalla "elegí una contraseña nueva" (link del mail de
+// recuperación) en vez de arrancar la app directo, aunque ya haya una
+// sesión (temporal): no tendría sentido guardar la contraseña vieja de
+// nuevo sin cambiarla primero.
+function mostrarRecuperacion(sesion) {
+  setPerfil(null);
+  appEl.classList.add('hidden');
+  montarNuevaContrasena(loginRoot, () => arrancarApp(sesion));
+}
+
 // Aplica los permisos del rol: oculta del menú las secciones que no puede
 // ver y, si está parado en una sección no permitida, lo manda a Inicio.
 function aplicarPermisos(perfil) {
@@ -163,8 +173,11 @@ obtenerSesion().then((sesion) => {
 });
 
 // Mantener la UI en sincronía con la sesión: si se cierra (o expira),
-// volver al login; si se inicia, entrar a la app.
-alCambiarSesion((sesion) => {
-  if (sesion) arrancarApp(sesion);
+// volver al login; si se inicia, entrar a la app. 'PASSWORD_RECOVERY' es
+// el caso especial: el usuario tocó el link del mail de recuperación, así
+// que en vez de entrar directo se le pide elegir la contraseña nueva.
+alCambiarSesion((sesion, evento) => {
+  if (evento === 'PASSWORD_RECOVERY') mostrarRecuperacion(sesion);
+  else if (sesion) arrancarApp(sesion);
   else mostrarLogin();
 });

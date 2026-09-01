@@ -126,7 +126,7 @@ export function renderTabla(pacientes) {
         <td style="white-space:nowrap;text-align:right">
           <button class="btn ghost btn-historia" data-id="${p.id}" style="padding:6px 10px">Historia clínica</button>
           <button class="btn ghost btn-editar-row" data-id="${p.id}" style="padding:6px 10px">Editar</button>
-          <button class="btn ghost btn-baja" data-id="${p.id}" data-estado="${esc(p.estado || '')}" data-nombre="${esc(p.nombre_completo)}" style="padding:6px 10px;color:${activo ? 'var(--red-600)' : 'var(--teal-700)'}">${activo ? 'Dar de baja' : 'Reactivar'}</button>
+          <button class="btn ghost btn-baja" data-id="${p.id}" data-estado="${esc(p.estado || '')}" data-nombre="${esc(p.nombre_completo)}" style="padding:6px 10px;color:${activo ? 'var(--red-600)' : 'var(--teal-700)'}">${activo ? 'Desactivar' : 'Activar'}</button>
         </td>
       </tr>`;
   }).join('');
@@ -332,8 +332,10 @@ function hojaCabecera(paciente = {}) {
 export function renderFormEvaluacion(paciente = {}, turnos = [], datosPorProf = {}) {
   const opciones = turnos.map(t => {
     const p = t.profesionales || {};
+    // Sin turno.id: es un paciente de la GRILLA (atendido hoy sin turno,
+    // ver autoresElegiblesHoy). data-turno vacío, no "null" como texto.
     const et = `${p.nombre_completo || 'Profesional'}${p.profesion ? ' — ' + p.profesion : ''}${t.hora ? ' · ' + String(t.hora).slice(0, 5) : ''}`;
-    return `<option value="${t.profesional_id}" data-turno="${esc(String(t.id))}">${esc(et)}</option>`;
+    return `<option value="${t.profesional_id}" data-turno="${t.id ? esc(String(t.id)) : ''}">${esc(et)}</option>`;
   }).join('');
 
   const primero = turnos[0] ? String(turnos[0].profesional_id) : '';
@@ -469,10 +471,10 @@ export function renderFormPaciente(paciente = {}) {
               </div>
               <div class="form-field"><label>Obra social</label><input name="obra_social" value="${v('obra_social')}"></div>
               <div class="form-field"><label>N° de afiliado</label><input name="numero_afiliado" value="${v('numero_afiliado')}"></div>
-              <div class="form-field"><label>Fecha de ingreso</label><input type="date" name="fecha_ingreso" value="${v('fecha_ingreso')}"></div>
+              <div class="form-field"><label>Fecha de ingreso${esEdicion ? '' : ' *'}</label><input type="date" name="fecha_ingreso" ${esEdicion ? '' : 'required'} value="${v('fecha_ingreso')}"></div>
               <!-- El campo estado (activo/inactivo) NO se pide acá: es estado
                    interno del sistema. El paciente nace activo y solo cambia
-                   con "Dar de baja" / "Reactivar" desde el listado. -->
+                   con "Desactivar" / "Activar" desde el listado. -->
             </div>
           </div>
           <div class="modal-f">

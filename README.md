@@ -75,10 +75,6 @@ del DOM (clicks, formularios) y maneja los estados de **carga** y **error**.
 - `src/app.js` — punto de entrada: registra controladores y arranca el router.
 - `styles/main.css` — estilos de toda la app (modo claro y oscuro).
 
-> **Nota:** `src/controllers/evolucionesController.js` y `src/views/evolucionesView.js`
-> quedaron **sin uso**: la carga de informes se movió a la ficha del paciente (historia
-> clínica). Se conservan como referencia; no están en el menú.
-
 ---
 
 ## 📂 Estructura de archivos

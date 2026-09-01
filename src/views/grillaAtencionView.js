@@ -5,10 +5,12 @@
 // papel:
 //   - FILAS: los pacientes activos (salen solos del sistema).
 //   - COLUMNAS: los sectores (Psicología, Fonoaudiología, T.O., …), más
-//     la columna "Hs de asist" (turno del paciente) y el botón para
-//     agregar un sector nuevo.
+//     la columna "Hs de asist" (turno del paciente).
 //   - CELDA: el nombre del profesional que lo atiende. Se escribe a
 //     mano, como en una planilla de Excel.
+//
+// Los sectores (columnas) se agregan/quitan desde Profesionales → pestaña
+// "Profesiones", no desde acá: acá solo se muestran.
 //
 // La vista no guarda nada: solo dibuja lo que le da el controlador.
 // =====================================================================
@@ -72,13 +74,9 @@ export function renderGrilla({ pacientes = [], sectores = [], celdas = {}, edita
     return `<div class="state">No hay sectores cargados. Agregá el primero con el botón <b>+ Sector</b>.</div>`;
   }
 
-  // Cada sector puede quitarse desde su propia cabecera (con confirmación).
   const encabezados = sectores.map(s => `
     <th class="ga-col-sector">
       <span class="ga-sector-nombre">${esc(s.etiqueta)}</span>
-      ${editable ? `<button type="button" class="ga-del-sector" data-sector="${esc(s.clave)}"
-        data-sector-id="${esc(s.id ?? '')}" data-etiqueta="${esc(s.etiqueta)}"
-        title="Quitar la columna ${esc(s.etiqueta)}" aria-label="Quitar la columna ${esc(s.etiqueta)}">×</button>` : ''}
     </th>`).join('');
 
   const filas = pacientes.map(pac => {
@@ -119,12 +117,6 @@ export function renderGrilla({ pacientes = [], sectores = [], celdas = {}, edita
       </tr>`;
   }).join('');
 
-  // El botón de agregar sector va en la última columna del encabezado,
-  // que es donde se lo busca.
-  const btnSector = editable
-    ? `<button type="button" class="ga-add-sector" id="ga-add-sector" title="Agregar una columna nueva">+ Sector</button>`
-    : '';
-
   return `
     ${renderListaProfesionales(profesionales)}
     <div class="ga-toolbar">
@@ -138,36 +130,10 @@ export function renderGrilla({ pacientes = [], sectores = [], celdas = {}, edita
           <tr>
             <th class="ga-col-pac ga-esquina">Pacientes</th>
             ${encabezados}
-            <th class="ga-col-turno">Hs de asist ${btnSector}</th>
+            <th class="ga-col-turno">Hs de asist</th>
           </tr>
         </thead>
         <tbody>${filas}</tbody>
       </table>
-    </div>`;
-}
-
-// Modal para agregar una columna (sector) nueva.
-export function renderModalSector() {
-  return `
-    <div class="overlay" id="overlay-sector">
-      <div class="modal" style="max-width:420px">
-        <div class="modal-h">
-          <h2>Nueva columna</h2>
-          <button class="x" data-cerrar aria-label="Cerrar">×</button>
-        </div>
-        <form id="form-sector">
-          <div class="modal-b">
-            <div class="form-field full">
-              <label>Nombre del sector *</label>
-              <input name="etiqueta" required placeholder="Ej: Musicoterapia" autocomplete="off">
-              <small style="color:var(--ink-faint)">Se agrega como columna para todos los pacientes.</small>
-            </div>
-          </div>
-          <div class="modal-f">
-            <button type="button" class="btn ghost" data-cerrar>Cancelar</button>
-            <button type="submit" class="btn">Agregar columna</button>
-          </div>
-        </form>
-      </div>
     </div>`;
 }

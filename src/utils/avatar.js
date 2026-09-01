@@ -25,9 +25,10 @@ const ARCHIVOS = import.meta.glob('../assets/avatares/*.{svg,png,webp,jpg,jpeg}'
   import: 'default',
 });
 
-// Etiquetas legibles para las claves más habituales (se muestran como
-// ayuda al pasar el mouse). Si un archivo no está acá, se arma un nombre
-// a partir del propio nombre del archivo.
+// Etiquetas legibles para las claves más habituales (van en el aria-label,
+// para lectores de pantalla; NO se muestran como tooltip al pasar el mouse
+// a propósito). Si un archivo no está acá, se arma un nombre a partir del
+// propio nombre del archivo.
 const ETIQUETAS = {
   medico: 'Médico', medica: 'Médica',
   enfermero: 'Enfermero', enfermera: 'Enfermera',
@@ -39,6 +40,22 @@ const ETIQUETAS = {
   terapista: 'Terapista', docente: 'Docente',
   psicopedagogo: 'Psicopedagogo', psicopedagoga: 'Psicopedagoga',
   administrativo: 'Administrativo', administrativa: 'Administrativa',
+
+  // Avatares predefinidos (src/assets/avatares/): el nombre del archivo
+  // empieza con una letra de grupo (a/b/c/d) que agrupa por ESTILO
+  // visual (ilustración grande, ícono chico, circular, silueta lisa), así
+  // se ven ordenados por parecido en vez de mezclados. Acá se traduce
+  // cada clave a una etiqueta legible, sin el prefijo de grupo.
+  'a-medico': 'Médico', 'a-administrativa': 'Administrativa',
+  'a-secretaria': 'Secretaria', 'a-secretaria-2': 'Secretaria',
+  'a-directora': 'Directora', 'a-nina': 'Niña', 'a-nino': 'Niño',
+  'b-medica': 'Médica', 'b-mujer': 'Mujer', 'b-mujer-2': 'Mujer',
+  'b-mujer-3': 'Mujer', 'b-mujer-4': 'Mujer', 'b-mujer-5': 'Mujer',
+  'b-mujer-negocios': 'Mujer', 'b-hombre': 'Hombre', 'b-hombre-2': 'Hombre',
+  'b-hombre-joven': 'Hombre joven',
+  'c-hombre': 'Hombre', 'c-hombre-2': 'Hombre',
+  'c-perfil-hombre': 'Perfil', 'c-perfil-mujer': 'Perfil',
+  'd-hombre': 'Usuario', 'd-usuario': 'Usuario', 'd-usuario-2': 'Usuario',
 };
 
 // Normaliza el nombre del archivo para usarlo como clave en la base:
@@ -63,10 +80,13 @@ function etiquetaDe(clave) {
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
-// Catálogo de avatares disponibles, ordenado alfabéticamente.
-// Cada uno: { clave (del nombre del archivo), nombre (legible), url }.
-// Si dos archivos dieran la misma clave, se conserva el primero para que
-// una elección guardada no cambie de dibujo por sorpresa.
+// Catálogo de avatares disponibles, ordenado por CLAVE (no por nombre
+// legible): el nombre del archivo agrupa por estilo visual (ver
+// ETIQUETAS más arriba), así que ordenar por clave agrupa en la grilla
+// los que se parecen entre sí en vez de mezclarlos alfabéticamente por
+// etiqueta. Cada uno: { clave (del nombre del archivo), nombre (legible),
+// url }. Si dos archivos dieran la misma clave, se conserva el primero
+// para que una elección guardada no cambie de dibujo por sorpresa.
 const vistas = new Set();
 export const AVATARES = Object.entries(ARCHIVOS)
   .map(([ruta, url]) => {
@@ -74,7 +94,7 @@ export const AVATARES = Object.entries(ARCHIVOS)
     return { clave, nombre: etiquetaDe(clave), url };
   })
   .filter(a => a.clave && !vistas.has(a.clave) && vistas.add(a.clave))
-  .sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'));
+  .sort((a, b) => a.clave.localeCompare(b.clave, 'es'));
 
 // Iniciales que se muestran cuando no hay avatar elegido. Con nombre y
 // apellido toma la primera letra de cada uno ("Ana Gómez" -> "AG"); si es

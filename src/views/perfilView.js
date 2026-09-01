@@ -18,10 +18,12 @@ export function renderPerfil(perfil = {}, email = '') {
 
   // Avatares disponibles (archivos de src/assets/avatares/). Si todavía no
   // hay ninguno, se avisa en vez de mostrar un hueco vacío.
+  // Sin "title": no se quiere el tooltip nativo del navegador al pasar el
+  // mouse (queda el aria-label para lectores de pantalla, que no se ve).
   const opciones = AVATARES.length
     ? AVATARES.map(a => `
         <button type="button" class="av-opcion ${actual.tipo === 'preset' && actual.preset.clave === a.clave ? 'sel' : ''}"
-          data-avatar="${esc(a.clave)}" title="${esc(a.nombre)}" aria-label="${esc(a.nombre)}">
+          data-avatar="${esc(a.clave)}" aria-label="${esc(a.nombre)}">
           <img src="${esc(a.url)}" alt="">
         </button>`).join('')
     : `<small style="color:var(--ink-faint)">Todavía no hay avatares cargados. Se agregan poniendo los archivos en <code>src/assets/avatares/</code>.</small>`;

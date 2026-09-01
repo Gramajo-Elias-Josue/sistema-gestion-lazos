@@ -3,7 +3,7 @@
 // así que lo importante es que se reconozca igual y que las columnas
 // salgan siempre en el mismo orden.
 import { describe, it, expect } from 'vitest';
-import { areaDeProfesion, etiquetaArea, ordenarPorArea, normalizar } from '../src/utils/areas.js';
+import { areaDeProfesion, etiquetaArea, ordenarPorArea, normalizar, coincideConSector, areaDelProfesional } from '../src/utils/areas.js';
 
 describe('areaDeProfesion', () => {
   it('reconoce la profesión escrita de cualquier forma', () => {
@@ -27,6 +27,46 @@ describe('areaDeProfesion', () => {
   it('etiquetaArea devuelve el nombre legible', () => {
     expect(etiquetaArea('to')).toBe('T.O.');
     expect(etiquetaArea('inventada')).toBe(null);
+  });
+});
+
+describe('areaDelProfesional', () => {
+  it('usa el campo sector si lo tiene', () => {
+    expect(areaDelProfesional({ sector: 'fono', profesion: 'Psicología' })).toBe('fono');
+  });
+
+  it('sin sector, cae de reserva a adivinar por "profesion"', () => {
+    expect(areaDelProfesional({ profesion: 'Psicología' })).toBe('psicologia');
+  });
+
+  it('[regresión] sin sector NI profesión reconocida, da null (no undefined)', () => {
+    expect(areaDelProfesional({})).toBe(null);
+    expect(areaDelProfesional(undefined)).toBe(null);
+    expect(areaDelProfesional({ profesion: 'Musicoterapia' })).toBe(null);
+  });
+});
+
+describe('coincideConSector (grilla: profesional vs. columna)', () => {
+  it('coincide: mismo sector que la columna (campo sector, no el texto de profesion)', () => {
+    expect(coincideConSector({ sector: 'psicologia', profesion: 'cualquier cosa' }, 'psicologia')).toBe(true);
+    expect(coincideConSector({ sector: 'fono' }, 'fono')).toBe(true);
+  });
+
+  it('[regresión] no deja poner a un psicólogo en la columna de fono', () => {
+    expect(coincideConSector({ sector: 'psicologia' }, 'fono')).toBe(false);
+    expect(coincideConSector({ sector: 'to' }, 'psicologia')).toBe(false);
+  });
+
+  it('sin sector asignado: cae de reserva al texto de "profesion" (compatibilidad con lo cargado antes)', () => {
+    expect(coincideConSector({ profesion: 'Psicología' }, 'psicologia')).toBe(true);
+    expect(coincideConSector({ profesion: 'Psicología' }, 'fono')).toBe(false);
+  });
+
+  it('ni sector ni profesión reconocida: no bloquea (lista abierta)', () => {
+    expect(coincideConSector({ profesion: 'Musicoterapia' }, 'psicologia')).toBe(true);
+    expect(coincideConSector({ profesion: '' }, 'fono')).toBe(true);
+    expect(coincideConSector({}, 'to')).toBe(true);
+    expect(coincideConSector(undefined, 'to')).toBe(true);
   });
 });
 

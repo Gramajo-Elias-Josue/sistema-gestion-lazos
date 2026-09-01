@@ -64,13 +64,35 @@ export function confirmar({
   });
 }
 
-// Notificación flotante temporal. tipo: 'ok' (verde) o 'bad' (rojo).
+// Contenedor fijo (arriba, centrado) donde se apilan los avisos. Se crea
+// una sola vez y se reutiliza, así dos toasts seguidos se acomodan uno
+// debajo del otro en vez de superponerse.
+let contenedorToasts = null;
+function contenedorDeToasts() {
+  if (contenedorToasts && document.body.contains(contenedorToasts)) return contenedorToasts;
+  contenedorToasts = document.createElement('div');
+  contenedorToasts.className = 'toast-stack';
+  document.body.appendChild(contenedorToasts);
+  return contenedorToasts;
+}
+
+// Aviso arriba de todo, centrado. tipo: 'ok' (verde, ✓) o 'bad' (rojo, !).
+// Ícono fijo según el tipo (se distingue de un vistazo), botón para
+// cerrarlo antes de tiempo, y una barrita que se vacía mostrando cuánto
+// le queda antes de desaparecer solo.
 export function toast(mensaje, tipo = 'ok') {
   const el = document.createElement('div');
   el.className = 'toast' + (tipo === 'bad' ? ' bad' : '');
-  el.textContent = mensaje;
-  document.body.appendChild(el);
-  setTimeout(() => el.remove(), 3200);
+  el.innerHTML = `
+    <span class="toast-ico" aria-hidden="true">${tipo === 'bad' ? '!' : '✓'}</span>
+    <span class="toast-msg">${esc(mensaje)}</span>
+    <button type="button" class="toast-cerrar" aria-label="Cerrar aviso">×</button>
+    <span class="toast-barra"></span>`;
+  contenedorDeToasts().appendChild(el);
+
+  const quitar = () => el.remove();
+  el.querySelector('.toast-cerrar').addEventListener('click', quitar);
+  setTimeout(quitar, 5000);
 }
 
 // Escapa texto para insertarlo de forma segura dentro de HTML.

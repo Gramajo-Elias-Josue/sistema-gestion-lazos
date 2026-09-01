@@ -512,9 +512,23 @@ tbody tr:last-child td{border-bottom:none}
 /* ---- Banner de aviso (p. ej. falta el bucket de Storage) ---- */
 .banner{background:var(--amber-50);border:1px solid var(--amber-100);color:var(--amber-600);padding:13px 16px;border-radius:11px;font-size:14px;margin-bottom:18px;display:flex;gap:10px;align-items:center}
 
-/* ---- Notificación flotante (toast) ---- */
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--teal-800);color:#fff;padding:13px 22px;border-radius:10px;font-size:14.5px;font-weight:500;box-shadow:var(--shadow);z-index:80;animation:rise .3s ease both;max-width:90vw;text-align:center}
+/* ---- Notificación flotante (toast) ----
+   Arriba de todo y centrada (antes quedaba chica en la esquina de abajo,
+   se pasaba por alto). El contenedor apila varios avisos seguidos sin que
+   se superpongan; cada aviso tiene ícono, botón para cerrarlo antes de
+   tiempo y una barrita que se vacía mostrando cuánto le queda. */
+.toast-stack{position:fixed;top:26px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:10px;z-index:80;pointer-events:none}
+.toast{position:relative;pointer-events:auto;display:flex;align-items:center;gap:13px;background:var(--teal-800);color:#fff;padding:16px 46px 16px 18px;border-radius:14px;font-size:15px;font-weight:500;line-height:1.4;box-shadow:0 18px 44px -12px rgba(0,0,0,.45);max-width:min(90vw,480px);text-align:left;animation:caeAviso .35s cubic-bezier(.2,.8,.2,1) both;overflow:hidden}
 .toast.bad{background:var(--red-600)}
+.toast-ico{flex-shrink:0;width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.22);display:grid;place-items:center;font-size:15px;font-weight:700;line-height:1}
+.toast-msg{flex:1}
+.toast-cerrar{all:unset;position:absolute;top:11px;right:13px;cursor:pointer;width:20px;height:20px;display:grid;place-items:center;font-size:17px;line-height:1;color:rgba(255,255,255,.75);border-radius:50%;transition:.15s}
+.toast-cerrar:hover{background:rgba(255,255,255,.2);color:#fff}
+.toast-barra{position:absolute;left:0;bottom:0;height:3px;background:rgba(255,255,255,.55);width:100%;animation:vaciarToast 5s linear forwards}
+@keyframes caeAviso{from{opacity:0;transform:translateY(-16px) scale(.97)}to{opacity:1;transform:none}}
+@keyframes vaciarToast{from{width:100%}to{width:0%}}
+@media(max-width:600px){ .toast-stack{left:12px;right:12px;transform:none;align-items:stretch} .toast{max-width:none} }
+.toast-ico{flex-shrink:0;width:22px;height:22px;border-radius:50%;background:rgba(255,255,255,.22);display:grid;place-items:center;font-size:13px;font-weight:700;line-height:1}
 
 /* ---- Modal / overlay para formularios ---- */
 .overlay{position:fixed;inset:0;background:rgba(13,28,48,.45);backdrop-filter:blur(3px);display:grid;place-items:center;z-index:50;padding:20px;animation:fade .2s ease}
@@ -630,6 +644,10 @@ tbody tr:last-child td{border-bottom:none}
 #btn-login:hover{background:linear-gradient(135deg,var(--teal-900),var(--teal-800));transform:translateY(-1px);box-shadow:0 12px 26px -8px rgba(20,136,194,.7)}
 #btn-login:active{transform:translateY(0);box-shadow:0 6px 16px -8px rgba(20,136,194,.6)}
 #btn-login[disabled]{opacity:.7;transform:none;box-shadow:none;cursor:default}
+/* Enlace secundario del login: "¿Olvidaste tu contraseña?" / "Volver a
+   iniciar sesión". Texto simple, sin competir con el botón principal. */
+.login-link{all:unset;cursor:pointer;text-align:center;font-size:14px;color:var(--teal-700);font-weight:600;padding:4px}
+.login-link:hover{text-decoration:underline}
 
 /* --- Apilado en pantallas angostas --- */
 @media(max-width:780px){

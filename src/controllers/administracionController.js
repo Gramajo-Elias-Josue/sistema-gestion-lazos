@@ -6,8 +6,9 @@
 // secciones) en un panel dedicado. Sólo la ve el director (lo controla el
 // gating del router).
 //
-// El rol DIRECTOR no se asigna desde acá: es el dueño y se define en la
-// base (ver supabase-roles.sql).
+// El rol DIRECTOR SÍ se puede asignar desde acá, pero solo al CREAR un
+// usuario (el centro es una sociedad, puede haber varios). Un director ya
+// creado no se edita desde este panel: acceso total, no recortable.
 // =====================================================================
 
 import * as usuarioModel from '../models/usuarioModel.js';
@@ -126,8 +127,10 @@ function abrirFormUsuario() {
       toast('Usuario creado.');
       cerrar();
       await cargarUsuarios();
-      // Recién creado: se abre el panel para ajustar sus permisos.
-      if (creado?.id) abrirPermisos(creado.id);
+      // Recién creado: se abre el panel para ajustar sus permisos, salvo
+      // que sea Director — ese no se edita desde acá (acceso total, sin
+      // secciones para tildar; el panel de permisos ni lo contempla).
+      if (creado?.id && datos.rol !== 'director') abrirPermisos(creado.id);
     } catch (err) {
       console.error('Error creando usuario:', err);
       btn.disabled = false;

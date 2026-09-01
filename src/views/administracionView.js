@@ -6,8 +6,11 @@
 // panel dedicado. Funciones puras: devuelven HTML; el controlador conecta
 // los eventos.
 //
-// El rol DIRECTOR no se asigna desde la app (se define en la base): es el
-// dueño del sistema y tiene acceso total no editable.
+// El centro es una SOCIEDAD (varios socios), no un solo dueño: se puede
+// crear más de un usuario Director desde "Nuevo usuario". Un director NO
+// se edita después desde acá — acceso total, no recortable, no se le
+// puede bajar el rol por la app (a propósito: nadie puede "des-socio" a
+// otro con un clic; eso se hace a mano en la base si hace falta).
 // =====================================================================
 
 import { esc, pill } from '../utils/ui.js';
@@ -17,13 +20,21 @@ import { SECCIONES, seccionesEfectivas, seccionesPorDefecto, etiquetaRol } from 
 // (siempre está disponible) y "administracion" también (sólo el director).
 const SECCIONES_ASIGNABLES = SECCIONES.filter(s => s.clave !== 'inicio' && s.clave !== 'administracion');
 
-// Roles asignables desde la app (director NO: se define en la base).
+// Roles asignables al EDITAR un usuario existente. Director no está: un
+// director no se toca desde acá (ver nota arriba).
 const ROLES_ASIGNABLES = [
   { clave: 'secretaria',  etiqueta: 'Secretaría' },
   { clave: 'profesional', etiqueta: 'Profesional' },
   // Community manager: entra solo a la galería, a buscar material para
   // el contenido. No ve pacientes ni nada clínico.
   { clave: 'cm',          etiqueta: 'Contenido (CM)' },
+];
+
+// Roles elegibles al CREAR un usuario nuevo: los de arriba + Director,
+// para sumar otro socio con acceso total.
+const ROLES_ALTA = [
+  { clave: 'director', etiqueta: 'Director (socio)' },
+  ...ROLES_ASIGNABLES,
 ];
 
 // Etiqueta legible de una sección.
@@ -145,7 +156,7 @@ export function seccionesDefaultDeRol(rol) {
 
 // Modal de alta de un usuario nuevo (cuenta + rol inicial).
 export function renderFormUsuario() {
-  const opcionesRol = ROLES_ASIGNABLES.map(r =>
+  const opcionesRol = ROLES_ALTA.map(r =>
     `<option value="${r.clave}">${r.etiqueta}</option>`).join('');
 
   return `

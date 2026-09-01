@@ -8,18 +8,52 @@
 // =====================================================================
 
 import * as profesionalModel from '../models/profesionalModel.js';
-import { renderEstructura, renderTabla, renderFormProfesional } from '../views/profesionalesView.js';
+import * as usuarioModel from '../models/usuarioModel.js';
+import * as sectorModel from '../models/sectorModel.js';
+import { renderEstructura, renderTabla, renderFormProfesional, renderListaSectores, renderModalSector } from '../views/profesionalesView.js';
 import { htmlCargando, htmlError, toast, confirmar } from '../utils/ui.js';
 import { validarProfesional } from '../utils/validacion.js';
 import { mensajeError } from '../utils/errores.js';
+import { perfilActual } from '../sesion.js';
+import { puedeOperar } from '../permisos.js';
+import { pedirRecuperacion } from '../auth.js';
+import { normalizar } from '../utils/areas.js';
+
+// Profesiones/sectores cargados (pestaña "Profesiones"): se usan acá y
+// también como opciones del desplegable "Sector" al crear/editar un
+// profesional, así que se guardan en memoria mientras la sección está abierta.
+let sectoresCargados = [];
 
 // Punto de entrada de la sección Profesionales (lo llama el router).
 export async function iniciarProfesionales() {
   const contenedor = document.getElementById('v-profesionales');
   contenedor.innerHTML = renderEstructura();
+
+  document.getElementById('prof-tabs').addEventListener('click', (e) => {
+    const b = e.target.closest('.tab');
+    if (b) cambiarTab(b.dataset.tab);
+  });
   document.getElementById('btn-nuevo-prof')
-    .addEventListener('click', () => abrirForm());
-  await cargarLista();
+    // Director y secretaría pueden ofrecer el alta rápida del usuario: es
+    // quien normalmente da de alta profesionales. La Edge Function la deja
+    // crear SOLO cuentas de rol "profesional" (ver crear-usuario/index.ts).
+    .addEventListener('click', () => abrirForm({}, { permiteCrearUsuario: puedeOperar(perfilActual()) }));
+  document.getElementById('btn-nuevo-sector').addEventListener('click', abrirFormSector);
+  document.getElementById('sectores-tabla').addEventListener('click', (e) => {
+    const btn = e.target.closest('.btn-quitar-sector');
+    if (btn) quitarSector(btn.dataset);
+  });
+
+  // Los sectores se cargan siempre (no solo al abrir la pestaña): el
+  // formulario de "Nuevo profesional" los necesita para su desplegable.
+  await Promise.all([cargarLista(), cargarSectores()]);
+}
+
+// Pestañas Equipo / Profesiones (mismo patrón que Asistencia).
+function cambiarTab(tab) {
+  document.querySelectorAll('#prof-tabs .tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.getElementById('prof-pane-equipo').classList.toggle('hidden', tab !== 'equipo');
+  document.getElementById('prof-pane-sectores').classList.toggle('hidden', tab !== 'sectores');
 }
 
 // ---------------------------------------------------------------------
@@ -36,13 +70,106 @@ async function cargarLista() {
     caja.querySelectorAll('.btn-editar-prof').forEach(btn => {
       btn.addEventListener('click', () => editar(btn.dataset.id));
     });
-    // Botones "Dar de baja" / "Reactivar" de cada fila.
+    // Botones "Desactivar" / "Activar" de cada fila.
     caja.querySelectorAll('.btn-baja-prof').forEach(btn => {
       btn.addEventListener('click', () => cambiarEstado(btn.dataset.id, btn.dataset.estado, btn.dataset.nombre));
     });
   } catch (err) {
     console.error('Error listando profesionales:', err);
     caja.innerHTML = htmlError('No se pudo cargar el equipo. Revisá la conexión.');
+  }
+}
+
+// ---------------------------------------------------------------------
+// PROFESIONES / SECTORES (pestaña "Profesiones")
+// ---------------------------------------------------------------------
+// Antes esto se agregaba/quitaba desde la Grilla de atención; se movió
+// acá porque son las mismas profesiones que se eligen al crear un
+// profesional (así queda enlazado a su columna correcta de la grilla).
+async function cargarSectores() {
+  const caja = document.getElementById('sectores-tabla');
+  caja.innerHTML = htmlCargando('Cargando profesiones…');
+  try {
+    sectoresCargados = await sectorModel.listarSectores();
+    caja.innerHTML = renderListaSectores(sectoresCargados);
+  } catch (err) {
+    console.error('Error listando profesiones:', err);
+    caja.innerHTML = htmlError('No se pudieron cargar las profesiones. Revisá la conexión.');
+  }
+}
+
+function abrirFormSector() {
+  document.body.insertAdjacentHTML('beforeend', renderModalSector());
+  const overlay = document.getElementById('overlay-sector');
+  const form = document.getElementById('form-sector');
+  const cerrar = () => overlay.remove();
+
+  overlay.querySelectorAll('[data-cerrar]').forEach(b => b.addEventListener('click', cerrar));
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) cerrar(); });
+  form.querySelector('input')?.focus();
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const etiqueta = new FormData(form).get('etiqueta').trim();
+    if (!etiqueta) return;
+
+    // La clave es el nombre sin tildes ni espacios: identifica la profesión
+    // (y la columna que arma en la Grilla de atención).
+    const clave = normalizar(etiqueta).replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+    if (sectoresCargados.some(s => s.clave === clave)) {
+      toast('Ya existe una profesión con ese nombre.', 'bad');
+      return;
+    }
+
+    try {
+      // Si esa profesión se había quitado, el modelo la reactiva con lo
+      // que tenía cargado en vez de crear una nueva.
+      const sector = await sectorModel.crearSector({
+        etiqueta, clave, orden: (sectoresCargados.at(-1)?.orden ?? 0) + 1,
+      });
+      sectoresCargados.push(sector);
+      cerrar();
+      document.getElementById('sectores-tabla').innerHTML = renderListaSectores(sectoresCargados);
+      toast(`"${etiqueta}" agregada.`);
+    } catch (err) {
+      console.error('Error creando la profesión:', err);
+      toast('No se pudo agregar. Probá de nuevo.', 'bad');
+    }
+  });
+}
+
+// Quita una profesión. SIEMPRE pregunta antes, y avisa cuántos pacientes
+// tienen algo cargado en su columna de la Grilla de atención: no es lo
+// mismo sacar una vacía que una con medio centro adentro.
+async function quitarSector({ id, clave, etiqueta }) {
+  let cargadas = 0;
+  try {
+    cargadas = await sectorModel.contarCeldas(clave);
+  } catch (err) {
+    console.error('No se pudo contar lo cargado en esa profesión:', err);
+  }
+
+  const detalle = cargadas
+    ? `${cargadas === 1 ? 'Hay 1 paciente' : `Hay ${cargadas} pacientes`} con un profesional cargado en su columna de la Grilla de atención. Lo cargado se conserva por si la volvés a agregar, pero deja de verse.`
+    : 'No tiene nada cargado en la Grilla de atención.';
+
+  const seguro = await confirmar({
+    titulo: `¿Quitar "${etiqueta}"?`,
+    mensaje: detalle,
+    textoOk: 'Sí, quitar',
+    textoCancelar: 'No, dejarla',
+    peligro: true,
+  });
+  if (!seguro) return;
+
+  try {
+    await sectorModel.desactivarSector(id);
+    sectoresCargados = sectoresCargados.filter(s => String(s.id) !== String(id));
+    document.getElementById('sectores-tabla').innerHTML = renderListaSectores(sectoresCargados);
+    toast(`"${etiqueta}" quitada.`);
+  } catch (err) {
+    console.error('Error quitando la profesión:', err);
+    toast('No se pudo quitar. Probá de nuevo.', 'bad');
   }
 }
 
@@ -62,8 +189,8 @@ async function editar(id) {
 // ---------------------------------------------------------------------
 // FORMULARIO ALTA / EDICIÓN (Create / Update)
 // ---------------------------------------------------------------------
-function abrirForm(prof = {}) {
-  document.body.insertAdjacentHTML('beforeend', renderFormProfesional(prof));
+function abrirForm(prof = {}, opciones = {}) {
+  document.body.insertAdjacentHTML('beforeend', renderFormProfesional(prof, { ...opciones, sectores: sectoresCargados }));
   const overlay = document.getElementById('overlay-prof');
   const form = document.getElementById('form-prof');
   const cerrar = () => overlay.remove();
@@ -77,15 +204,22 @@ function abrirForm(prof = {}) {
 
     // Valores del formulario; los vacíos pasan a null.
     const fd = new FormData(form);
+    const crearUsuario = fd.get('crear_usuario') === 'on';
     const datos = Object.fromEntries(fd.entries());
+    delete datos.crear_usuario; // no es columna de `profesionales`
     for (const k of Object.keys(datos)) if (datos[k] === '') datos[k] = null;
 
     // Obtener los días de trabajo seleccionados como array.
     datos.dias_trabajo = fd.getAll('dias_trabajo') || [];
 
-    // --- Validación: nombre obligatorio y email con formato ---
-    const v = validarProfesional(datos);
+    // --- Validación: todos los datos obligatorios al CREAR (menos
+    //     matrícula y teléfono 2); al editar no se exige retroactivo ---
+    const v = validarProfesional(datos, { esNuevo: !prof.id });
     if (!v.ok) { toast(v.mensaje, 'bad'); return; }
+    if (crearUsuario && !datos.email) {
+      toast('Para crear el usuario de acceso hace falta el email.', 'bad');
+      return;
+    }
 
     btn.disabled = true;
     btn.textContent = 'Guardando…';
@@ -99,8 +233,9 @@ function abrirForm(prof = {}) {
         // quedaría en NULL y el profesional no aparecería en los listados
         // que filtran por estado = 'activo' (turnos, agenda, fichaje).
         datos.estado = 'activo';
-        await profesionalModel.crearProfesional(datos);
+        const creado = await profesionalModel.crearProfesional(datos);
         toast('Profesional creado.');
+        if (crearUsuario) await crearUsuarioDelProfesional(creado);
       }
       cerrar();
       await cargarLista();
@@ -113,27 +248,51 @@ function abrirForm(prof = {}) {
   });
 }
 
+// Crea la cuenta de acceso del profesional recién creado, con una
+// contraseña al azar que NADIE llega a ver: enseguida se le manda el
+// mismo mail de "elegí tu contraseña" que usa recuperar contraseña, así
+// el profesional entra por primera vez poniendo la suya. Si esto falla
+// (por ejemplo, el email ya tiene una cuenta), el profesional ya quedó
+// guardado igual: no se revierte, solo se avisa que faltó el usuario.
+async function crearUsuarioDelProfesional(profesional) {
+  try {
+    const passwordAlAzar = crypto.randomUUID();
+    await usuarioModel.crearUsuario({
+      email: profesional.email,
+      password: passwordAlAzar,
+      nombre: profesional.nombre_completo,
+      rol: 'profesional',
+      profesionalId: profesional.id,
+    });
+    await pedirRecuperacion(profesional.email);
+    toast(`Le mandamos un mail a ${profesional.email} para que elija su contraseña.`);
+  } catch (err) {
+    console.error('Error creando el usuario del profesional:', err);
+    toast(mensajeError(err, 'El profesional se guardó, pero no se pudo crear su usuario de acceso. Podés crearlo a mano desde Administración.'), 'bad');
+  }
+}
+
 // ---------------------------------------------------------------------
-// BAJA LÓGICA / REACTIVAR (no borra: cambia el estado)
+// ACTIVO / INACTIVO (no borra: cambia el estado)
 // ---------------------------------------------------------------------
-// Espejo de la baja de pacientes. El profesional nunca se borra: se marca
+// Espejo del de pacientes. El profesional nunca se borra: se marca
 // inactivo, así conserva sus turnos, sus fichajes y la autoría de los
-// informes que firmó, y se puede reactivar cuando haga falta.
+// informes que firmó, y se puede volver a activar cuando haga falta.
 async function cambiarEstado(id, estadoActual, nombre) {
-  const darBaja = estadoActual === 'activo';
-  if (darBaja) {
+  const desactivar = estadoActual === 'activo';
+  if (desactivar) {
     const seguir = await confirmar({
-      titulo: 'Dar de baja',
-      mensaje: `${nombre} deja de aparecer para asignar turnos. Sus turnos e informes se conservan y podés reactivarlo cuando quieras.`,
-      textoOk: 'Dar de baja',
+      titulo: 'Desactivar',
+      mensaje: `${nombre} deja de aparecer para asignar turnos. Sus turnos e informes se conservan y podés volver a activarlo cuando quieras.`,
+      textoOk: 'Desactivar',
       textoCancelar: 'Volver',
       peligro: true,
     });
     if (!seguir) return;
   }
   try {
-    await profesionalModel.cambiarEstadoProfesional(id, darBaja ? 'inactivo' : 'activo');
-    toast(darBaja ? `${nombre} quedó como inactivo.` : `${nombre} está activo de nuevo.`);
+    await profesionalModel.cambiarEstadoProfesional(id, desactivar ? 'inactivo' : 'activo');
+    toast(desactivar ? `${nombre} quedó como inactivo.` : `${nombre} está activo de nuevo.`);
     await cargarLista();
   } catch (err) {
     console.error('Error cambiando estado:', err);

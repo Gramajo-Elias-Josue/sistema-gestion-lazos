@@ -20,9 +20,27 @@ enfermera.svg     psicologa.svg       kinesiologo.svg
 enfermero.svg     psicologo.svg       terapista.svg
 ```
 
-Estas claves ya tienen su nombre legible en castellano (aparece al pasar el
-mouse). Si usás otra, se muestra el nombre del archivo con la primera letra
-en mayúscula: `terapia-ocupacional.svg` → "Terapia ocupacional".
+Estas claves ya tienen su nombre legible en castellano (se usa para el
+`aria-label`, de lectores de pantalla — no aparece como tooltip al pasar el
+mouse, a propósito). Si usás otra, se muestra el nombre del archivo con la
+primera letra en mayúscula: `terapia-ocupacional.svg` → "Terapia ocupacional".
+Para que se lea bien, sumale también su entrada en `ETIQUETAS` (utils/avatar.js).
+
+### Orden en la grilla
+
+Los avatares se ordenan por el NOMBRE del archivo (no por la etiqueta), así
+que un prefijo de UNA letra + guion agrupa los que se parecen entre sí en
+vez de mezclarlos:
+
+```
+a-medico.png     -> ilustración grande y detallada
+b-mujer-2.png    -> ícono chico, estilo casero
+c-perfil-hombre.png -> círculo de color, tipo placeholder
+d-usuario.png    -> silueta lisa, sin color
+```
+
+Si agregás uno nuevo, ponele el prefijo del grupo al que se parezca (o uno
+nuevo, si es un estilo distinto) para que caiga ordenado junto a los suyos.
 
 ## Formatos
 

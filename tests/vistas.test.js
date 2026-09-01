@@ -10,13 +10,13 @@ import { describe, it, expect } from 'vitest';
 import {
   renderTabla as tablaPacientes, renderFormPaciente, renderEvaluacionesHistoria,
 } from '../src/views/pacientesView.js';
-import { renderTabla as tablaProfesionales, renderFormProfesional } from '../src/views/profesionalesView.js';
+import { renderTabla as tablaProfesionales, renderFormProfesional, renderListaSectores, renderModalSector } from '../src/views/profesionalesView.js';
 import { renderAlertas, renderEntregas } from '../src/views/inicioView.js';
 import { renderLista as listaTurnos, renderFormTurno, renderEstructura } from '../src/views/turnosView.js';
 import { renderLista as listaAdmision, renderAdmision } from '../src/views/admisionView.js';
 import { renderFilas as filasAsistencia, filaHtml as filaAsistencia } from '../src/views/asistenciaView.js';
 import { filaHtml as filaFichaje, renderFilas as filasFichaje } from '../src/views/asistenciaProfView.js';
-import { renderLogin } from '../src/views/loginView.js';
+import { renderLogin, renderPedirRecuperacion, renderNuevaContrasena } from '../src/views/loginView.js';
 import { renderCalendario, renderModalCalendario } from '../src/views/calendarioAsistenciaView.js';
 import {
   renderEstructura as galeriaEstructura,
@@ -68,6 +68,11 @@ describe('pacientesView.renderFormPaciente', () => {
     expect(html).toContain('30111222');
     expect(html).toContain('Guardar cambios');
   });
+
+  it('la fecha de ingreso es obligatoria al ALTA, no al editar', () => {
+    expect(renderFormPaciente({})).toMatch(/name="fecha_ingreso"[^>]*required/);       // alta
+    expect(renderFormPaciente({ id: 5 })).not.toMatch(/name="fecha_ingreso"[^>]*required/); // edición
+  });
 });
 
 describe('profesionalesView.renderTabla (baja lógica)', () => {
@@ -78,9 +83,9 @@ describe('profesionalesView.renderTabla (baja lógica)', () => {
     expect(tablaProfesionales([{ ...base, estado: 'inactivo' }])).not.toContain('Eliminar');
   });
 
-  it('activo muestra "Dar de baja"; inactivo muestra "Reactivar"', () => {
-    expect(tablaProfesionales([base])).toContain('Dar de baja');
-    expect(tablaProfesionales([{ ...base, estado: 'inactivo' }])).toContain('Reactivar');
+  it('activo muestra "Desactivar"; inactivo muestra "Activar"', () => {
+    expect(tablaProfesionales([base])).toContain('Desactivar');
+    expect(tablaProfesionales([{ ...base, estado: 'inactivo' }])).toContain('Activar');
   });
 
   it('el botón lleva los data-* que lee el controlador', () => {
@@ -94,6 +99,59 @@ describe('profesionalesView.renderFormProfesional', () => {
   it('[regresión] el formulario NO pide el campo "estado"', () => {
     expect(renderFormProfesional({})).not.toContain('name="estado"');
     expect(renderFormProfesional({ id: 3, estado: 'inactivo' })).not.toContain('name="estado"');
+  });
+
+  it('el check "crear usuario" solo aparece al CREAR y si lo puede usar (director)', () => {
+    expect(renderFormProfesional({})).not.toContain('name="crear_usuario"'); // sin permiso
+    expect(renderFormProfesional({}, { permiteCrearUsuario: true })).toContain('name="crear_usuario"');
+    // Editando uno existente, ni con permiso: no tiene sentido ahí.
+    expect(renderFormProfesional({ id: 3 }, { permiteCrearUsuario: true })).not.toContain('name="crear_usuario"');
+  });
+
+  it('el desplegable de sector lista las profesiones cargadas y marca la elegida', () => {
+    const sectores = [{ clave: 'psicologia', etiqueta: 'Psicología' }, { clave: 'fono', etiqueta: 'Fonoaudiología' }];
+    const html = renderFormProfesional({ id: 3, sector: 'fono' }, { sectores });
+    expect(html).toContain('name="sector"');
+    expect(html).toMatch(/<option value="psicologia"\s*>Psicología<\/option>/);
+    expect(html).toMatch(/<option value="fono" selected>Fonoaudiología<\/option>/);
+  });
+
+  it('[regresión] los datos obligatorios llevan required solo al CREAR, no al editar', () => {
+    const alta = renderFormProfesional({});
+    for (const campo of ['dni', 'fecha_nacimiento', 'profesion', 'sector', 'especialidad', 'telefono', 'email', 'direccion', 'horario_entrada', 'horario_salida']) {
+      expect(alta, `"${campo}" debería ser required al crear`).toMatch(new RegExp(`name="${campo}"[^>]*required`));
+    }
+    const edicion = renderFormProfesional({ id: 3 });
+    for (const campo of ['dni', 'fecha_nacimiento', 'profesion', 'sector', 'especialidad', 'telefono', 'email', 'direccion', 'horario_entrada', 'horario_salida']) {
+      expect(edicion, `"${campo}" NO debería ser required al editar`).not.toMatch(new RegExp(`name="${campo}"[^>]*required`));
+    }
+  });
+
+  it('matrícula y teléfono 2 nunca llevan required', () => {
+    const alta = renderFormProfesional({});
+    expect(alta).not.toMatch(/name="matricula"[^>]*required/);
+    expect(alta).not.toMatch(/name="telefono2"[^>]*required/);
+  });
+});
+
+describe('profesionalesView.renderListaSectores (pestaña "Profesiones")', () => {
+  it('estado vacío cuando no hay ninguna cargada', () => {
+    expect(renderListaSectores([])).toContain('No hay profesiones cargadas');
+  });
+
+  it('lista cada profesión con su botón de quitar', () => {
+    const html = renderListaSectores([{ id: 's1', clave: 'psicologia', etiqueta: 'Psicología' }]);
+    expect(html).toContain('Psicología');
+    expect(html).toContain('btn-quitar-sector');
+    expect(html).toContain('data-clave="psicologia"');
+  });
+});
+
+describe('profesionalesView.renderModalSector', () => {
+  it('tiene el campo y el formulario que espera el controlador', () => {
+    const html = renderModalSector();
+    expect(html).toContain('id="form-sector"');
+    expect(html).toContain('name="etiqueta"');
   });
 });
 
@@ -488,5 +546,41 @@ describe('loginView.renderLogin (Etapa 2 · Fase A)', () => {
 
   it('muestra la marca de la clínica', () => {
     expect(renderLogin()).toContain('Lazos');
+  });
+
+  it('tiene el link para recuperar la contraseña', () => {
+    expect(renderLogin()).toContain('id="link-olvide"');
+  });
+});
+
+describe('loginView.renderPedirRecuperacion (recuperar contraseña, paso 1)', () => {
+  it('sin enviar: pide el email', () => {
+    const html = renderPedirRecuperacion();
+    expect(html).toContain('id="form-rec"');
+    expect(html).toContain('id="rec-email"');
+    expect(html).toContain('id="btn-rec"');
+  });
+
+  it('enviado: muestra el aviso con el email, sin volver a pedirlo', () => {
+    const html = renderPedirRecuperacion({ enviado: true, email: 'ana@lazos.test' });
+    expect(html).toContain('ana@lazos.test');
+    expect(html).not.toContain('id="form-rec"');
+    expect(html).toContain('id="btn-volver-login"');
+  });
+
+  it('escapa el email del aviso (XSS)', () => {
+    const html = renderPedirRecuperacion({ enviado: true, email: '<script>x</script>' });
+    expect(html).not.toContain('<script>x</script>');
+    expect(html).toContain('&lt;script&gt;');
+  });
+});
+
+describe('loginView.renderNuevaContrasena (recuperar contraseña, paso 2)', () => {
+  it('pide la contraseña nueva dos veces', () => {
+    const html = renderNuevaContrasena();
+    expect(html).toContain('id="form-nueva-pass"');
+    expect(html).toContain('id="nueva-pass"');
+    expect(html).toContain('id="nueva-pass2"');
+    expect(html).toContain('type="password"');
   });
 });

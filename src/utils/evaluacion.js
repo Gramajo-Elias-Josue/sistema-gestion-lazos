@@ -133,3 +133,40 @@ export function serializarEvaluacion(datos = {}) {
 export function evaluacionVacia(datos = {}) {
   return SECCIONES_INFORME.every(s => !(datos[s.key] || '').trim());
 }
+
+// ---------------------------------------------------------------------
+// GATE "ATENDIDO HOY": quién puede cargar el informe de un paciente
+// ---------------------------------------------------------------------
+// Dos vías, no excluyentes (un paciente puede tener las dos, aunque no
+// es lo común):
+//   1) CASUAL — tiene un turno de HOY marcado "Atendido" (turnoModel).
+//   2) DIARIO — está asignado a ese profesional en la GRILLA (asignación
+//      vigente) y AMBOS figuran presentes hoy (paciente en la planilla de
+//      asistencia, profesional en su fichaje). No hace falta turno: la
+//      grilla es la agenda fija de todos los días.
+//
+// Devuelve la lista de "autores" posibles con la MISMA forma que espera
+// pacientesView.renderFormEvaluacion (id de turno o null, profesional_id,
+// profesionales embebido, hora o null), para no duplicar la vista.
+//   turnosAtendidos -> turnoModel.listarAtendidosPacienteFecha(...)
+//   asignaciones     -> asignacionModel.listarPorPaciente(id, {soloVigentes:true})
+//   pacientePresente -> boolean (asistencias de hoy)
+//   idsProfPresentes -> Set de profesional_id fichados presente hoy
+export function autoresElegiblesHoy({ turnosAtendidos = [], asignaciones = [], pacientePresente = false, idsProfPresentes = new Set() } = {}) {
+  const autores = turnosAtendidos.map(t => ({
+    id: t.id, profesional_id: t.profesional_id, profesionales: t.profesionales, hora: t.hora,
+  }));
+
+  if (pacientePresente) {
+    asignaciones
+      .filter(a => a.profesional_id && idsProfPresentes.has(String(a.profesional_id)))
+      .forEach(a => {
+        // No duplicar si ese profesional ya entró por la vía del turno.
+        if (!autores.some(x => String(x.profesional_id) === String(a.profesional_id))) {
+          autores.push({ id: null, profesional_id: a.profesional_id, profesionales: a.profesionales, hora: null });
+        }
+      });
+  }
+
+  return autores;
+}

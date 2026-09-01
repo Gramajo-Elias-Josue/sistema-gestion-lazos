@@ -11,6 +11,9 @@ import * as pacienteModel from '../models/pacienteModel.js';
 import * as documentoModel from '../models/documentoModel.js';
 import * as evaluacionModel from '../models/evaluacionModel.js';
 import * as turnoModel from '../models/turnoModel.js';
+import * as asignacionModel from '../models/asignacionModel.js';
+import * as asistenciaModel from '../models/asistenciaModel.js';
+import * as asistenciaProfModel from '../models/asistenciaProfesionalModel.js';
 import {
   renderEstructura, renderTabla, renderFicha, renderHistoria, renderCategorias,
   renderFormPaciente, renderFormDocumento, renderFormEvaluacion, renderVistaEvaluacion,
@@ -18,7 +21,7 @@ import {
 import { htmlCargando, htmlError, toast, confirmar } from '../utils/ui.js';
 import { hoyISO } from '../utils/fechas.js';
 import { validarPaciente, validarDocumento, normalizarDni } from '../utils/validacion.js';
-import { parseEvaluacion, serializarEvaluacion, tituloPorTipo } from '../utils/evaluacion.js';
+import { parseEvaluacion, serializarEvaluacion, tituloPorTipo, autoresElegiblesHoy } from '../utils/evaluacion.js';
 import { mensajeError } from '../utils/errores.js';
 
 // Punto de entrada de la sección Pacientes (lo llama el router).
@@ -168,23 +171,23 @@ async function editarPaciente(id) {
 }
 
 // ---------------------------------------------------------------------
-// BAJA LÓGICA / REACTIVAR (no borra: cambia el estado)
+// ACTIVO / INACTIVO (no borra: cambia el estado)
 // ---------------------------------------------------------------------
 async function cambiarEstado(id, estadoActual, nombre) {
-  const darBaja = estadoActual === 'activo';
-  if (darBaja) {
+  const desactivar = estadoActual === 'activo';
+  if (desactivar) {
     const seguir = await confirmar({
-      titulo: 'Dar de baja',
-      mensaje: `${nombre} deja de aparecer en las listas del día a día. Su historia clínica se conserva y podés reactivarlo cuando quieras.`,
-      textoOk: 'Dar de baja',
+      titulo: 'Desactivar',
+      mensaje: `${nombre} deja de aparecer en las listas del día a día. Su historia clínica se conserva y podés volver a activarlo cuando quieras.`,
+      textoOk: 'Desactivar',
       textoCancelar: 'Volver',
       peligro: true,
     });
     if (!seguir) return;
   }
   try {
-    await pacienteModel.cambiarEstadoPaciente(id, darBaja ? 'inactivo' : 'activo');
-    toast(darBaja ? `${nombre} quedó como inactivo.` : `${nombre} está activo de nuevo.`);
+    await pacienteModel.cambiarEstadoPaciente(id, desactivar ? 'inactivo' : 'activo');
+    toast(desactivar ? `${nombre} quedó como inactivo.` : `${nombre} está activo de nuevo.`);
     await cargarLista();
   } catch (err) {
     console.error('Error cambiando estado:', err);
@@ -225,7 +228,7 @@ export function abrirFormPaciente(paciente = {}, opts = {}) {
     datos.tiene_cud = datos.tiene_cud === 'true';
 
     // --- Validación de datos (antes de tocar la base) ---
-    const v = validarPaciente(datos);
+    const v = validarPaciente(datos, { esNuevo: !paciente.id });
     if (!v.ok) { toast(v.mensaje, 'bad'); return; }
 
     btn.disabled = true;
@@ -339,26 +342,40 @@ function abrirFormDocumento(pacienteId, tipoDefault = 'cud') {
 // FORMULARIO CARGAR EVALUACIÓN (desde la ficha del paciente)
 // ---------------------------------------------------------------------
 // El profesional carga la evaluación acá, no en Agenda (que es de la
-// secretaría). GATE: solo si el paciente fue ATENDIDO HOY; el autor se
-// elige entre los profesionales que lo atendieron hoy. La evaluación sigue
-// la PLANTILLA de secciones y, al guardar, genera un PDF que se descarga y
-// se adjunta a la historia clínica. `paciente` = objeto completo (para el
+// secretaría). GATE: solo si el paciente fue ATENDIDO HOY, por cualquiera
+// de las dos vías (ver autoresElegiblesHoy en utils/evaluacion.js):
+//   - CASUAL: turno de hoy marcado "Atendido".
+//   - DIARIO: asignado en la grilla + paciente y profesional presentes hoy.
+// El autor se elige entre esos "autores" elegibles. La evaluación sigue la
+// PLANTILLA de secciones y, al guardar, genera un PDF que se descarga y se
+// adjunta a la historia clínica. `paciente` = objeto completo (para el
 // PDF); `evalsPaciente` = sus evaluaciones (para prellenar lo ya cargado hoy).
 async function abrirFormEvaluacion(paciente, evalsPaciente = []) {
   const pacienteId = paciente.id;
   const hoy = hoyISO();
 
-  // Turnos ATENDIDOS de hoy: definen quién puede evaluar (gate + autores).
   let turnos = [];
   try {
-    turnos = await turnoModel.listarAtendidosPacienteFecha(pacienteId, hoy);
+    const [turnosAtendidos, asignaciones, asistenciasHoy, fichajesHoy] = await Promise.all([
+      turnoModel.listarAtendidosPacienteFecha(pacienteId, hoy),
+      asignacionModel.listarPorPaciente(pacienteId, { soloVigentes: true }),
+      asistenciaModel.listarAsistenciasPorFecha(hoy),
+      asistenciaProfModel.listarPorFecha(hoy),
+    ]);
+
+    const pacientePresente = asistenciasHoy.some(a => String(a.paciente_id) === String(pacienteId) && a.estado === 'presente');
+    const idsProfPresentes = new Set(
+      fichajesHoy.filter(f => f.estado === 'presente').map(f => String(f.profesional_id))
+    );
+
+    turnos = autoresElegiblesHoy({ turnosAtendidos, asignaciones, pacientePresente, idsProfPresentes });
   } catch (err) {
     console.error('Error buscando la atención de hoy:', err);
     toast('No se pudo consultar la atención de hoy. Revisá la conexión.', 'bad');
     return;
   }
   if (!turnos.length) {
-    toast('Este paciente todavía no figura atendido hoy. El informe se habilita cuando su turno esté marcado como Atendido.', 'bad');
+    toast('Este paciente todavía no figura atendido hoy. Para casuales: marcá su turno como Atendido. Para pacientes de la grilla: marcá presente al paciente y al profesional en Asistencia.', 'bad');
     return;
   }
 
@@ -414,7 +431,9 @@ async function abrirFormEvaluacion(paciente, evalsPaciente = []) {
         profesionalId: selProf.value,
         fecha: hoy,
         contenido: serializarEvaluacion(datos),
-        turnoId: opt ? opt.dataset.turno : null,
+        // Vacío = paciente de la grilla, sin turno (no confundir con la
+        // columna uuid, que rechaza "" tanto como rechazaría "null").
+        turnoId: (opt && opt.dataset.turno) ? opt.dataset.turno : null,
         // El tipo va en la clave: así el informe del mes NO pisa la
         // evaluación diaria del mismo paciente y el mismo día.
         tipo: datos.tipo,

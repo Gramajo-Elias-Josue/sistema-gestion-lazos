@@ -17,11 +17,11 @@ import * as profesionalModel from '../models/profesionalModel.js';
 import * as asignacionModel from '../models/asignacionModel.js';
 import * as sectorModel from '../models/sectorModel.js';
 import {
-  renderGrilla, renderInputCelda, renderModalSector,
+  renderGrilla, renderInputCelda,
   contenidoCelda, claveCelda, nombreDeCelda,
 } from '../views/grillaAtencionView.js';
-import { htmlCargando, htmlError, toast, confirmar } from '../utils/ui.js';
-import { normalizar } from '../utils/areas.js';
+import { htmlCargando, htmlError, toast } from '../utils/ui.js';
+import { normalizar, etiquetaArea, coincideConSector, areaDelProfesional } from '../utils/areas.js';
 import { perfilActual } from '../sesion.js';
 import { puedeOperar } from '../permisos.js';
 
@@ -107,9 +107,6 @@ function engancharEventos(contenedor) {
   // El buscador anda siempre; editar, solo con permiso para operar.
   contenedor.addEventListener('click', (e) => {
     if (!editable) return;
-    if (e.target.closest('#ga-add-sector')) { pedirSector(); return; }
-    const quitar = e.target.closest('.ga-del-sector');
-    if (quitar) { quitarSector(quitar.dataset); return; }
     if (e.target.closest('.ga-input')) return;   // clics dentro del campo
     const celda = e.target.closest('.ga-celda');
     if (celda && celda !== editando) abrirCelda(celda);
@@ -216,6 +213,16 @@ async function guardar(celda, texto, mover = null) {
   // vínculo real; si no, queda como nombre libre (planilla de papel).
   const profesional = profesionales.find(p => normalizar(p.nombre_completo) === normalizar(escrito));
 
+  // Su sector tiene que coincidir con la columna donde se lo pone (no se
+  // puede poner a un psicólogo en la columna de Fonoaudiología). El
+  // sector se elige de un desplegable al crear el profesional (ver
+  // Profesionales → pestaña "Profesiones"); ya no se adivina de texto.
+  if (profesional && !coincideConSector(profesional, sector)) {
+    const area = etiquetaArea(areaDelProfesional(profesional));
+    toast(`${profesional.nombre_completo} es de ${area} y esta columna es de ${etiquetaArea(sector) || sector}.`, 'bad');
+    return;
+  }
+
   try {
     const guardada = await asignacionModel.guardarCelda({
       pacienteId,
@@ -263,79 +270,3 @@ async function guardarTurno(pacienteId, turno) {
   }
 }
 
-// ---------------------------------------------------------------------
-// SECTOR NUEVO (columna)
-// ---------------------------------------------------------------------
-function pedirSector() {
-  document.body.insertAdjacentHTML('beforeend', renderModalSector());
-  const overlay = document.getElementById('overlay-sector');
-  const form = document.getElementById('form-sector');
-  const cerrar = () => overlay.remove();
-
-  overlay.querySelectorAll('[data-cerrar]').forEach(b => b.addEventListener('click', cerrar));
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) cerrar(); });
-  form.querySelector('input')?.focus();
-
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const etiqueta = new FormData(form).get('etiqueta').trim();
-    if (!etiqueta) return;
-
-    // La clave es el nombre sin tildes ni espacios: identifica la columna.
-    const clave = normalizar(etiqueta).replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
-    if (sectores.some(s => s.clave === clave)) {
-      toast('Ya existe una columna con ese nombre.', 'bad');
-      return;
-    }
-
-    try {
-      // Si esa columna se había quitado, el modelo la reactiva con lo
-      // que tenía cargado en vez de crear una nueva.
-      const sector = await sectorModel.crearSector({
-        etiqueta, clave, orden: (sectores.at(-1)?.orden ?? 0) + 1,
-      });
-      sectores.push(sector);
-      cerrar();
-      pintar();
-      toast(`Columna "${etiqueta}" agregada.`);
-    } catch (err) {
-      console.error('Error creando el sector:', err);
-      toast('No se pudo agregar la columna. Probá de nuevo.', 'bad');
-    }
-  });
-}
-
-// Quita una columna de la grilla. SIEMPRE pregunta antes, y avisa cuántos
-// pacientes tienen algo cargado ahí: no es lo mismo sacar una columna
-// vacía que una con medio centro adentro.
-async function quitarSector({ sectorId, sector, etiqueta }) {
-  let cargadas = 0;
-  try {
-    cargadas = await sectorModel.contarCeldas(sector);
-  } catch (err) {
-    console.error('No se pudo contar lo cargado en esa columna:', err);
-  }
-
-  const detalle = cargadas
-    ? `${cargadas === 1 ? 'Hay 1 paciente' : `Hay ${cargadas} pacientes`} con un profesional cargado en esa columna. Lo cargado se conserva por si volvés a agregarla, pero deja de verse en la grilla.`
-    : 'La columna está vacía.';
-
-  const seguro = await confirmar({
-    titulo: `¿Quitar la columna ${etiqueta}?`,
-    mensaje: detalle,
-    textoOk: 'Sí, quitar',
-    textoCancelar: 'No, dejarla',
-    peligro: true,
-  });
-  if (!seguro) return;
-
-  try {
-    await sectorModel.desactivarSector(sectorId);
-    sectores = sectores.filter(s => String(s.id) !== String(sectorId));
-    pintar();
-    toast(`Columna "${etiqueta}" quitada.`);
-  } catch (err) {
-    console.error('Error quitando el sector:', err);
-    toast('No se pudo quitar la columna. Probá de nuevo.', 'bad');
-  }
-}

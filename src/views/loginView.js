@@ -64,9 +64,96 @@ export function renderLogin() {
             <p class="login-error" id="login-error" role="alert" hidden></p>
 
             <button type="submit" class="btn login-btn" id="btn-login">Acceder</button>
+            <button type="button" class="login-link" id="link-olvide">¿Olvidaste tu contraseña?</button>
           </form>
         </div>
 
+      </div>
+    </div>`;
+}
+
+// Pantalla "olvidé mi contraseña": pide el email y manda el link de
+// recuperación. Mismo shell que el login, para no perder continuidad
+// visual. `enviado=true` = ya se mandó el mail (pantalla de aviso).
+export function renderPedirRecuperacion({ enviado = false, email = '' } = {}) {
+  const cuerpo = enviado ? `
+      <h1 class="login-title">Revisá tu correo</h1>
+      <p class="login-sub">Si <b>${esc(email)}</b> tiene una cuenta, te llegó un mail con un link para elegir una contraseña nueva. Puede tardar un par de minutos.</p>
+      <button type="button" class="btn login-btn" id="btn-volver-login">Volver a iniciar sesión</button>` : `
+      <h1 class="login-title">Recuperar contraseña</h1>
+      <p class="login-sub">Ingresá tu email: te mandamos un link para elegir una contraseña nueva.</p>
+
+      <label class="login-field">
+        <span>Email</span>
+        <input type="email" name="email" id="rec-email" required autocomplete="username"
+               placeholder="tu@correo.com" autofocus value="${esc(email)}">
+      </label>
+
+      <p class="login-error" id="rec-error" role="alert" hidden></p>
+
+      <button type="submit" class="btn login-btn" id="btn-rec">Mandar link</button>
+      <button type="button" class="login-link" id="link-volver">Volver a iniciar sesión</button>`;
+
+  return `
+    <div class="login-wrap">
+      <div class="login-split">
+        <aside class="login-side">
+          <div class="login-logo">
+            <img src="${esc(CLINICA.logo)}" alt="${esc(CLINICA.nombre)}"
+                 onerror="this.replaceWith(document.createTextNode('Lz'))">
+          </div>
+          <h2 class="login-side-name">${esc(CLINICA.nombre)}</h2>
+          <p class="login-side-sub">${esc(CLINICA.subtitulo)}</p>
+        </aside>
+        <div class="login-main">
+          <button class="theme-toggle login-theme" id="login-theme" type="button"
+                  title="Cambiar a modo oscuro" aria-label="Cambiar a modo oscuro">${ICONOS_TEMA}</button>
+          ${enviado
+            ? `<div class="login-form">${cuerpo}</div>`
+            : `<form class="login-form" id="form-rec" autocomplete="on">${cuerpo}</form>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+// Pantalla "elegir contraseña nueva": a la que vuelve el link del mail.
+// Se llega acá con la sesión temporal de recuperación (evento
+// 'PASSWORD_RECOVERY'), no hace falta pedir la contraseña vieja.
+export function renderNuevaContrasena() {
+  return `
+    <div class="login-wrap">
+      <div class="login-split">
+        <aside class="login-side">
+          <div class="login-logo">
+            <img src="${esc(CLINICA.logo)}" alt="${esc(CLINICA.nombre)}"
+                 onerror="this.replaceWith(document.createTextNode('Lz'))">
+          </div>
+          <h2 class="login-side-name">${esc(CLINICA.nombre)}</h2>
+          <p class="login-side-sub">${esc(CLINICA.subtitulo)}</p>
+        </aside>
+        <div class="login-main">
+          <button class="theme-toggle login-theme" id="login-theme" type="button"
+                  title="Cambiar a modo oscuro" aria-label="Cambiar a modo oscuro">${ICONOS_TEMA}</button>
+          <form class="login-form" id="form-nueva-pass" autocomplete="off">
+            <h1 class="login-title">Elegí una contraseña nueva</h1>
+            <p class="login-sub">Es la última vez que la vas a tener que pedir por mail: guardala bien.</p>
+
+            <label class="login-field">
+              <span>Contraseña nueva</span>
+              <input type="password" name="password" id="nueva-pass" required minlength="6"
+                     autocomplete="new-password" placeholder="mínimo 6 caracteres" autofocus>
+            </label>
+            <label class="login-field">
+              <span>Repetila</span>
+              <input type="password" name="password2" id="nueva-pass2" required minlength="6"
+                     autocomplete="new-password" placeholder="••••••••">
+            </label>
+
+            <p class="login-error" id="nueva-pass-error" role="alert" hidden></p>
+
+            <button type="submit" class="btn login-btn" id="btn-nueva-pass">Guardar contraseña</button>
+          </form>
+        </div>
       </div>
     </div>`;
 }

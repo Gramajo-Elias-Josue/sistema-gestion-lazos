@@ -90,11 +90,11 @@ describe('renderGrilla', () => {
     expect(html).toContain('ga-buscar'); // el buscador está en la barra
   });
 
-  it('cada columna trae su botón para quitarla, con el sector identificado', () => {
+  it('[regresión] las columnas ya no se agregan/quitan desde acá (se movió a Profesionales)', () => {
     const html = renderGrilla({ pacientes, sectores, celdas, profesionales });
-    expect(html).toContain('ga-del-sector');
-    expect(html).toContain('data-sector="fono"');
-    expect(html).toContain('Quitar la columna Fonoaudiología');
+    expect(html).not.toContain('ga-del-sector');
+    expect(html).not.toContain('ga-add-sector');
+    expect(html).toContain('data-sector="fono"'); // las celdas siguen identificadas por sector
   });
 
   it('sin permiso de operar se ve pero no se edita, ni se agregan ni se quitan columnas', () => {

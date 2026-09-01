@@ -46,7 +46,11 @@ Deno.serve(async (req) => {
     const anon = Deno.env.get('SUPABASE_ANON_KEY')!;
     const service = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
-    // 1) Verificar que QUIEN llama sea director (con su propio JWT).
+    // 1) Verificar que QUIEN llama sea director o secretaría (con su
+    //    propio JWT). La pantalla de Administración (crear cualquier rol)
+    //    la ve solo el director; la secretaría llega hasta acá por el
+    //    alta rápida desde Profesionales, y ahí queda limitada más abajo
+    //    a crear solo cuentas de "profesional".
     const authHeader = req.headers.get('Authorization') ?? '';
     const clienteCaller = createClient(url, anon, {
       global: { headers: { Authorization: authHeader } },
@@ -57,18 +61,27 @@ Deno.serve(async (req) => {
 
     const { data: perfilCaller } = await clienteCaller
       .from('perfiles').select('rol').eq('id', caller.id).maybeSingle();
-    if (perfilCaller?.rol !== 'director') {
-      return json({ error: 'Sólo el director puede crear usuarios.' }, 403);
+    const rolCaller = perfilCaller?.rol;
+    if (!['director', 'secretaria'].includes(rolCaller ?? '')) {
+      return json({ error: 'No tenés permiso para crear usuarios.' }, 403);
     }
 
-    // 2) Datos del nuevo usuario.
-    const { email, password, nombre, rol, secciones } = await req.json();
+    // 2) Datos del nuevo usuario. profesionalId es OPCIONAL: se manda cuando
+    //    el usuario se crea junto con un profesional (desde la sección
+    //    Profesionales), para vincular perfiles.profesional_id de una.
+    const { email, password, nombre, rol, secciones, profesionalId } = await req.json();
     if (!email || !password || !rol) {
       return json({ error: 'Faltan email, contraseña o rol.' }, 400);
     }
     // 'cm' = community manager: solo entra a la galería del trabajo.
     if (!['director', 'secretaria', 'profesional', 'cm'].includes(rol)) {
       return json({ error: 'Rol inválido.' }, 400);
+    }
+    // La secretaría NO puede crear director/secretaria/cm (ni a sí misma
+    // con más permisos): solo cuentas de profesional, que es el único
+    // caso que necesita desde su pantalla.
+    if (rolCaller === 'secretaria' && rol !== 'profesional') {
+      return json({ error: 'La secretaría solo puede crear cuentas de profesional.' }, 403);
     }
 
     // 3) Crear la cuenta con la service key (admin), ya confirmada.
@@ -89,6 +102,7 @@ Deno.serve(async (req) => {
       rol,
       secciones: Array.isArray(secciones) && secciones.length ? secciones : null,
       email,
+      profesional_id: profesionalId ?? null,
     });
     if (errPerfil) {
       await admin.auth.admin.deleteUser(creado.user.id);

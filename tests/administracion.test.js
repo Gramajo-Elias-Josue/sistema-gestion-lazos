@@ -86,10 +86,10 @@ describe('administracionView.renderFormUsuario', () => {
     expect(html).toContain('id="form-usuario"');
   });
 
-  it('[regresión] el alta NO permite crear un director', () => {
+  it('el alta SÍ permite crear un director (es una sociedad, puede haber varios)', () => {
     const html = renderFormUsuario();
     expect(html).toContain('value="secretaria"');
     expect(html).toContain('value="profesional"');
-    expect(html).not.toContain('value="director"');
+    expect(html).toContain('value="director"');
   });
 });
