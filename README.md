@@ -199,11 +199,13 @@ pegalo y ejecutalo.
 - **contactos_emergencia** — `id, paciente_id, nombre, vinculo, telefono`
 - **admision_documentos** — `id, paciente_id, requisito, presentado, observaciones`
 - **profesionales** — `id, nombre_completo, profesion, especialidad, matricula, dni,
-  direccion, telefono, telefono2, email, horario_entrada, horario_salida, estado`
+  direccion, telefono, telefono2, email, sector, dias_trabajo, turnos_trabajo, estado`
+  (`turnos_trabajo` = `{manana}`, `{tarde}` o ambos: turno mañana 8 a 12, tarde 14 a 18)
 - **documentos** — `id, paciente_id, tipo, numero, nombre_archivo, storage_path,
   fecha_emision, fecha_vencimiento, observaciones`
-- **turnos** — `id, paciente_id, profesional_id, fecha, hora, estado, observaciones`
-  — `estado`: `programado | atendido | ausente | cancelado`
+- **turnos** — `id, paciente_nombre, paciente_telefono, paciente_dni, profesional_id, fecha, hora, estado, observaciones`
+  — `estado`: `programado | atendido | ausente | cancelado`. Solo pacientes **casuales** (sin legajo);
+  los fijos van en la grilla (`asignaciones`). `paciente_id` queda por los turnos viejos.
 - **asistencias** — `id, paciente_id, fecha, estado, observaciones` — único por `(paciente_id, fecha)`
 - **asistencias_profesionales** — `id, profesional_id, fecha, hora_entrada, hora_salida,
   estado, observaciones` — único por `(profesional_id, fecha)`

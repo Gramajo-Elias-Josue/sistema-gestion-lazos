@@ -1,32 +1,37 @@
 // =====================================================================
-// MODELO: Turnos
+// MODELO: Turnos (agenda de pacientes CASUALES)
 // ---------------------------------------------------------------------
-// CAPA MODELO. Acceso a datos de la tabla `turnos` (citas paciente ↔
-// profesional por fecha). Trae embebidos el paciente y el profesional
-// para armar la grilla del día sin consultas extra.
+// CAPA MODELO. Acceso a datos de la tabla `turnos`. La agenda es solo
+// para consultas sueltas de personas SIN legajo: su nombre, teléfono y
+// DNI se guardan en el mismo turno (paciente_nombre / _telefono / _dni).
+// Los pacientes fijos se organizan en la Grilla de atención, no acá.
 // =====================================================================
 
 import { supabase } from '../config/supabaseClient.js';
 
 const TABLA = 'turnos';
 
-// Turnos de una fecha (yyyy-mm-dd), ordenados por hora.
+// Turnos de una fecha (yyyy-mm-dd), ordenados por hora, con el
+// profesional embebido. `pacientes` sigue embebido por los turnos viejos
+// que apuntaban a un paciente cargado (hasta que se limpien).
 export async function listarTurnosPorFecha(fecha) {
   const { data, error } = await supabase
     .from(TABLA)
-    .select('*, pacientes(nombre_completo, dni), profesionales(nombre_completo, profesion)')
+    .select('*, pacientes(nombre_completo, dni), profesionales(nombre_completo, profesion, especialidad, matricula)')
     .eq('fecha', fecha)
     .order('hora', { ascending: true, nullsFirst: true });
   if (error) throw error;
   return data;
 }
 
-// Crea un turno nuevo.
-export async function crearTurno({ pacienteId, profesionalId, fecha, hora, observaciones }) {
+// Crea un turno casual.
+export async function crearTurno({ pacienteNombre, pacienteTelefono, pacienteDni, profesionalId, fecha, hora, observaciones }) {
   const { data, error } = await supabase
     .from(TABLA)
     .insert({
-      paciente_id: pacienteId,
+      paciente_nombre: pacienteNombre,
+      paciente_telefono: pacienteTelefono || null,
+      paciente_dni: pacienteDni || null,
       profesional_id: profesionalId,
       fecha,
       hora: hora || null,
@@ -50,23 +55,6 @@ export async function actualizarEstadoTurno(id, estado) {
   return data;
 }
 
-// Devuelve todos los turnos activos (no cancelados) de un paciente en una
-// fecha, con el profesional embebido. El controlador calcula si alguno cae
-// dentro de la ventana de duración de sesión (un paciente no puede tener dos
-// turnos pegados, aunque sean con profesionales distintos: no puede estar en
-// dos sesiones a la vez).
-export async function listarTurnosPacientePorFecha(pacienteId, fecha) {
-  const { data, error } = await supabase
-    .from(TABLA)
-    .select('*, profesionales(nombre_completo)')
-    .eq('paciente_id', pacienteId)
-    .eq('fecha', fecha)
-    .neq('estado', 'cancelado')
-    .order('hora', { ascending: true });
-  if (error) throw error;
-  return data || [];
-}
-
 // Devuelve todos los turnos activos (no cancelados) de un profesional en una fecha.
 // El controlador calcula si alguno queda dentro de la ventana de duración de sesión.
 export async function listarTurnosProfesionalPorFecha(profesionalId, fecha) {
@@ -77,21 +65,6 @@ export async function listarTurnosProfesionalPorFecha(profesionalId, fecha) {
     .eq('fecha', fecha)
     .neq('estado', 'cancelado')
     .order('hora', { ascending: true });
-  if (error) throw error;
-  return data || [];
-}
-
-// Turnos ATENDIDOS de un paciente en una fecha, con el profesional que lo
-// atendió. Habilita la carga de la evaluación desde la historia clínica:
-// solo se puede evaluar a quien fue atendido ese día (gate "atendido HOY").
-export async function listarAtendidosPacienteFecha(pacienteId, fecha) {
-  const { data, error } = await supabase
-    .from(TABLA)
-    .select('*, profesionales(nombre_completo, profesion, especialidad, matricula)')
-    .eq('paciente_id', pacienteId)
-    .eq('fecha', fecha)
-    .eq('estado', 'atendido')
-    .order('hora', { ascending: true, nullsFirst: true });
   if (error) throw error;
   return data || [];
 }

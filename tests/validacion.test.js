@@ -55,12 +55,23 @@ describe('validarDocumento', () => {
   });
 });
 
-describe('validarTurno', () => {
-  it('exige paciente, profesional y fecha', () => {
-    expect(validarTurno({ profesional_id: 'p', fecha: '2026-07-14' }).ok).toBe(false);
-    expect(validarTurno({ paciente_id: 'a', fecha: '2026-07-14' }).ok).toBe(false);
-    expect(validarTurno({ paciente_id: 'a', profesional_id: 'p' }).ok).toBe(false);
-    expect(validarTurno({ paciente_id: 'a', profesional_id: 'p', fecha: '2026-07-14' }).ok).toBe(true);
+describe('validarTurno (paciente casual, sin legajo)', () => {
+  const completo = { paciente_nombre: 'Juan Pérez', profesional_id: 'p', fecha: '2026-07-14', hora: '15:00' };
+
+  it('acepta un turno completo', () => {
+    expect(validarTurno(completo).ok).toBe(true);
+  });
+
+  it('exige nombre, profesional, fecha y hora (la hora para controlar la grilla)', () => {
+    for (const campo of ['paciente_nombre', 'profesional_id', 'fecha', 'hora']) {
+      expect(validarTurno({ ...completo, [campo]: '' }).ok, `falló al faltar "${campo}"`).toBe(false);
+    }
+    expect(validarTurno({ ...completo, paciente_nombre: '   ' }).ok).toBe(false);
+  });
+
+  it('teléfono y DNI son opcionales, pero el DNI se valida si viene', () => {
+    expect(validarTurno({ ...completo, paciente_dni: '30.111.222' }).ok).toBe(true);
+    expect(validarTurno({ ...completo, paciente_dni: 'abc' }).ok).toBe(false);
   });
 });
 
@@ -75,15 +86,19 @@ describe('validarFichajeProfesional', () => {
 });
 
 describe('validarProfesional', () => {
-  it('exige nombre siempre; el resto no se exige si no es alta (esNuevo=false)', () => {
-    expect(validarProfesional({ nombre_completo: '' }).ok).toBe(false);
-    expect(validarProfesional({ nombre_completo: 'Lic. X' }).ok).toBe(true); // edición, sin más datos
+  // Lo mínimo de una edición: nombre y turno (el formulario siempre
+  // manda los turnos tildados).
+  const edicion = { nombre_completo: 'Lic. X', turnos_trabajo: ['manana'] };
+
+  it('exige nombre siempre; el resto (salvo el turno) no se exige si no es alta (esNuevo=false)', () => {
+    expect(validarProfesional({ ...edicion, nombre_completo: '' }).ok).toBe(false);
+    expect(validarProfesional(edicion).ok).toBe(true); // edición, sin más datos
   });
 
   it('email y DNI se validan si vienen, sea alta o edición', () => {
-    expect(validarProfesional({ nombre_completo: 'Lic. X', email: 'no-es-mail' }).ok).toBe(false);
-    expect(validarProfesional({ nombre_completo: 'Lic. X', email: 'x@y.com' }).ok).toBe(true);
-    expect(validarProfesional({ nombre_completo: 'Lic. X', dni: 'abc' }).ok).toBe(false);
+    expect(validarProfesional({ ...edicion, email: 'no-es-mail' }).ok).toBe(false);
+    expect(validarProfesional({ ...edicion, email: 'x@y.com' }).ok).toBe(true);
+    expect(validarProfesional({ ...edicion, dni: 'abc' }).ok).toBe(false);
   });
 
   it('rechaza fecha de nacimiento futura', () => {
@@ -95,24 +110,30 @@ describe('validarProfesional', () => {
     nombre_completo: 'Lic. X', dni: '30111222', fecha_nacimiento: '1990-01-01',
     profesion: 'Psicología', sector: 'psicologia', especialidad: 'Infantil',
     telefono: '3865111222', email: 'x@y.com', direccion: 'Calle 123',
-    horario_entrada: '08:00', horario_salida: '16:00', dias_trabajo: ['Lunes'],
+    turnos_trabajo: ['manana'], dias_trabajo: ['Lunes'],
   };
 
   it('[regresión] al CREAR (esNuevo) exige todos los datos', () => {
     expect(validarProfesional(profesionalCompleto, { esNuevo: true }).ok).toBe(true);
-    for (const campo of ['dni', 'fecha_nacimiento', 'profesion', 'sector', 'especialidad', 'telefono', 'email', 'direccion', 'horario_entrada', 'horario_salida']) {
+    for (const campo of ['dni', 'fecha_nacimiento', 'profesion', 'sector', 'especialidad', 'telefono', 'email', 'direccion']) {
       const incompleto = { ...profesionalCompleto, [campo]: null };
       expect(validarProfesional(incompleto, { esNuevo: true }).ok, `falló al faltar "${campo}"`).toBe(false);
     }
     expect(validarProfesional({ ...profesionalCompleto, dias_trabajo: [] }, { esNuevo: true }).ok).toBe(false);
   });
 
+  it('exige al menos un turno, al crear Y al editar (sin turno no aparece en la grilla)', () => {
+    expect(validarProfesional({ ...profesionalCompleto, turnos_trabajo: [] }, { esNuevo: true }).ok).toBe(false);
+    expect(validarProfesional({ nombre_completo: 'Lic. X', turnos_trabajo: [] }, { esNuevo: false }).ok).toBe(false);
+    expect(validarProfesional({ ...profesionalCompleto, turnos_trabajo: ['manana', 'tarde'] }, { esNuevo: true }).ok).toBe(true);
+  });
+
   it('matrícula y teléfono 2 quedan opcionales incluso al crear', () => {
     expect(validarProfesional({ ...profesionalCompleto, matricula: null, telefono2: null }, { esNuevo: true }).ok).toBe(true);
   });
 
-  it('al EDITAR no exige retroactivamente lo que falte', () => {
-    expect(validarProfesional({ nombre_completo: 'Lic. X' }, { esNuevo: false }).ok).toBe(true);
+  it('al EDITAR no exige retroactivamente lo que falte (salvo el turno)', () => {
+    expect(validarProfesional({ nombre_completo: 'Lic. X', turnos_trabajo: ['tarde'] }, { esNuevo: false }).ok).toBe(true);
   });
 });
 

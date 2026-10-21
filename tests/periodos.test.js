@@ -4,8 +4,8 @@
 // Las fotos se borran solas a los 3 meses.
 import { describe, it, expect } from 'vitest';
 import {
-  periodoMensual, periodoAnual, etiquetaPeriodo, moverPeriodo,
-  pendientesDelMes, pendientesDelAnio, fotosVencidas, diasHastaFinDeMes,
+  periodoMensual, etiquetaPeriodo, moverPeriodo,
+  pendientesDelMes, fotosVencidas, diasHastaFinDeMes,
 } from '../src/utils/periodos.js';
 
 const equipo = [
@@ -15,9 +15,8 @@ const equipo = [
 ];
 
 describe('períodos', () => {
-  it('saca el mes y el año de una fecha', () => {
+  it('saca el mes de una fecha', () => {
     expect(periodoMensual('2026-08-15')).toBe('2026-08');
-    expect(periodoAnual('2026-08-15')).toBe('2026');
   });
 
   it('se lee en castellano', () => {
@@ -114,16 +113,6 @@ describe('pendientesDelMes', () => {
 
   it('sin profesionales activos no hay pendientes', () => {
     expect(pendientesDelMes({ profesionales: [], periodo }).alDia).toBe(true);
-  });
-});
-
-describe('pendientesDelAnio', () => {
-  it('lista a quien debe el informe anual', () => {
-    const r = pendientesDelAnio({
-      profesionales: equipo, periodo: '2026',
-      informes: [informe('x3', 'anual', '2026-12-15')],
-    });
-    expect(r.informes.map(p => p.id)).toEqual(['x1', 'x2']);
   });
 });
 

@@ -6,7 +6,7 @@
 // el botón para APROBAR la admisión (recién ahí pasa a ser paciente).
 // =====================================================================
 
-import { esc, pill } from '../utils/ui.js';
+import { esc, pill, tonoDe } from '../utils/ui.js';
 import { iniciales, formatearFecha, calcularEdad } from '../utils/fechas.js';
 
 // Requisitos estándar de documentación que se controlan en la admisión.
@@ -25,8 +25,8 @@ export const REQUISITOS_ADMISION = [
 export function renderEstructura() {
   return `
     <div id="lista-adm">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
-        <p style="color:var(--ink-soft);font-size:15px">Pacientes en proceso de admisión. Controlá la documentación presentada y aprobá la admisión para que pasen a ser pacientes.</p>
+      <div class="seccion-intro">
+        <p>Pacientes en proceso de admisión. Controlá la documentación presentada y aprobá la admisión para que pasen a ser pacientes.</p>
         <button class="btn" id="btn-nuevo-ingreso">+ Nuevo ingreso</button>
       </div>
       <div id="adm-tabla"></div>
@@ -34,30 +34,31 @@ export function renderEstructura() {
     <div id="ficha-adm" class="hidden"></div>`;
 }
 
-// Tabla de pacientes en admisión.
+// Tabla de pacientes en admisión. En escritorio es una tabla; en
+// celular el CSS (.tabla-cards) la convierte en tarjetas.
 export function renderLista(pacientes) {
   if (!pacientes.length) {
     return `<div class="tablewrap"><div class="state">No hay pacientes en proceso de admisión. Usá “+ Nuevo ingreso”.</div></div>`;
   }
 
   const filas = pacientes.map(p => `
-    <tr data-id="${p.id}">
-      <td>
+    <tr class="tono-${tonoDe(p.id)}" data-id="${p.id}">
+      <td class="tc-nombre">
         <div class="pname">
           <div class="pav">${esc(iniciales(p.nombre_completo))}</div>
           <div><b>${esc(p.nombre_completo)}</b><br><small>DNI ${esc(p.dni || '—')}</small></div>
         </div>
       </td>
-      <td>${p.fecha_nacimiento ? calcularEdad(p.fecha_nacimiento) + ' años' : '—'}</td>
-      <td>${p.tiene_cud ? pill('ok', 'Con CUD') : pill('bad', 'Sin CUD')}</td>
-      <td style="white-space:nowrap;text-align:right">
+      <td data-t="Edad">${p.fecha_nacimiento ? calcularEdad(p.fecha_nacimiento) + ' años' : '—'}</td>
+      <td data-t="CUD">${p.tiene_cud ? pill('ok', 'Con CUD') : pill('bad', 'Sin CUD')}</td>
+      <td class="tc-acciones" style="white-space:nowrap;text-align:right">
         <button class="btn btn-abrir-adm" data-id="${p.id}" style="padding:6px 12px">Abrir admisión</button>
-        <button class="btn ghost btn-rechazar-adm" data-id="${p.id}" data-nombre="${esc(p.nombre_completo)}" style="padding:6px 12px;color:var(--red-600)">Rechazar</button>
+        <button class="btn ghost btn-rechazar-adm peligro" data-id="${p.id}" data-nombre="${esc(p.nombre_completo)}" style="padding:6px 12px;color:var(--red-600)">Rechazar</button>
       </td>
     </tr>`).join('');
 
   return `
-    <div class="tablewrap">
+    <div class="tablewrap tabla-cards">
       <table>
         <thead>
           <tr><th>Paciente</th><th>Edad</th><th>CUD</th><th></th></tr>
@@ -112,7 +113,7 @@ export function renderAdmision(paciente, checklist = []) {
       </div>
     </div>
 
-    <div style="display:flex;gap:12px;justify-content:flex-end;margin-top:20px">
+    <div class="adm-acciones">
       <button class="btn ghost" id="btn-rechazar-detalle" style="color:var(--red-600)">Rechazar admisión</button>
       <button class="btn" id="btn-aprobar-adm">✓ Aprobar admisión</button>
     </div>`;

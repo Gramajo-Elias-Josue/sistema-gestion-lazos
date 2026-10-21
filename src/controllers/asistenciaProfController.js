@@ -11,6 +11,7 @@ import * as asistenciaProfModel from '../models/asistenciaProfesionalModel.js';
 import { renderEstructura, renderFilas, filaHtml } from '../views/asistenciaProfView.js';
 import { abrirCalendarioProfesional } from './calendarioAsistenciaController.js';
 import { hoyISO, sumarDias, nombreDia, ahoraHHMM, horaAMinutos } from '../utils/fechas.js';
+import { horarioDe } from '../utils/turnosCentro.js';
 import { htmlCargando, htmlError, toast, confirmar } from '../utils/ui.js';
 import { validarFichajeProfesional } from '../utils/validacion.js';
 import { mensajeError } from '../utils/errores.js';
@@ -131,8 +132,7 @@ function recalcularStats() {
 // real, pero también puede ser un error de tipeo). Devuelve true si se
 // puede seguir.
 async function confirmarFueraDeHorario(prof, entrada, salida) {
-  const habEnt = (prof.horario_entrada || '').slice(0, 5);
-  const habSal = (prof.horario_salida || '').slice(0, 5);
+  const { entrada: habEnt, salida: habSal } = horarioDe(prof);
   if (!habEnt && !habSal) return true; // sin horario habitual: nada que comparar
 
   const TOLERANCIA = 60; // minutos

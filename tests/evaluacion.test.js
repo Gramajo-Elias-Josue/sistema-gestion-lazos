@@ -2,28 +2,30 @@
 // serialización JSON en `contenido` y compatibilidad con datos viejos.
 import { describe, it, expect } from 'vitest';
 import {
-  TIPOS_INFORME, tituloPorTipo, parseEvaluacion, serializarEvaluacion, evaluacionVacia,
-  autoresElegiblesHoy,
+  TIPOS_INFORME, TIPO_CERTIFICADO, tituloPorTipo, parseEvaluacion, serializarEvaluacion, evaluacionVacia,
+  autoresElegiblesHoy, autoresCertificado,
 } from '../src/utils/evaluacion.js';
 
 describe('TIPOS_INFORME', () => {
-  it('incluye "diario" y ya no "evaluacion"', () => {
-    const keys = TIPOS_INFORME.map(t => t.key);
-    expect(keys).toContain('diario');
-    expect(keys).not.toContain('evaluacion');
+  it('[regresión] ya no hay informe "diario"; quedan mensual, anual, evolución y admisión', () => {
+    expect(TIPOS_INFORME.map(t => t.key)).toEqual(['mensual', 'anual', 'evolucion', 'admision']);
+  });
+  it('la evaluación / certificado es aparte (no es un informe periódico)', () => {
+    expect(TIPOS_INFORME.map(t => t.key)).not.toContain(TIPO_CERTIFICADO.key);
+    expect(tituloPorTipo('certificado')).toBe('EVALUACIÓN / CERTIFICADO');
   });
   it('tituloPorTipo devuelve el título o el del primero por defecto', () => {
-    expect(tituloPorTipo('diario')).toBe('INFORME DIARIO');
+    expect(tituloPorTipo('anual')).toBe('INFORME ANUAL');
     expect(tituloPorTipo('inexistente')).toBe(TIPOS_INFORME[0].titulo);
   });
 });
 
 describe('serializar / parse (roundtrip)', () => {
   it('conserva tipo, título y cuerpo; recorta espacios', () => {
-    const json = serializarEvaluacion({ tipo: 'diario', titulo: 'INFORME DIARIO', cuerpo: '  hola  ' });
+    const json = serializarEvaluacion({ tipo: 'certificado', titulo: 'CERTIFICADO', cuerpo: '  hola  ' });
     const p = parseEvaluacion(json);
-    expect(p.tipo).toBe('diario');
-    expect(p.titulo).toBe('INFORME DIARIO');
+    expect(p.tipo).toBe('certificado');
+    expect(p.titulo).toBe('CERTIFICADO');
     expect(p.cuerpo).toBe('hola');
   });
   it('completa el título desde el tipo si viene vacío', () => {
@@ -54,17 +56,12 @@ describe('evaluacionVacia', () => {
   });
 });
 
-// Gate "atendido hoy": quién puede cargar el informe. Dos vías, ver el
-// comentario de la función en utils/evaluacion.js.
+// Gate "atendido hoy": quién puede cargar el informe. Solo por la grilla
+// (la agenda de turnos es para casuales sin legajo), ver el comentario de
+// la función en utils/evaluacion.js.
 describe('autoresElegiblesHoy', () => {
-  const profTurno = { nombre_completo: 'Lic. Casual', profesion: 'Psicología' };
+  const profUno = { nombre_completo: 'Lic. Uno', profesion: 'Psicología' };
   const profGrilla = { nombre_completo: 'Lic. Diario', profesion: 'T.O.' };
-
-  it('vía turno: trae al profesional con turno atendido hoy', () => {
-    const turnosAtendidos = [{ id: 't1', profesional_id: 'p1', profesionales: profTurno, hora: '10:00' }];
-    const r = autoresElegiblesHoy({ turnosAtendidos });
-    expect(r).toEqual([{ id: 't1', profesional_id: 'p1', profesionales: profTurno, hora: '10:00' }]);
-  });
 
   it('vía grilla: paciente y profesional presentes -> entra sin turno (id null)', () => {
     const asignaciones = [{ profesional_id: 'p2', profesionales: profGrilla }];
@@ -96,20 +93,57 @@ describe('autoresElegiblesHoy', () => {
     expect(r).toEqual([]);
   });
 
-  it('combina las dos vías sin duplicar al profesional que aparece en ambas', () => {
-    const turnosAtendidos = [{ id: 't1', profesional_id: 'p1', profesionales: profTurno, hora: '09:00' }];
+  it('el profesional que lo tiene en varias franjas aparece una sola vez', () => {
     const asignaciones = [
-      { profesional_id: 'p1', profesionales: profTurno },   // mismo prof. que el turno: no se duplica
-      { profesional_id: 'p2', profesionales: profGrilla },  // distinto: se suma
+      { profesional_id: 'p1', profesionales: profUno },
+      { profesional_id: 'p1', profesionales: profUno },    // otra franja, mismo profesional
+      { profesional_id: 'p2', profesionales: profGrilla },
     ];
     const r = autoresElegiblesHoy({
-      turnosAtendidos, asignaciones, pacientePresente: true, idsProfPresentes: new Set(['p1', 'p2']),
+      asignaciones, pacientePresente: true, idsProfPresentes: new Set(['p1', 'p2']),
     });
     expect(r.map(a => a.profesional_id)).toEqual(['p1', 'p2']);
-    expect(r[0].id).toBe('t1'); // el de p1 conserva el turno (vino primero por esa vía)
+  });
+
+  it('[regresión] un turno "atendido" de la agenda ya no habilita el informe (es de casuales)', () => {
+    const turnosAtendidos = [{ id: 't1', profesional_id: 'p1', profesionales: profUno, hora: '10:00' }];
+    expect(autoresElegiblesHoy({ turnosAtendidos })).toEqual([]);
   });
 
   it('sin nada, no hay autores', () => {
     expect(autoresElegiblesHoy()).toEqual([]);
+  });
+});
+
+// Evaluación / certificado (paciente habitual): no exige que haya venido
+// HOY, sí que su asistencia con ese profesional esté confirmada alguna vez.
+describe('autoresCertificado', () => {
+  const profA = { nombre_completo: 'Lic. A' };
+  const profB = { nombre_completo: 'Lic. B' };
+
+  it('habilita al profesional si el paciente estuvo presente mientras lo tenía en la grilla', () => {
+    const asignaciones = [{ profesional_id: 'a', profesionales: profA, vigente_desde: '2026-08-01', vigente_hasta: null }];
+    const r = autoresCertificado({ asignaciones, fechasPresente: ['2026-09-10'] });
+    expect(r).toEqual([{ id: null, profesional_id: 'a', profesionales: profA, hora: null }]);
+  });
+
+  it('no hace falta que sea hoy, ni que la asignación siga vigente', () => {
+    const asignaciones = [{ profesional_id: 'b', profesionales: profB, vigente_desde: '2026-01-01', vigente_hasta: '2026-03-31' }];
+    expect(autoresCertificado({ asignaciones, fechasPresente: ['2026-02-15'] }).map(x => x.profesional_id)).toEqual(['b']);
+  });
+
+  it('[clave] sin asistencia confirmada con ese profesional, no habilita', () => {
+    const asignaciones = [{ profesional_id: 'a', profesionales: profA, vigente_desde: '2026-08-01', vigente_hasta: null }];
+    expect(autoresCertificado({ asignaciones, fechasPresente: [] })).toEqual([]);
+    // Vino, pero antes de estar asignado a ese profesional.
+    expect(autoresCertificado({ asignaciones, fechasPresente: ['2026-07-20'] })).toEqual([]);
+  });
+
+  it('cada profesional una sola vez, aunque lo haya tenido en varias franjas', () => {
+    const asignaciones = [
+      { profesional_id: 'a', profesionales: profA, vigente_desde: '2026-08-01', vigente_hasta: null },
+      { profesional_id: 'a', profesionales: profA, vigente_desde: '2026-08-01', vigente_hasta: null },
+    ];
+    expect(autoresCertificado({ asignaciones, fechasPresente: ['2026-09-01'] })).toHaveLength(1);
   });
 });

@@ -99,15 +99,6 @@ export function nombreDia(fechaStr) {
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
-// ¿La hora 'HH:MM' cae dentro del rango [desde, hasta]? Compara texto
-// 'HH:MM' (su orden alfabético coincide con el cronológico). Si falta
-// algún dato devuelve true (no restringe).
-export function horaEnRango(hora, desde, hasta) {
-  if (!hora || !desde || !hasta) return true;
-  const h = String(hora).slice(0, 5);
-  return h >= String(desde).slice(0, 5) && h <= String(hasta).slice(0, 5);
-}
-
 // Convierte 'HH:MM' (o 'HH:MM:SS') a minutos desde medianoche.
 // Devuelve null si no hay hora. Sirve para comparar horas con tolerancia.
 export function horaAMinutos(hora) {

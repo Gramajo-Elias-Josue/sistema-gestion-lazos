@@ -15,7 +15,7 @@
 
 import { esc } from '../utils/ui.js';
 import { iniciales, formatearFecha } from '../utils/fechas.js';
-import { etiquetaPeriodo, MESES_A_CONSERVAR_FOTOS } from '../utils/periodos.js';
+import { etiquetaPeriodo } from '../utils/periodos.js';
 
 // Estructura: navegación de mes + contadores + contenedor de fotos.
 export function renderEstructura(periodo) {
@@ -55,24 +55,18 @@ export function renderPendientes({ periodo, fotos = [] } = {}) {
 
 // Formulario de carga + grilla de fotos del mes.
 // fotos: [{ id, descripcion, nombre_archivo, created_at, url, profesionales:{…} }]
-export function renderFotos({ fotos = [], profesionales = [], puedeSubir = true, periodo }) {
-  const opciones = profesionales.length
-    ? profesionales.map(p => `<option value="${p.id}">${esc(p.nombre_completo)}${p.profesion ? ' — ' + esc(p.profesion) : ''}</option>`).join('')
-    : '<option value="">(no hay profesionales activos)</option>';
-
+// Solo sube foto el propio profesional logueado (queda identificado por
+// su usuario, no hay para elegir a nombre de quién se sube).
+export function renderFotos({ fotos = [], puedeSubir = true, miNombre = '', periodo }) {
   const formulario = puedeSubir ? `
     <form class="panel gal-form" id="gal-form-foto" style="margin-bottom:18px">
       <div class="panel-h">
         <h2>Subir una foto de ${esc(etiquetaPeriodo(periodo))}</h2>
-        <span class="cnt">se borra a los ${MESES_A_CONSERVAR_FOTOS} meses</span>
       </div>
       <div class="panel-b" style="padding:16px 18px">
+        <p style="color:var(--ink-soft);margin-bottom:14px">Se sube a tu nombre: <b>${esc(miNombre)}</b>.</p>
         <div class="form-grid">
-          <div class="form-field">
-            <label>Profesional *</label>
-            <select name="profesional_id" required>${opciones}</select>
-          </div>
-          <div class="form-field">
+          <div class="form-field full">
             <label>Foto *</label>
             <input type="file" name="archivo" accept="image/*" required>
           </div>

@@ -14,18 +14,6 @@ import { supabase } from '../config/supabaseClient.js';
 const TABLA = 'documentos';
 const BUCKET = 'documentos';
 
-// Lista los documentos de un paciente, del más nuevo al más viejo
-// (ordenado por fecha de emisión). Es la base de la "historia clínica".
-export async function listarDocumentosPaciente(pacienteId) {
-  const { data, error } = await supabase
-    .from(TABLA)
-    .select('*')
-    .eq('paciente_id', pacienteId)
-    .order('fecha_emision', { ascending: false, nullsFirst: false });
-  if (error) throw error;
-  return data;
-}
-
 // Lista documentos vencidos o próximos a vencer dentro de `limiteDias`.
 // Trae embebido el nombre del paciente (join) para el panel de alertas.
 // Incluye los ya vencidos (fecha_vencimiento <= hoy + limiteDias).
@@ -104,13 +92,4 @@ export async function urlDocumento(storagePath, segundos = 3600) {
     .createSignedUrl(storagePath, segundos);
   if (error) throw error;
   return data.signedUrl;
-}
-
-// Elimina un documento: primero el archivo del Storage, luego el registro.
-export async function eliminarDocumento(id, storagePath) {
-  if (storagePath) {
-    await supabase.storage.from(BUCKET).remove([storagePath]);
-  }
-  const { error } = await supabase.from(TABLA).delete().eq('id', id);
-  if (error) throw error;
 }

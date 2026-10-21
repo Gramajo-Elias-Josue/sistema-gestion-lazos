@@ -113,9 +113,18 @@
       <div class="side-foot">Sistema de gestión<br>Lazos · Aguilares, Tucumán</div>
     </aside>
 
+    <!-- Fondo oscuro detrás del menú cuando se abre en pantallas chicas
+         (celular/tablet angosta): tocarlo cierra el menú, igual que un modal. -->
+    <div class="nav-backdrop" id="nav-backdrop"></div>
+
     <!-- ===== MAIN ===== -->
     <main class="main">
       <header class="top">
+        <!-- Solo visible en pantallas chicas: ahí el menú lateral queda
+             oculto (desliza) hasta que se toca este botón para abrirlo. -->
+        <button class="mobile-nav-toggle" id="mobile-nav-toggle" title="Abrir menú" aria-label="Abrir menú">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
         <div>
           <!-- Título y subtítulo actualizados por el router según la sección -->
           <h1 id="ttl">Panel de Dirección</h1>

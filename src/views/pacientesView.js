@@ -8,7 +8,7 @@
 // =====================================================================
 
 import { calcularEdad, formatearFecha, estadoVencimiento, iniciales } from '../utils/fechas.js';
-import { esc, pill } from '../utils/ui.js';
+import { esc, pill, tonoDe } from '../utils/ui.js';
 import { TIPOS_INFORME, SECCIONES_INFORME, parseEvaluacion, evaluacionVacia } from '../utils/evaluacion.js';
 import { CLINICA } from '../config/clinica.js';
 
@@ -98,7 +98,9 @@ function estadoCud(paciente) {
     : { texto: 'Sin CUD', clase: 'bad' };
 }
 
-// Tabla del listado de pacientes, con acciones por fila.
+// Tabla del listado de pacientes, con acciones por fila. Arriba lleva un
+// buscador y abajo un paginado (los maneja el controlador mostrando /
+// escondiendo filas; acá solo van los controles).
 export function renderTabla(pacientes) {
   if (!pacientes.length) {
     return `<div class="tablewrap"><div class="state">No hay pacientes cargados todavía.</div></div>`;
@@ -111,34 +113,50 @@ export function renderTabla(pacientes) {
     const sub = `DNI ${esc(p.dni || '—')}`;
     // Marca visual de inactivo.
     const tagInactivo = activo ? '' : ` ${pill('bad', 'Inactivo')}`;
+    // Texto por el que filtra el buscador: nombre, DNI y obra social.
+    const buscar = `${p.nombre_completo || ''} ${p.dni || ''} ${p.obra_social || ''}`.toLowerCase();
 
     return `
-      <tr data-id="${p.id}" style="${activo ? '' : 'opacity:.55'}">
-        <td>
+      <tr class="tono-${tonoDe(p.id)}" data-id="${p.id}" data-buscar="${esc(buscar)}" style="${activo ? '' : 'opacity:.55'}">
+        <td class="tc-nombre">
           <div class="pname">
             <div class="pav">${esc(iniciales(p.nombre_completo))}</div>
             <div><b>${esc(p.nombre_completo)}${tagInactivo}</b><br><small>${sub}</small></div>
           </div>
         </td>
-        <td>${calcularEdad(p.fecha_nacimiento)} años</td>
-        <td>${esc(p.obra_social || '—')}</td>
-        <td>${pill(c.clase, c.texto)}</td>
-        <td style="white-space:nowrap;text-align:right">
-          <button class="btn ghost btn-historia" data-id="${p.id}" style="padding:6px 10px">Historia clínica</button>
+        <td data-t="Edad">${calcularEdad(p.fecha_nacimiento)} años</td>
+        <td data-t="Obra social">${esc(p.obra_social || '—')}</td>
+        <td data-t="CUD">${pill(c.clase, c.texto)}</td>
+        <td class="tc-acciones">
+          <button class="btn ghost btn-historia destacado" data-id="${p.id}" style="padding:6px 10px">Historia clínica</button>
           <button class="btn ghost btn-editar-row" data-id="${p.id}" style="padding:6px 10px">Editar</button>
-          <button class="btn ghost btn-baja" data-id="${p.id}" data-estado="${esc(p.estado || '')}" data-nombre="${esc(p.nombre_completo)}" style="padding:6px 10px;color:${activo ? 'var(--red-600)' : 'var(--teal-700)'}">${activo ? 'Desactivar' : 'Activar'}</button>
+          <button class="btn ghost btn-baja${activo ? ' peligro' : ''}" data-id="${p.id}" data-estado="${esc(p.estado || '')}" data-nombre="${esc(p.nombre_completo)}" style="padding:6px 10px;color:${activo ? 'var(--red-600)' : 'var(--teal-700)'}">${activo ? 'Desactivar' : 'Activar'}</button>
         </td>
       </tr>`;
   }).join('');
 
+  // En pantalla ancha es una tabla; en celular el CSS (.tabla-cards) la
+  // convierte en tarjetas, para no scrollear de costado. `.pac-lista`
+  // suma el cursor pointer (la fila abre el legajo).
   return `
-    <div class="tablewrap">
+    <div class="lista-toolbar">
+      <input id="pac-buscar" type="search" autocomplete="off"
+             placeholder="🔎 Buscar por nombre, DNI u obra social…">
+      <span class="lista-contador" id="pac-contador"></span>
+    </div>
+    <div class="tablewrap tabla-cards pac-lista">
       <table>
         <thead>
           <tr><th>Paciente</th><th>Edad</th><th>Obra social</th><th>Estado CUD</th><th></th></tr>
         </thead>
         <tbody>${filas}</tbody>
       </table>
+    </div>
+    <div class="state" id="pac-sin-resultados" hidden>Ningún paciente coincide con la búsqueda.</div>
+    <div class="pac-pager" id="pac-pager" hidden>
+      <button type="button" class="btn ghost" id="pac-prev">‹ Anterior</button>
+      <span class="pac-pager-info" id="pac-pager-info"></span>
+      <button type="button" class="btn ghost" id="pac-next">Siguiente ›</button>
     </div>`;
 }
 
@@ -290,8 +308,9 @@ export function renderEvaluacionesHistoria(evaluaciones = []) {
       </div>
       <div class="panel-b">
         ${cuerpo}
-        <div style="padding:12px 8px 4px">
-          <button class="btn btn-nueva-eval" style="width:100%;text-align:center">+ Nuevo informe de hoy</button>
+        <div class="eval-acciones">
+          <button class="btn btn-nueva-eval">+ Nuevo informe de hoy</button>
+          <button class="btn ghost btn-nuevo-certificado" title="Documento ocasional: cuando el paciente o su familia lo pide">+ Evaluación / certificado</button>
         </div>
       </div>
     </div>`;
@@ -320,16 +339,24 @@ function hojaCabecera(paciente = {}) {
       </div>`;
 }
 
-// Editor tipo HOJA para cargar el INFORME de HOY desde la ficha del paciente.
+// Editor tipo HOJA para escribir un INFORME o una EVALUACIÓN / CERTIFICADO.
 // En vez de campos sueltos, se escribe sobre un documento que replica el
 // membrete del PDF (banda + logo + datos del paciente + título + cuerpo). El
-// profesional se elige de los que lo ATENDIERON hoy (turno 'atendido'): eso
-// une el gate ("ya atendió") con el autor provisional (en Etapa 2 = login).
+// profesional se elige de los habilitados (los que lo atendieron): eso une
+// el requisito ("ya atendió") con el autor.
 // El cuerpo grande es el desarrollo del informe (se guarda en `cuerpo`).
-// paciente: objeto completo (datos del membrete).
+// paciente: objeto completo (datos del membrete). El casual trae solo
+//           nombre y DNI.
 // turnos: [{ id, profesional_id, hora, profesionales:{nombre_completo, profesion} }]
 // datosPorProf: { profesional_id: {tipo, titulo, cuerpo, …} } para prellenar.
-export function renderFormEvaluacion(paciente = {}, turnos = [], datosPorProf = {}) {
+// opts: { tipos, titulo, etiquetaProf, nota } — por defecto, el informe.
+export function renderFormEvaluacion(paciente = {}, turnos = [], datosPorProf = {}, opts = {}) {
+  const {
+    tipos = TIPOS_INFORME,
+    titulo = 'Nuevo informe',
+    etiquetaProf = 'Profesional (atendió hoy) *',
+    nota = 'Al guardar se genera el PDF con el membrete y se adjunta a la historia clínica.',
+  } = opts;
   const opciones = turnos.map(t => {
     const p = t.profesionales || {};
     // Sin turno.id: es un paciente de la GRILLA (atendido hoy sin turno,
@@ -339,22 +366,22 @@ export function renderFormEvaluacion(paciente = {}, turnos = [], datosPorProf = 
   }).join('');
 
   const primero = turnos[0] ? String(turnos[0].profesional_id) : '';
-  const inf = datosPorProf[primero] || { tipo: 'mensual', titulo: TIPOS_INFORME[0].titulo, cuerpo: '' };
+  const inf = datosPorProf[primero] || { tipo: tipos[0].key, titulo: tipos[0].titulo, cuerpo: '' };
 
-  const opcTipo = TIPOS_INFORME.map(t =>
+  const opcTipo = tipos.map(t =>
     `<option value="${t.key}" ${t.key === inf.tipo ? 'selected' : ''}>${esc(t.titulo)}</option>`).join('');
 
   return `
     <div class="overlay" id="overlay-eval">
       <div class="modal" style="max-width:840px;width:96%">
-        <div class="modal-h"><h2>Nuevo informe</h2><button class="x" data-cerrar>×</button></div>
+        <div class="modal-h"><h2>${esc(titulo)}</h2><button class="x" data-cerrar>×</button></div>
         <form id="form-eval">
           <div class="modal-b">
             <!-- Barra de metadatos (no es parte de la hoja) -->
             <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:16px">
-              <div class="form-field" style="flex:1;min-width:220px"><label>Profesional (atendió hoy) *</label>
+              <div class="form-field" style="flex:1;min-width:220px"><label>${esc(etiquetaProf)}</label>
                 <select id="eval-prof" required>${opciones}</select></div>
-              <div class="form-field" style="width:230px"><label>Tipo de informe</label>
+              <div class="form-field" style="width:230px"${tipos.length > 1 ? '' : ' hidden'}><label>Tipo de informe</label>
                 <select id="eval-tipo">${opcTipo}</select></div>
             </div>
 
@@ -365,7 +392,7 @@ export function renderFormEvaluacion(paciente = {}, turnos = [], datosPorProf = 
               <textarea id="eval-cuerpo" class="hoja-cuerpo" placeholder="Escribí acá el informe…">${esc(inf.cuerpo || '')}</textarea>
               <div class="hoja-firma"><span>__________________<br>Firma</span><span>__________________<br>Aclaración y sello</span></div>
             </div>
-            <p style="margin:12px 4px 0;color:var(--ink-soft);font-size:13px">Al guardar se genera el PDF con el membrete y se adjunta a la historia clínica.</p>
+            <p style="margin:12px 4px 0;color:var(--ink-soft);font-size:13px">${esc(nota)}</p>
           </div>
           <div class="modal-f">
             <button type="button" class="btn ghost" data-cerrar>Cancelar</button>
@@ -462,13 +489,16 @@ export function renderFormPaciente(paciente = {}) {
               <div class="form-field full"><label>Domicilio</label><input name="domicilio" value="${v('domicilio')}"></div>
               <div class="form-field"><label>Escuela <small style="color:var(--ink-faint);font-weight:400">(opcional)</small></label><input name="escuela" value="${v('escuela')}"></div>
               <div class="form-field"><label>Referente familiar</label><input name="referente_familiar" value="${v('referente_familiar')}"></div>
-              <div class="form-field full"><label>Diagnóstico según CUD</label><input name="diagnostico" value="${v('diagnostico')}"></div>
-              <div class="form-field"><label>¿Tiene CUD?</label>
-                <select name="tiene_cud">
+              <!-- Primero se pregunta si tiene CUD; el diagnóstico según CUD
+                   recién aparece si la respuesta es "Sí" (el controlador lo
+                   muestra/oculta al cambiar el select). -->
+              <div class="form-field full"><label>¿Tiene CUD?</label>
+                <select name="tiene_cud" id="pac-tiene-cud">
                   <option value="false" ${tieneCud ? '' : 'selected'}>No</option>
                   <option value="true" ${tieneCud ? 'selected' : ''}>Sí</option>
                 </select>
               </div>
+              <div class="form-field full" id="pac-campo-diagnostico" ${tieneCud ? '' : 'hidden'}><label>Diagnóstico según CUD</label><input name="diagnostico" value="${v('diagnostico')}"></div>
               <div class="form-field"><label>Obra social</label><input name="obra_social" value="${v('obra_social')}"></div>
               <div class="form-field"><label>N° de afiliado</label><input name="numero_afiliado" value="${v('numero_afiliado')}"></div>
               <div class="form-field"><label>Fecha de ingreso${esEdicion ? '' : ' *'}</label><input type="date" name="fecha_ingreso" ${esEdicion ? '' : 'required'} value="${v('fecha_ingreso')}"></div>

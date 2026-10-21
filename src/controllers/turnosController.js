@@ -4,23 +4,31 @@
 // CAPA CONTROLADOR. Navegación por fecha, listado de turnos del día y
 // alta/edición de estado/baja de turnos. Reutiliza el patrón de barra de
 // fecha de la asistencia.
+//
+// La agenda es SOLO para pacientes CASUALES (sin legajo). Los fijos están
+// en la Grilla de atención, y un turno casual nunca puede caer encima de
+// uno de ellos.
 // =====================================================================
 
 import * as turnoModel from '../models/turnoModel.js';
-import * as pacienteModel from '../models/pacienteModel.js';
 import * as profesionalModel from '../models/profesionalModel.js';
 import * as asistenciaProfModel from '../models/asistenciaProfesionalModel.js';
-import * as asistenciaModel from '../models/asistenciaModel.js';
-import { renderEstructura, renderLista, renderFormTurno } from '../views/turnosView.js';
-import { hoyISO, sumarDias, nombreDia, horaEnRango, horaAMinutos } from '../utils/fechas.js';
+import * as asignacionModel from '../models/asignacionModel.js';
+import * as evaluacionModel from '../models/evaluacionModel.js';
+import { abrirEditorInforme } from './editorInforme.js';
+import { parseEvaluacion, TIPO_CERTIFICADO } from '../utils/evaluacion.js';
+import { renderEstructura, renderLista, renderFormTurno, nombreDelTurno } from '../views/turnosView.js';
+import { hoyISO, sumarDias, nombreDia, horaAMinutos } from '../utils/fechas.js';
+import { turnosDe, atiendeALaHora, rangoTurno } from '../utils/turnosCentro.js';
 import { htmlCargando, htmlError, toast, confirmar } from '../utils/ui.js';
-import { validarTurno } from '../utils/validacion.js';
+import { validarTurno, normalizarDni } from '../utils/validacion.js';
 import { mensajeError } from '../utils/errores.js';
 import { perfilActual } from '../sesion.js';
 import { puedeOperar } from '../permisos.js';
 
 let fechaActual = hoyISO();
 let turnosCargados = [];  // turnos de la fecha visible (para buscar por id)
+let certificados = {};    // { turnoId: certificado } de los casuales de esa fecha
 
 // Punto de entrada de la sección Agenda (lo llama el router).
 export async function iniciarTurnos() {
@@ -56,16 +64,21 @@ async function cargarFecha(fecha) {
   caja.innerHTML = htmlCargando('Cargando turnos…');
   try {
     const turnos = await turnoModel.listarTurnosPorFecha(fecha);
+    const certs = await evaluacionModel.listarCertificadosDeTurnos(turnos.map(t => t.id));
     // Guard anti-carrera: si el usuario ya navegó a otra fecha mientras se
     // pedían estos datos, descartamos esta respuesta (llegó tarde y pintaría
     // una fecha que ya no es la visible).
     if (fecha !== fechaActual) return;
     turnosCargados = turnos;
-    caja.innerHTML = renderLista(turnos, puedeOperar(perfilActual()));
+    certificados = {};
+    certs.forEach(c => { certificados[c.turno_id] = c; });
+    caja.innerHTML = renderLista(turnos, puedeOperar(perfilActual()), certificados);
     caja.querySelectorAll('.turno-estado').forEach(sel =>
       sel.addEventListener('change', () => cambiarEstado(sel.dataset.id, sel.value)));
     caja.querySelectorAll('.btn-eliminar-turno').forEach(b =>
       b.addEventListener('click', () => eliminar(b.dataset.id)));
+    caja.querySelectorAll('.btn-cert-turno').forEach(b =>
+      b.addEventListener('click', () => abrirCertificadoCasual(b.dataset.id)));
   } catch (err) {
     console.error('Error listando turnos:', err);
     caja.innerHTML = htmlError('No se pudo cargar la agenda. Revisá la conexión.');
@@ -76,19 +89,16 @@ async function cargarFecha(fecha) {
 // NUEVO TURNO
 // ---------------------------------------------------------------------
 async function nuevoTurno() {
-  let pacientes = [], profesionales = [];
+  let profesionales = [];
   try {
-    [pacientes, profesionales] = await Promise.all([
-      pacienteModel.listarPacientes({ soloActivos: true }),
-      profesionalModel.listarProfesionales({ soloActivos: true }),
-    ]);
+    profesionales = await profesionalModel.listarProfesionales({ soloActivos: true });
   } catch (err) {
-    console.error('Error cargando listas para turno:', err);
+    console.error('Error cargando profesionales para turno:', err);
     toast('No se pudo cargar la información. Revisá la conexión.', 'bad');
     return;
   }
 
-  document.body.insertAdjacentHTML('beforeend', renderFormTurno(pacientes, profesionales, fechaActual));
+  document.body.insertAdjacentHTML('beforeend', renderFormTurno(profesionales, fechaActual));
   const overlay = document.getElementById('overlay-turno');
   const form = document.getElementById('form-turno');
   const cerrar = () => overlay.remove();
@@ -100,7 +110,9 @@ async function nuevoTurno() {
     const btn = document.getElementById('btn-guardar-turno');
     const fd = new FormData(form);
     const datos = {
-      paciente_id: fd.get('paciente_id'),
+      paciente_nombre: (fd.get('paciente_nombre') || '').trim(),
+      paciente_telefono: (fd.get('paciente_telefono') || '').trim() || null,
+      paciente_dni: (fd.get('paciente_dni') || '').trim() || null,
       profesional_id: fd.get('profesional_id'),
       fecha: fd.get('fecha'),
       hora: fd.get('hora') || null,
@@ -109,73 +121,70 @@ async function nuevoTurno() {
 
     const v = validarTurno(datos);
     if (!v.ok) { toast(v.mensaje, 'bad'); return; }
+    if (datos.paciente_dni) datos.paciente_dni = normalizarDni(datos.paciente_dni);
 
     btn.disabled = true;
     btn.textContent = 'Verificando…';
+    const reactivar = () => {
+      btn.disabled = false;
+      btn.textContent = 'Crear turno';
+    };
 
-    // 1) VALIDACIÓN DE SUPERPOSICIÓN (ventana de duración mínima de sesión):
-    // A) El PACIENTE no puede tener otro turno dentro de la ventana de 30 min
-    //    (aunque sea con otro profesional: no puede estar en dos sesiones a la vez).
-    // B) El PROFESIONAL no puede tener otro paciente dentro de la misma ventana.
-    //    Dos turnos solapan si |horaA - horaB| < DURACION_SESION.
+    // 1) EL HORARIO TIENE QUE ESTAR LIBRE (ventana de 30 min de sesión):
+    //    A) Sin pisar a un paciente FIJO del profesional en la grilla, los
+    //       días que trabaja (la grilla se repite todos esos días). Bloquea.
+    //    B) Sin pisar otro turno casual del mismo profesional ese día.
+    //    Dos horarios se pisan si |horaA - horaB| < DURACION_SESION.
     const DURACION_SESION = 30; // minutos
-    if (datos.hora) {
-      let turnosPacDia, turnosProfDia;
-      try {
-        [turnosPacDia, turnosProfDia] = await Promise.all([
-          turnoModel.listarTurnosPacientePorFecha(datos.paciente_id, datos.fecha),
-          turnoModel.listarTurnosProfesionalPorFecha(datos.profesional_id, datos.fecha),
-        ]);
-      } catch (err) {
-        // Si no se pudo verificar (p. ej. corte de red), NO se crea el turno
-        // a ciegas: se aborta y se avisa, para no dejar pasar superposiciones.
-        console.error('Error al verificar superposiciones de turnos:', err);
-        toast('No se pudo verificar si el horario está libre. Revisá la conexión.', 'bad');
-        btn.disabled = false;
-        btn.textContent = 'Crear turno';
-        return;
-      }
+    const prof = profesionales.find(p => String(p.id) === String(datos.profesional_id));
+    let fijos, turnosProfDia;
+    try {
+      [fijos, turnosProfDia] = await Promise.all([
+        asignacionModel.listarVigentesDeProfesional(datos.profesional_id),
+        turnoModel.listarTurnosProfesionalPorFecha(datos.profesional_id, datos.fecha),
+      ]);
+    } catch (err) {
+      // Si no se pudo verificar (p. ej. corte de red), NO se crea el turno
+      // a ciegas: se aborta y se avisa, para no dejar pasar superposiciones.
+      console.error('Error al verificar si el horario está libre:', err);
+      toast('No se pudo verificar si el horario está libre. Revisá la conexión.', 'bad');
+      reactivar();
+      return;
+    }
 
-      const minNuevo = horaAMinutos(datos.hora);
-      const solapa = (t) => {
-        const m = horaAMinutos(t.hora);
-        return m !== null && Math.abs(minNuevo - m) < DURACION_SESION;
-      };
+    const minNuevo = horaAMinutos(datos.hora);
+    const pisa = (otro) => {
+      const m = horaAMinutos(otro.hora);
+      return m !== null && Math.abs(minNuevo - m) < DURACION_SESION;
+    };
 
-      const turnoPac = turnosPacDia.find(solapa);
-      if (turnoPac) {
-        const profNombre = turnoPac.profesionales?.nombre_completo || 'otro profesional';
-        const horaExistente = (turnoPac.hora || '').slice(0, 5);
-        toast(
-          `El paciente ya tiene un turno a las ${horaExistente} con ${profNombre}. ` +
-          `Dejá al menos ${DURACION_SESION} minutos entre turnos.`,
-          'bad'
-        );
-        btn.disabled = false;
-        btn.textContent = 'Crear turno';
-        return;
-      }
+    const dias = prof?.dias_trabajo || [];
+    const trabajaEseDia = !dias.length || dias.includes(nombreDia(datos.fecha));
+    const fijo = trabajaEseDia ? fijos.find(pisa) : null;
+    if (fijo) {
+      toast(
+        `A las ${String(fijo.hora).slice(0, 5)} ${prof?.nombre_completo || 'el profesional'} atiende a ` +
+        `${fijo.pacientes?.nombre_completo || 'un paciente fijo'} (Grilla de atención). Elegí otro horario.`,
+        'bad'
+      );
+      reactivar();
+      return;
+    }
 
-      const turnoProf = turnosProfDia.find(solapa);
-      if (turnoProf) {
-        const pacNombre = turnoProf.pacientes?.nombre_completo || 'otro paciente';
-        const horaExistente = (turnoProf.hora || '').slice(0, 5);
-        toast(
-          `Ese profesional ya atiende a ${pacNombre} a las ${horaExistente}. ` +
-          `Dejá al menos ${DURACION_SESION} minutos entre turnos.`,
-          'bad'
-        );
-        btn.disabled = false;
-        btn.textContent = 'Crear turno';
-        return;
-      }
+    const turnoProf = turnosProfDia.find(pisa);
+    if (turnoProf) {
+      toast(
+        `Ese profesional ya tiene un turno a las ${(turnoProf.hora || '').slice(0, 5)} con ${nombreDelTurno(turnoProf)}. ` +
+        `Dejá al menos ${DURACION_SESION} minutos entre turnos.`,
+        'bad'
+      );
+      reactivar();
+      return;
     }
 
     // 2) VALIDACIÓN DE HORARIO Y DÍAS LABORALES DEL PROFESIONAL:
     const selProf = form.querySelector('[name="profesional_id"]');
     const opt = selProf.options[selProf.selectedIndex];
-    const entrada = opt?.dataset.entrada || '';
-    const salida = opt?.dataset.salida || '';
     const diasRaw = opt?.dataset.dias || '[]';
     let diasTrabajo = [];
     try {
@@ -204,13 +213,14 @@ async function nuevoTurno() {
       }
     }
 
-    // B) Aviso (no bloqueo) si la hora cae fuera del horario del profesional
-    if (datos.hora && entrada && salida && !horaEnRango(datos.hora, entrada, salida)) {
-      const prof = profesionales.find(p => String(p.id) === String(datos.profesional_id));
-      const nombreProf = prof?.nombre_completo || 'el profesional';
+    // B) Aviso (no bloqueo) si la hora cae fuera de sus turnos (mañana /
+    //    tarde): con los dos turnos, el mediodía también queda afuera.
+    const profTurno = profesionales.find(p => String(p.id) === String(datos.profesional_id));
+    if (datos.hora && turnosDe(profTurno).length && !atiendeALaHora(profTurno, datos.hora)) {
+      const nombreProf = profTurno?.nombre_completo || 'el profesional';
       const seguir = await confirmar({
         titulo: 'Turno fuera de horario',
-        mensaje: `${nombreProf} atiende de ${entrada} a ${salida}. El turno de las ${datos.hora} queda fuera de ese horario. ¿Lo agendás igual?`,
+        mensaje: `${nombreProf} atiende ${turnosDe(profTurno).map(t => `${t.corto.toLowerCase()} de ${rangoTurno(t)}`).join(' y ')}. El turno de las ${datos.hora} queda fuera de ese horario. ¿Lo agendás igual?`,
         textoOk: 'Agendar igual',
         textoCancelar: 'Volver',
       });
@@ -224,7 +234,9 @@ async function nuevoTurno() {
     btn.textContent = 'Guardando…';
     try {
       await turnoModel.crearTurno({
-        pacienteId: datos.paciente_id,
+        pacienteNombre: datos.paciente_nombre,
+        pacienteTelefono: datos.paciente_telefono,
+        pacienteDni: datos.paciente_dni,
         profesionalId: datos.profesional_id,
         fecha: datos.fecha,
         hora: datos.hora,
@@ -248,9 +260,10 @@ async function nuevoTurno() {
 // CAMBIAR ESTADO / ELIMINAR
 // ---------------------------------------------------------------------
 async function cambiarEstado(id, estado) {
-  // No se puede marcar "atendido" si el profesional no está presente en la
-  // planilla de asistencia de esa fecha. Se verifica antes de guardar y, si
-  // no corresponde, se revierte el <select> a su estado anterior.
+  // No se puede marcar "atendido" si el profesional no está presente en su
+  // fichaje de esa fecha. (El paciente casual no tiene legajo ni planilla
+  // de asistencia: que vino lo dice el mismo "Atendido".) Se verifica antes
+  // de guardar y, si no corresponde, se revierte el <select>.
   if (estado === 'atendido') {
     const turno = turnosCargados.find(t => String(t.id) === String(id));
     const revertir = () => {
@@ -259,23 +272,13 @@ async function cambiarEstado(id, estado) {
     };
     if (turno) {
       try {
-        // Para marcar "atendido" deben estar presentes AMBOS ese día: el
-        // profesional (planilla de fichaje) y el paciente (asistencia).
-        const [fichajesProf, asisPac] = await Promise.all([
-          asistenciaProfModel.listarPorFecha(turno.fecha),
-          asistenciaModel.listarAsistenciasPorFecha(turno.fecha),
-        ]);
+        const fichajesProf = await asistenciaProfModel.listarPorFecha(turno.fecha);
         const profPresente = fichajesProf.some(f =>
           String(f.profesional_id) === String(turno.profesional_id) && f.estado === 'presente');
-        const pacPresente = asisPac.some(a =>
-          String(a.paciente_id) === String(turno.paciente_id) && a.estado === 'presente');
 
-        if (!profPresente || !pacPresente) {
-          // Se dice QUIÉN falta y QUÉ hacer, sin explicar el mecanismo.
-          const quien = (!profPresente && !pacPresente) ? 'el profesional y el paciente'
-            : !profPresente ? 'el profesional' : 'el paciente';
+        if (!profPresente) {
           const cuando = turno.fecha === hoyISO() ? 'de hoy' : 'de ese día';
-          toast(`Para marcar Atendido, ${quien} tiene que figurar presente. Completá la asistencia ${cuando}.`, 'bad');
+          toast(`Para marcar Atendido, el profesional tiene que figurar presente. Completá su fichaje ${cuando} en Asistencia.`, 'bad');
           revertir();
           return;
         }
@@ -300,19 +303,25 @@ async function cambiarEstado(id, estado) {
 
 async function eliminar(id) {
   const turno = turnosCargados.find(t => String(t.id) === String(id));
-  const paciente = turno?.pacientes?.nombre_completo;
+  const paciente = turno ? nombreDelTurno(turno) : null;
   const hora = (turno?.hora || '').slice(0, 5);
+  const tieneCert = !!certificados[id];
   const seguir = await confirmar({
     titulo: 'Eliminar turno',
-    mensaje: paciente
-      ? `Se borra el turno de ${paciente}${hora ? ` de las ${hora}` : ''}. Esta acción no se puede deshacer.`
-      : 'Se borra este turno. Esta acción no se puede deshacer.',
+    mensaje: (paciente
+      ? `Se borra el turno de ${paciente}${hora ? ` de las ${hora}` : ''}.`
+      : 'Se borra este turno.')
+      + (tieneCert ? ' También se borra su evaluación / certificado.' : '')
+      + ' Esta acción no se puede deshacer.',
     textoOk: 'Eliminar',
     textoCancelar: 'Volver',
     peligro: true,
   });
   if (!seguir) return;
   try {
+    // El certificado de un casual no tiene paciente: sin el turno quedaría
+    // huérfano (y la base no lo admite), así que se borra primero.
+    if (tieneCert) await evaluacionModel.eliminarCertificadoDeTurno(id);
     await turnoModel.eliminarTurno(id);
     toast('Turno eliminado.');
     await cargarFecha(fechaActual);
@@ -320,4 +329,52 @@ async function eliminar(id) {
     console.error('Error eliminando turno:', err);
     toast('No se pudo eliminar el turno. Probá de nuevo.', 'bad');
   }
+}
+
+// ---------------------------------------------------------------------
+// EVALUACIÓN / CERTIFICADO DE UN CASUAL
+// ---------------------------------------------------------------------
+// Ocasional: se hace cuando la persona lo pide. Requisito: el turno
+// marcado "Atendido" (que vino está confirmado). Lo firma el profesional
+// del turno. Queda guardado atado al turno (no hay legajo donde
+// adjuntarlo) y se descarga el PDF para imprimir. Si ya existía, se abre
+// con lo cargado: volver a guardar lo actualiza y reimprime.
+function abrirCertificadoCasual(turnoId) {
+  const turno = turnosCargados.find(t => String(t.id) === String(turnoId));
+  if (!turno) return;
+  if (turno.estado !== 'atendido') {
+    toast('Primero marcá el turno como Atendido: así queda confirmado que la persona vino.', 'bad');
+    return;
+  }
+
+  const existente = certificados[turno.id];
+  const paciente = { nombre_completo: nombreDelTurno(turno), dni: turno.paciente_dni };
+  const profesional = turno.profesionales || {};
+
+  abrirEditorInforme({
+    paciente,
+    autores: [{ id: turno.id, profesional_id: turno.profesional_id, profesionales: profesional, hora: turno.hora }],
+    datosPorProf: existente ? { [String(turno.profesional_id)]: parseEvaluacion(existente.contenido) } : {},
+    vista: {
+      tipos: [TIPO_CERTIFICADO],
+      titulo: 'Evaluación / certificado',
+      etiquetaProf: 'Profesional que lo atendió',
+      nota: 'Paciente casual (sin legajo): queda guardado en su turno y se descarga el PDF para imprimir.',
+    },
+    alGuardar: async ({ datos, contenido }) => {
+      const hoy = hoyISO();
+      await evaluacionModel.guardarCertificadoCasual({
+        turnoId: turno.id, profesionalId: turno.profesional_id, fecha: hoy, contenido,
+      });
+      try {
+        const { generarInformeEvaluacion } = await import('../utils/informePdf.js');
+        await generarInformeEvaluacion({ paciente, profesional, fecha: hoy, informe: datos });
+        toast('Guardado. Se descargó el PDF.');
+      } catch (errPdf) {
+        console.error('Certificado guardado, pero falló el PDF:', errPdf);
+        toast('Se guardó, pero no se pudo generar el PDF.', 'bad');
+      }
+      await cargarFecha(fechaActual);
+    },
+  });
 }

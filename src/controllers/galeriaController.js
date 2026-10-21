@@ -20,6 +20,7 @@ let periodo = periodoMensual();
 let profesionales = [];
 let fotos = [];          // fotos del período mostrado (con su URL firmada)
 let todasLasFotos = [];  // todas (para saber quién no subió la del mes)
+let miProfesionalId = null; // id del profesional logueado (solo si rol=profesional)
 
 // Punto de entrada de la sección (lo llama el router).
 export async function iniciarGaleria() {
@@ -90,10 +91,16 @@ function pintar() {
   document.getElementById('gal-fotos').textContent = fotos.length;
   document.getElementById('gal-deben-foto').textContent = pendientes.fotos.length;
 
+  const perfil = perfilActual();
+  // Solo el propio profesional sube su foto (identificado por su usuario
+  // logueado, no por un desplegable): así queda bien atribuida y nadie
+  // puede subir a nombre de otro. Director/secretaría/CM solo miran.
+  miProfesionalId = perfil?.rol === 'profesional' ? perfil?.profesional_id : null;
+
   document.getElementById('gal-pane-fotos').innerHTML = renderFotos({
-    fotos, profesionales, periodo,
-    // El CM mira y usa el material; no sube ni borra fotos ajenas.
-    puedeSubir: perfilActual()?.rol !== 'cm',
+    fotos, periodo,
+    puedeSubir: !!miProfesionalId,
+    miNombre: perfil?.nombre || '',
   });
 }
 
@@ -102,9 +109,8 @@ function pintar() {
 // ---------------------------------------------------------------------
 async function subirFoto(form) {
   const datos = new FormData(form);
-  const profesionalId = datos.get('profesional_id');
   const archivo = datos.get('archivo');
-  if (!profesionalId) { toast('Elegí el profesional.', 'bad'); return; }
+  if (!miProfesionalId) { toast('Solo un profesional puede subir su foto.', 'bad'); return; }
   if (!archivo || !archivo.size) { toast('Elegí una foto para subir.', 'bad'); return; }
 
   const boton = document.getElementById('gal-subir');
@@ -112,7 +118,7 @@ async function subirFoto(form) {
   boton.textContent = 'Subiendo…';
   try {
     const guardada = await fotoModel.subirFoto({
-      profesionalId, periodo, archivo, descripcion: datos.get('descripcion'),
+      profesionalId: miProfesionalId, periodo, archivo, descripcion: datos.get('descripcion'),
     });
     const url = await fotoModel.urlFoto(guardada.storage_path).catch(() => null);
     fotos = [{ ...guardada, url }, ...fotos];

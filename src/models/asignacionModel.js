@@ -1,14 +1,16 @@
 // =====================================================================
 // MODELO: Asignaciones (celdas de la grilla de atención)
 // ---------------------------------------------------------------------
-// CAPA MODELO. Acceso a la tabla `asignaciones`: con qué profesional se
-// atiende cada paciente y a qué hora. Los horarios son fijos y se
+// CAPA MODELO. Acceso a la tabla `asignaciones`: con qué paciente se
+// atiende cada profesional y a qué hora (la celda es el cruce PROFESIONAL
+// × FRANJA HORARIA, no paciente × sector — ver la migración
+// supabase-migracion-grilla-horarios.sql). Los horarios son fijos y se
 // repiten todos los días, así que una fila vale para todos los días
 // mientras esté vigente.
 //
-// VIGENCIA: una celda no se pisa ni se borra cuando cambia el
-// profesional. Se le pone `vigente_hasta` (queda cerrada, como historia)
-// y se crea otra. Por eso todas las consultas de la grilla filtran por
+// VIGENCIA: una celda no se pisa ni se borra cuando cambia el paciente.
+// Se le pone `vigente_hasta` (queda cerrada, como historia) y se crea
+// otra. Por eso todas las consultas de la grilla filtran por
 // `vigente_hasta is null`.
 // =====================================================================
 
@@ -24,6 +26,19 @@ export async function listarVigentes() {
     .from(TABLA)
     .select('*, pacientes(nombre_completo), profesionales(nombre_completo, profesion)')
     .is('vigente_hasta', null);
+  if (error) throw error;
+  return data || [];
+}
+
+// Celdas vigentes de UN profesional (sus franjas fijas ocupadas), con el
+// paciente. La agenda las usa para no dar un turno casual encima.
+export async function listarVigentesDeProfesional(profesionalId) {
+  const { data, error } = await supabase
+    .from(TABLA)
+    .select('hora, pacientes(nombre_completo)')
+    .eq('profesional_id', profesionalId)
+    .is('vigente_hasta', null)
+    .not('hora', 'is', null);
   if (error) throw error;
   return data || [];
 }
@@ -44,41 +59,51 @@ export async function listarPorPaciente(pacienteId, { soloVigentes = false } = {
   return data || [];
 }
 
-// Guarda una celda de la grilla (el cruce paciente × sector).
-//   profesionalId     -> si se eligió uno de los cargados en el sistema
-//   profesionalNombre -> si se escribió a mano (o una "X")
+// Guarda una celda de la grilla (el cruce profesional × franja horaria).
+//   profesionalId -> siempre uno de los cargados en el sistema (la
+//                    columna ES ese profesional; ya no se escribe a mano)
+//   hora          -> inicio de la franja de 30 min ('HH:MM')
+//   pacienteId    -> siempre uno de los pacientes cargados
+//   sector        -> el sector del profesional al momento de asignarlo
+//                    (queda de historia; la grilla agrupa por el sector
+//                    ACTUAL del profesional, no por este campo)
 //
-// Si en esa celda ya había OTRO profesional, no se pisa: se cierra la
-// anterior y se crea una nueva, así queda registro de con quién se
-// atendía antes.
-export async function guardarCelda({ pacienteId, sector, profesionalId = null, profesionalNombre = null }) {
-  const { data: existentes, error: errorBusqueda } = await supabase
+// Si esa franja ya tenía OTRO paciente, no se pisa: se cierra la celda
+// anterior y se crea una nueva (historia de con quién se atendía antes).
+// Si ESE MISMO paciente ya tenía otra franja con ESTE profesional, esa
+// otra se cierra también: se está reprogramando, no duplicando.
+export async function guardarCelda({ pacienteId, profesionalId, hora, sector = null }) {
+  const { data: ocupando, error: errorBusqueda } = await supabase
     .from(TABLA)
     .select('*')
-    .eq('paciente_id', pacienteId)
-    .eq('sector', sector)
+    .eq('profesional_id', profesionalId)
+    .eq('hora', hora)
     .is('vigente_hasta', null)
     .limit(1);
   if (errorBusqueda) throw errorBusqueda;
 
-  const actual = existentes?.[0];
+  const actual = ocupando?.[0];
   if (actual) {
-    const mismoProfesional =
-      String(actual.profesional_id ?? '') === String(profesionalId ?? '') &&
-      (actual.profesional_nombre ?? '') === (profesionalNombre ?? '');
-    if (mismoProfesional) return actual;   // nada que cambiar
-    // Cambió el profesional: se cierra la celda anterior (historia).
-    await cerrarCelda(actual.id, 'Cambio de profesional');
+    if (String(actual.paciente_id) === String(pacienteId)) return actual;   // nada que cambiar
+    await cerrarCelda(actual.id, 'Reemplazado desde la grilla');
+  }
+
+  // Si el paciente ya tenía OTRA franja con este mismo profesional (se
+  // está moviendo de horario), esa queda como historia.
+  const { data: previas, error: errorPrevias } = await supabase
+    .from(TABLA)
+    .select('id, hora')
+    .eq('paciente_id', pacienteId)
+    .eq('profesional_id', profesionalId)
+    .is('vigente_hasta', null);
+  if (errorPrevias) throw errorPrevias;
+  for (const previa of previas || []) {
+    if (previa.hora !== hora) await cerrarCelda(previa.id, 'Cambio de horario');
   }
 
   const { data, error } = await supabase
     .from(TABLA)
-    .insert({
-      paciente_id: pacienteId,
-      sector,
-      profesional_id: profesionalId,
-      profesional_nombre: profesionalNombre,
-    })
+    .insert({ paciente_id: pacienteId, profesional_id: profesionalId, hora, sector })
     .select('*, pacientes(nombre_completo), profesionales(nombre_completo, profesion)')
     .single();
   if (error) throw error;

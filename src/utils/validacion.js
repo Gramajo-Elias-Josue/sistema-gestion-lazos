@@ -55,10 +55,16 @@ export function validarDocumento(datos) {
 }
 
 // ---- Turno ----
+// Turno CASUAL (persona sin legajo). La hora es obligatoria: sin ella no
+// se puede controlar que no pise un turno fijo de la grilla.
 export function validarTurno(datos) {
-  if (!datos.paciente_id) return error('Elegí el paciente del turno.');
+  if (!datos.paciente_nombre || !datos.paciente_nombre.trim()) return error('Escribí el nombre del paciente.');
+  if (datos.paciente_dni && !/^\d{6,9}$/.test(normalizarDni(datos.paciente_dni))) {
+    return error('Revisá el DNI: van solo números, sin puntos.');
+  }
   if (!datos.profesional_id) return error('Elegí el profesional del turno.');
   if (!datos.fecha) return error('Elegí la fecha del turno.');
+  if (!datos.hora) return error('Elegí la hora del turno.');
   return ok();
 }
 
@@ -86,14 +92,6 @@ export function validarFichajeProfesional(datos, ctx = {}) {
     if (datos.hora_entrada && horaAMinutos(datos.hora_entrada) > limite) {
       return error('Esa hora de entrada todavía no llegó. Revisá el horario.');
     }
-  }
-  return ok();
-}
-
-// ---- Evaluación diaria ----
-export function validarEvaluacion(datos) {
-  if (!datos.contenido || !datos.contenido.trim()) {
-    return error('Escribí la evaluación antes de guardar.');
   }
   return ok();
 }
@@ -139,11 +137,10 @@ export function validarProfesional(datos, { esNuevo = false } = {}) {
   if (esNuevo && (!datos.direccion || !datos.direccion.trim())) {
     return error('Falta la dirección.');
   }
-  if (esNuevo && !datos.horario_entrada) {
-    return error('Falta el horario de entrada.');
-  }
-  if (esNuevo && !datos.horario_salida) {
-    return error('Falta el horario de salida.');
+  // El turno se exige también al editar: sin turno el profesional no
+  // aparece en ninguna pestaña de la Grilla de atención.
+  if (!Array.isArray(datos.turnos_trabajo) || !datos.turnos_trabajo.length) {
+    return error('Elegí al menos un turno (mañana o tarde).');
   }
   if (esNuevo && (!Array.isArray(datos.dias_trabajo) || !datos.dias_trabajo.length)) {
     return error('Elegí al menos un día de trabajo.');

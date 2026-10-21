@@ -1,11 +1,13 @@
 // =====================================================================
-// UTILIDAD: Informe diario en PDF (plantilla reutilizable)
+// UTILIDAD: Documentos PDF de la clínica (jsPDF + autotable)
 // ---------------------------------------------------------------------
-// Genera el informe diario de UN profesional con jsPDF + autotable y lo
-// descarga. La plantilla es la misma para cualquier profesional: cambia
-// solo el contenido (encabezado institucional, datos del profesional,
-// horario de entrada/salida, tabla paciente→evaluación y zona de firma y
-// sello para imprimir y rubricar).
+// Todos llevan el MISMO membrete institucional y zona de firma y sello:
+//   - generarInformeEvaluacion: informes (mensual, anual, …) y la
+//     evaluación / certificado ocasional.
+//   - generarPlanillaAsistencia: planilla mensual de asistencia de un
+//     paciente o un profesional.
+// Se importa de forma dinámica (import()) desde los controladores: jsPDF
+// pesa, así que solo se descarga cuando alguien genera un PDF.
 // =====================================================================
 
 import { jsPDF } from 'jspdf';
@@ -163,76 +165,6 @@ function dibujarFirma(doc, { W, H, margin, y, aclaracion = '' }) {
   return yf;
 }
 
-// Datos:
-//   profesional: { nombre_completo, profesion, especialidad, matricula }
-//   fecha: 'yyyy-mm-dd'
-//   evaluaciones: [{ paciente, contenido }]
-//   fichaje: { hora_entrada, hora_salida } | null
-export function generarInformeDiario({ profesional = {}, fecha, evaluaciones = [], fichaje = null }) {
-  const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-  const W = doc.internal.pageSize.getWidth();
-  const H = doc.internal.pageSize.getHeight();
-  const margin = 40;
-  let y = margin;
-
-  // --- Encabezado institucional ---
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(18);
-  doc.text('Lazos', margin, y + 4);
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(90);
-  doc.text('Centro de Rehabilitación Integral · Aguilares, Tucumán', margin, y + 20);
-
-  doc.setFont('helvetica', 'bold'); doc.setFontSize(13); doc.setTextColor(0);
-  doc.text('Informe diario', W - margin, y + 2, { align: 'right' });
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(90);
-  doc.text(fechaLarga(fecha), W - margin, y + 20, { align: 'right' });
-
-  y += 38;
-  doc.setDrawColor(200); doc.line(margin, y, W - margin, y); y += 22;
-
-  // --- Datos del profesional + fichaje ---
-  doc.setTextColor(0); doc.setFont('helvetica', 'bold'); doc.setFontSize(12);
-  doc.text(profesional.nombre_completo || 'Profesional', margin, y);
-  const sub = [profesional.profesion, profesional.especialidad, profesional.matricula ? 'Mat. ' + profesional.matricula : null]
-    .filter(Boolean).join('  ·  ');
-  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(70);
-  if (sub) doc.text(sub, margin, y + 15);
-
-  doc.setTextColor(0); doc.setFontSize(10);
-  doc.text(`Entrada: ${hhmm(fichaje?.hora_entrada)}     Salida: ${hhmm(fichaje?.hora_salida)}`, W - margin, y, { align: 'right' });
-  y += 32;
-
-  // --- Tabla de evaluaciones ---
-  autoTable(doc, {
-    startY: y,
-    head: [['Paciente', 'Evaluación del día']],
-    body: evaluaciones.length
-      ? evaluaciones.map(e => [e.paciente || '—', e.contenido || '—'])
-      : [['—', 'Sin evaluaciones cargadas para esta fecha.']],
-    styles: { fontSize: 10, cellPadding: 6, valign: 'top', lineColor: [225, 225, 225], lineWidth: 0.5 },
-    headStyles: { fillColor: [23, 119, 179], textColor: 255, fontStyle: 'bold' },
-    columnStyles: { 0: { cellWidth: 150 }, 1: { cellWidth: 'auto' } },
-    margin: { left: margin, right: margin },
-  });
-
-  // --- Firma y sello ---
-  let yf = (doc.lastAutoTable?.finalY || y) + 70;
-  if (yf > H - 90) { doc.addPage(); yf = 130; }
-  const colW = (W - margin * 2 - 50) / 2;
-  doc.setDrawColor(120);
-  doc.line(margin, yf, margin + colW, yf);
-  doc.line(margin + colW + 50, yf, W - margin, yf);
-  doc.setFontSize(9); doc.setTextColor(90);
-  doc.text('Firma', margin, yf + 14);
-  doc.text('Aclaración y sello', margin + colW + 50, yf + 14);
-
-  // --- Pie ---
-  doc.setFontSize(8); doc.setTextColor(150);
-  doc.text('Generado por el sistema de gestión Lazos', margin, H - 24);
-
-  const slug = (profesional.nombre_completo || 'profesional').replace(/[^\w]+/g, '_').replace(/^_|_$/g, '');
-  doc.save(`informe-${slug}-${fecha}.pdf`);
-}
-
 // =====================================================================
 // Informe profesional (plantilla igual a la que usa la clínica)
 // ---------------------------------------------------------------------
@@ -329,7 +261,7 @@ export async function generarInformeEvaluacion({ paciente = {}, profesional = {}
   doc.text(`Generado por el sistema de gestión ${CLINICA.nombre} · ${fechaLarga(fecha)}`, margin, H - 24);
 
   const slug = (paciente.nombre_completo || 'paciente').replace(/[^\w]+/g, '_').replace(/^_|_$/g, '');
-  const filename = `informe-${slug}-${fecha}.pdf`;
+  const filename = `${informe.tipo === 'certificado' ? 'certificado' : 'informe'}-${slug}-${fecha}.pdf`;
   doc.save(filename);              // descarga inmediata para el profesional
   const blob = doc.output('blob'); // mismo PDF, para adjuntar a la historia
   return { blob, filename };

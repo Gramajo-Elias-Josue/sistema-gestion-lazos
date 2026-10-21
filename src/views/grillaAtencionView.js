@@ -1,139 +1,220 @@
 // =====================================================================
-// VISTA: Grilla de atención (paciente × sector)
+// VISTA: Grilla de atención (profesional × franja horaria)
 // ---------------------------------------------------------------------
-// CAPA VISTA. Arma la planilla del centro, la misma que se lleva en
-// papel:
-//   - FILAS: los pacientes activos (salen solos del sistema).
-//   - COLUMNAS: los sectores (Psicología, Fonoaudiología, T.O., …), más
-//     la columna "Hs de asist" (turno del paciente).
-//   - CELDA: el nombre del profesional que lo atiende. Se escribe a
-//     mano, como en una planilla de Excel.
+// CAPA VISTA. Arma la organización general de turnos del centro, como la
+// planilla que se lleva en papel:
+//   - Separada en los dos TURNOS del centro (pestañas mañana 8 a 12 /
+//     tarde 14 a 18). En cada turno aparecen solo los profesionales que
+//     trabajan en él; el que hace los dos aparece en ambas pestañas.
+//   - UNA TARJETA por profesional, agrupadas y coloreadas por su sector
+//     (Psicología, Fonoaudiología, T.O., …).
+//   - Dentro de cada tarjeta, las FRANJAS HORARIAS de 30 minutos de ese
+//     turno.
+//   - En cada franja, el PACIENTE que tiene esa hora con ese profesional.
+//     Se elige de los pacientes cargados (ya no se escribe libre).
 //
-// Los sectores (columnas) se agregan/quitan desde Profesionales → pestaña
-// "Profesiones", no desde acá: acá solo se muestran.
+// Las tarjetas van una al lado de la otra en pantalla ancha y en
+// carrusel (una por vez, con flechas) en el celular — lo decide el CSS
+// con un media query; acá se arma UNA sola vez el mismo markup para las
+// dos pantallas.
+//
+// Los sectores (para agrupar y colorear) se agregan/quitan desde
+// Profesionales → pestaña "Profesiones"; acá solo se muestran.
 //
 // La vista no guarda nada: solo dibuja lo que le da el controlador.
 // =====================================================================
 
 import { esc } from '../utils/ui.js';
 import { iniciales } from '../utils/fechas.js';
-import { areaDeProfesion, etiquetaArea } from '../utils/areas.js';
+import { areaDelProfesional } from '../utils/areas.js';
+import { TURNOS_CENTRO, turnosDe, rangoTurno } from '../utils/turnosCentro.js';
 
-// Turnos del paciente (la columna "HS DE ASIST" de la planilla).
-export const TURNOS_PACIENTE = [
-  { valor: 'mañana', etiqueta: 'Mañana' },
-  { valor: 'tarde',  etiqueta: 'Tarde' },
-];
+// Cada franja dura 30 minutos: es lo que pidió el centro para poder
+// ajustar los turnos sin que la planilla quede eterna de larga.
+export const MINUTOS_FRANJA = 30;
 
-// Clave de una celda: identifica el cruce paciente × sector.
-export function claveCelda(pacienteId, sector) {
-  return `${pacienteId}|${sector}`;
+// Clave de una celda: identifica el cruce profesional × franja horaria.
+export function claveCelda(profesionalId, hora) {
+  return `${profesionalId}|${hora}`;
 }
 
-// Nombre a mostrar en una celda: el profesional del sistema si está
-// vinculado, o lo que se escribió a mano.
-export function nombreDeCelda(asignacion) {
-  if (!asignacion) return null;
-  return asignacion.profesionales?.nombre_completo || asignacion.profesional_nombre || null;
+// Las franjas de `minutos` entre dos horas 'HH:MM', en orden.
+export function franjasEntre(desde, hasta, minutos = MINUTOS_FRANJA) {
+  const [hD, mD] = desde.split(':').map(Number);
+  const [hH, mH] = hasta.split(':').map(Number);
+  const franjas = [];
+  let cursor = hD * 60 + mD;
+  const fin = hH * 60 + mH;
+  while (cursor + minutos <= fin) {
+    franjas.push(`${String(Math.floor(cursor / 60)).padStart(2, '0')}:${String(cursor % 60).padStart(2, '0')}`);
+    cursor += minutos;
+  }
+  return franjas;
 }
 
-// Sugerencias para escribir en las celdas. Es un <datalist>: se puede
-// elegir de la lista o escribir cualquier nombre, como en Excel.
-export function renderListaProfesionales(profesionales = []) {
-  const opciones = profesionales.map(p => {
-    const area = etiquetaArea(areaDeProfesion(p.profesion)) || p.profesion || '';
-    return `<option value="${esc(p.nombre_completo)}">${esc(area)}</option>`;
-  }).join('');
-  return `<datalist id="ga-profesionales">${opciones}</datalist>`;
+// Las franjas de 30 minutos de un profesional: las de sus turnos (o solo
+// las de `clave` — 'manana' / 'tarde' — si se pide uno). Sin turnos
+// cargados devuelve una lista vacía.
+export function franjasDe(profesional, clave = null, minutos = MINUTOS_FRANJA) {
+  return turnosDe(profesional)
+    .filter(t => !clave || t.clave === clave)
+    .flatMap(t => franjasEntre(t.desde, t.hasta, minutos));
+}
+
+// Paciente de una celda ya cargada (o null si está vacía).
+export function pacienteDeCelda(asignacion) {
+  return asignacion?.pacientes?.nombre_completo || null;
+}
+
+// Contenido de una celda: el nombre del paciente, o nada.
+export function contenidoCelda(asignacion) {
+  const nombre = pacienteDeCelda(asignacion);
+  return nombre ? `<span class="ga-nombre">${esc(nombre)}</span>` : '';
+}
+
+// Sugerencias para escribir en las celdas: los pacientes cargados. Una
+// sola lista para toda la grilla (cualquier paciente puede ir con
+// cualquier profesional; ya no hay que filtrar por sector). Sigue siendo
+// un <datalist>: se puede elegir o escribir cualquier nombre.
+export function renderListaPacientes(pacientes = []) {
+  const opciones = pacientes.map(p => `<option value="${esc(p.nombre_completo)}"></option>`).join('');
+  return `<datalist id="ga-pacientes">${opciones}</datalist>`;
 }
 
 // La celda en modo edición: un campo de texto y nada más.
 export function renderInputCelda(valor = '') {
-  return `<input class="ga-input" list="ga-profesionales" value="${esc(valor)}" autocomplete="off" spellcheck="false">`;
+  return `<input class="ga-input" list="ga-pacientes" value="${esc(valor)}" autocomplete="off" spellcheck="false">`;
 }
 
-// Contenido de una celda ya cargada (o vacía).
-export function contenidoCelda(asignacion) {
-  const nombre = nombreDeCelda(asignacion);
-  if (!nombre) return '';
-  // "X" es la marca de la planilla de papel: ese sector no le corresponde.
-  if (nombre.trim().toUpperCase() === 'X') return `<span class="ga-equis">X</span>`;
-  return `<span class="ga-nombre">${esc(nombre)}</span>`;
+// Agrupa los profesionales por su sector (para el color y el orden de
+// las tarjetas), en el orden en que están las columnas de "Profesiones".
+// Al que no se le conoce el sector (dato viejo sin migrar) va en un
+// grupo aparte al final, gris, en vez de perderse.
+function agruparPorSector(profesionales, sectores) {
+  const grupos = sectores.map((s, indice) => ({
+    ...s,
+    indice,
+    profesionales: profesionales.filter(p => areaDelProfesional(p) === s.clave),
+  }));
+  const yaAgrupados = new Set(grupos.flatMap(g => g.profesionales.map(p => p.id)));
+  const sueltos = profesionales.filter(p => !yaAgrupados.has(p.id));
+  if (sueltos.length) {
+    grupos.push({ clave: '_sin-sector', etiqueta: 'Sin sector', indice: sectores.length, profesionales: sueltos });
+  }
+  return grupos.filter(g => g.profesionales.length);
 }
 
-// La grilla completa.
-//   pacientes -> filas
-//   sectores  -> columnas [{ clave, etiqueta }]
-//   celdas    -> { 'pacienteId|sector': asignación }
-//   editable  -> false = solo lectura (perfil sin permiso de operar)
-export function renderGrilla({ pacientes = [], sectores = [], celdas = {}, editable = true, profesionales = [] }) {
-  if (!pacientes.length) {
-    return `<div class="state">No hay pacientes activos. Cargalos desde <b>Pacientes</b> y aparecen acá solos.</div>`;
-  }
-  if (!sectores.length) {
-    return `<div class="state">No hay sectores cargados. Agregá el primero con el botón <b>+ Sector</b>.</div>`;
-  }
+// Texto de búsqueda de una tarjeta: el profesional, su sector y todos
+// los pacientes que hoy tiene cargados en alguna franja.
+function textoBuscable(prof, grupo, franjas, celdas) {
+  return [
+    prof.nombre_completo,
+    grupo.etiqueta,
+    ...franjas.map(hora => pacienteDeCelda(celdas[claveCelda(prof.id, hora)])),
+  ].filter(Boolean).join(' ').toLowerCase();
+}
 
-  const encabezados = sectores.map(s => `
-    <th class="ga-col-sector">
-      <span class="ga-sector-nombre">${esc(s.etiqueta)}</span>
-    </th>`).join('');
-
-  const filas = pacientes.map(pac => {
-    const celdasFila = sectores.map(s => {
-      const a = celdas[claveCelda(pac.id, s.clave)];
-      return `
-        <td class="ga-celda${editable ? '' : ' bloqueada'}"
-            data-paciente="${pac.id}" data-sector="${esc(s.clave)}"
-            ${a?.id ? `data-asignacion="${a.id}"` : ''}
-            title="${esc(pac.nombre_completo)} · ${esc(s.etiqueta)}">
-          ${contenidoCelda(a)}
-        </td>`;
-    }).join('');
-
-    const opcionesTurno = TURNOS_PACIENTE.map(t =>
-      `<option value="${t.valor}" ${pac.turno === t.valor ? 'selected' : ''}>${t.etiqueta}</option>`).join('');
-
-    // Texto plano de la fila (paciente + todos sus profesionales) para
-    // que el buscador filtre por cualquiera de los dos.
-    const buscable = [
-      pac.nombre_completo,
-      ...sectores.map(s => nombreDeCelda(celdas[claveCelda(pac.id, s.clave)])),
-    ].filter(Boolean).join(' ').toLowerCase();
-
+// Una tarjeta = un profesional, con las franjas del turno que se está
+// viendo. Coloreada según su sector (`ga-area-N`, ver estilos) para
+// identificarlo de un vistazo, como los colores de la planilla en papel.
+function renderTarjetaProfesional(prof, grupo, celdas, editable, turno) {
+  const franjas = franjasDe(prof, turno);
+  const filas = franjas.map(hora => {
+    const a = celdas[claveCelda(prof.id, hora)];
     return `
-      <tr data-buscar="${esc(buscable)}">
-        <th class="ga-col-pac" scope="row">
-          <span class="pav">${esc(iniciales(pac.nombre_completo))}</span>
-          <span class="ga-pac-nombre"><b>${esc(pac.nombre_completo)}</b></span>
-        </th>
-        ${celdasFila}
-        <td class="ga-col-turno">
-          <select class="ga-turno" data-paciente="${pac.id}" ${editable ? '' : 'disabled'}>
-            <option value="">—</option>
-            ${opcionesTurno}
-          </select>
-        </td>
-      </tr>`;
+      <div class="ga-fila-horario">
+        <span class="ga-hora">${hora}</span>
+        <div class="ga-celda${editable ? '' : ' bloqueada'}"
+             data-profesional="${prof.id}" data-hora="${hora}"
+             ${a?.id ? `data-asignacion="${a.id}"` : ''}>${contenidoCelda(a)}</div>
+      </div>`;
   }).join('');
 
   return `
-    ${renderListaProfesionales(profesionales)}
+    <article class="ga-tarjeta ga-area-${grupo.indice % 8}"
+             data-buscar="${esc(textoBuscable(prof, grupo, franjas, celdas))}">
+      <header class="ga-tarjeta-h">
+        <span class="pav">${esc(iniciales(prof.nombre_completo))}</span>
+        <div class="ga-tarjeta-tit">
+          <b>${esc(prof.nombre_completo)}</b>
+          <small>${esc(grupo.etiqueta)}</small>
+        </div>
+      </header>
+      <div class="ga-tarjeta-b">
+        <div class="ga-fila-horario ga-encabezado-fila">
+          <span class="ga-hora">HS</span>
+          <span>PACIENTE</span>
+        </div>
+        ${filas}
+      </div>
+    </article>`;
+}
+
+// Pestañas de los dos turnos del centro, con cuántos profesionales
+// trabajan en cada uno.
+function renderPestanasTurno(profesionales, turno) {
+  const botones = TURNOS_CENTRO.map(t => {
+    const cuantos = profesionales.filter(p => turnosDe(p).some(x => x.clave === t.clave)).length;
+    return `
+      <button type="button" class="tab${t.clave === turno ? ' active' : ''}" data-turno="${t.clave}">
+        ${esc(t.etiqueta)} <small>${esc(rangoTurno(t))} · ${cuantos}</small>
+      </button>`;
+  }).join('');
+  return `<div class="tabs ga-turnos" id="ga-turnos">${botones}</div>`;
+}
+
+// La grilla completa.
+//   profesionales -> activos; se muestran los que trabajan en `turno`
+//   sectores      -> para agrupar y colorear las tarjetas [{ clave, etiqueta }]
+//   pacientes     -> sugerencias para las celdas
+//   celdas        -> { 'profesionalId|hora': asignación }
+//   editable      -> false = solo lectura (perfil sin permiso de operar)
+//   turno         -> 'manana' | 'tarde': la pestaña que se está viendo
+export function renderGrilla({ profesionales = [], sectores = [], pacientes = [], celdas = {}, editable = true, turno = 'manana' }) {
+  if (!profesionales.length) {
+    return `<div class="state">No hay profesionales activos. Cargalos desde <b>Profesionales</b> y aparecen acá solos.</div>`;
+  }
+  if (!sectores.length) {
+    return `<div class="state">No hay profesiones cargadas. Agregá la primera desde Profesionales → pestaña "Profesiones".</div>`;
+  }
+
+  const delTurno = profesionales.filter(p => turnosDe(p).some(t => t.clave === turno));
+  const grupos = agruparPorSector(delTurno, sectores);
+  const tarjetas = grupos
+    .flatMap(g => g.profesionales.map(p => renderTarjetaProfesional(p, g, celdas, editable, turno)))
+    .join('');
+
+  // Los que no tienen ningún turno tildado no entran en ninguna pestaña:
+  // se avisa para que no "desaparezcan" sin explicación.
+  const sinTurno = profesionales.filter(p => !turnosDe(p).length);
+  const avisoSinTurno = sinTurno.length ? `
+    <div class="banner banner-alerta"><div>
+      <b>Sin turno cargado:</b> ${esc(sinTurno.map(p => p.nombre_completo).join(' · '))}.
+      Tildá su turno en <b>Profesionales</b> para verlos en la grilla.
+    </div></div>` : '';
+
+  const nombreTurno = TURNOS_CENTRO.find(t => t.clave === turno)?.etiqueta.toLowerCase() || 'este turno';
+  const contenido = tarjetas || `<div class="state">Nadie trabaja en el ${esc(nombreTurno)}. Se tilda en <b>Profesionales</b>.</div>`;
+
+  // El carrusel/flechas son solo para el celular (una tarjeta a la vez);
+  // en pantalla ancha el mismo markup se ve como columnas lado a lado.
+  // Lo decide el CSS; el controlador solo prende las flechas si hace
+  // falta (ver actualizarCarrusel).
+  return `
+    ${renderListaPacientes(pacientes)}
+    ${renderPestanasTurno(profesionales, turno)}
+    ${avisoSinTurno}
     <div class="ga-toolbar">
       <input id="ga-buscar" type="search" autocomplete="off"
-             placeholder="🔎 Buscar paciente o profesional…">
+             placeholder="🔎 Buscar profesional o paciente…">
       <span class="ga-contador" id="ga-contador"></span>
     </div>
-    <div class="ga-scroll">
-      <table class="ga-tabla">
-        <thead>
-          <tr>
-            <th class="ga-col-pac ga-esquina">Pacientes</th>
-            ${encabezados}
-            <th class="ga-col-turno">Hs de asist</th>
-          </tr>
-        </thead>
-        <tbody>${filas}</tbody>
-      </table>
+    <div class="ga-carrusel">
+      <div class="ga-tarjetas" id="ga-tarjetas">${contenido}</div>
+      <div class="ga-pager" id="ga-pager" hidden>
+        <button type="button" class="btn ghost" id="ga-prev" aria-label="Profesional anterior">‹</button>
+        <span class="ga-pager-info" id="ga-pager-info"></span>
+        <button type="button" class="btn ghost" id="ga-next" aria-label="Profesional siguiente">›</button>
+      </div>
     </div>`;
 }

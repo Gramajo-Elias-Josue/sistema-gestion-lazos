@@ -42,6 +42,17 @@
   --display:"Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
   --body:"Hanken Grotesk", -apple-system, "Segoe UI", system-ui, sans-serif;
   --shadow:0 1px 2px rgba(31,39,48,.05), 0 8px 24px -12px rgba(31,39,48,.16);
+  /* Un color por profesión, para identificar de un vistazo las tarjetas
+     de la Grilla de atención (0-4 = las profesiones fijas de siempre;
+     5 = sin sector cargado; 6-7 = de reserva si se agregan más). */
+  --area-0-bg:#ece4fb; --area-0-fg:#6b3fa0; /* Psicología: violeta */
+  --area-1-bg:#fdf1c6; --area-1-fg:#8a6a06; /* Fonoaudiología: amarillo */
+  --area-2-bg:#dbeafe; --area-2-fg:#1d5fa8; /* T.O.: azul */
+  --area-3-bg:#dcf5e3; --area-3-fg:#1f7a42; /* Kinesiología: verde */
+  --area-4-bg:#fbe1ea; --area-4-fg:#a13d63; /* Psicopedagogía: rosa */
+  --area-5-bg:#e7e5e4; --area-5-fg:#57534e; /* Sin sector: gris */
+  --area-6-bg:#d7f3ef; --area-6-fg:#0f766e; /* de reserva: verde azulado */
+  --area-7-bg:#ffe4d5; --area-7-fg:#c2410c; /* de reserva: naranja */
 }
 
 /* ---- TEMA OSCURO: azul como primario, fondo oscuro, naranja más vivo
@@ -56,6 +67,14 @@
   --line:#2b3645; --line-soft:#232e3c;
   --paper:#0e1621; --card:#18222f; --card-2:#1f2a38;
   --shadow:0 1px 2px rgba(0,0,0,.3), 0 10px 28px -14px rgba(0,0,0,.6);
+  --area-0-bg:#2e2350; --area-0-fg:#c9b3f0;
+  --area-1-bg:#3a2e10; --area-1-fg:#f0d27a;
+  --area-2-bg:#12283f; --area-2-fg:#8fc4f5;
+  --area-3-bg:#123a26; --area-3-fg:#7fe0a8;
+  --area-4-bg:#3a1a28; --area-4-fg:#f0a8c5;
+  --area-5-bg:#2a2e33; --area-5-fg:#a8b0b8;
+  --area-6-bg:#0f3833; --area-6-fg:#6fe0d0;
+  --area-7-bg:#3a2010; --area-7-fg:#f5a06a;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:var(--body);background:var(--paper);color:var(--ink);-webkit-font-smoothing:antialiased;line-height:1.5;font-size:17.5px}
@@ -149,7 +168,10 @@ body{font-family:var(--body);background:var(--paper);color:var(--ink);-webkit-fo
    la app (no solo en Inicio). Reusa el círculo de .theme-toggle. */
 .notif-wrap{position:relative}
 .notif-badge{position:absolute;top:2px;right:2px;min-width:17px;height:17px;padding:0 4px;border-radius:9px;background:var(--red-600);color:#fff;font-size:10.5px;font-weight:700;display:grid;place-items:center;line-height:1;border:2px solid var(--card)}
-.notif-drop{position:absolute;top:calc(100% + 10px);right:0;width:340px;max-height:min(70vh,460px);overflow-y:auto;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);z-index:15}
+/* width con min(): 340px en pantalla normal, pero nunca más ancho que la
+   pantalla menos un margen — antes en un celular chico se salía del
+   borde izquierdo (340px fijos en 375px de ancho, casi sin margen). */
+.notif-drop{position:absolute;top:calc(100% + 10px);right:0;width:min(340px,calc(100vw - 32px));max-height:min(70vh,460px);overflow-y:auto;background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);z-index:15}
 .notif-drop-h{padding:14px 16px;border-bottom:1px solid var(--line-soft);font-weight:700;font-size:15px;position:sticky;top:0;background:var(--card)}
 .notif-drop .alert{padding:12px 16px}
 /* Bloque del usuario en el encabezado. Es un <button> (abre "Mi perfil"),
@@ -160,6 +182,69 @@ body{font-family:var(--body);background:var(--paper);color:var(--ink);-webkit-fo
 .who .av{width:40px;height:40px;border-radius:50%;background:var(--teal-100);color:var(--teal-700);display:grid;place-items:center;font-weight:600;font-size:16px;overflow:hidden;flex-shrink:0}
 .who small{display:block;color:var(--ink-faint);font-size:13.5px}
 .who b{font-size:16.5px;font-weight:600}
+
+/* ---- Menú lateral en pantallas chicas (celular / tablet angosta) ----
+   Arriba de este ancho, el sidebar es la columna fija de siempre. Por
+   debajo, deja de ocupar lugar en la grilla y pasa a ser un panel que
+   desliza por ENCIMA del contenido (como un cajón), con un fondo oscuro
+   atrás para taparlo y poder cerrarlo tocando afuera. */
+.mobile-nav-toggle{display:none}
+.nav-backdrop{display:none}
+@media(max-width:880px){
+  .app{grid-template-columns:1fr}
+  .mobile-nav-toggle{all:unset;cursor:pointer;flex-shrink:0;display:grid;place-items:center;width:38px;height:38px;border-radius:10px;color:var(--ink-soft);margin-right:4px}
+  .mobile-nav-toggle:hover{background:var(--card-2)}
+  .mobile-nav-toggle svg{width:22px;height:22px}
+  /* El sidebar se saca del flujo (fixed) y arranca afuera de la pantalla,
+     sin importar si está "contraído" (esa preferencia es de escritorio;
+     acá siempre se abre entero, para que se lean las etiquetas). */
+  .side{position:fixed;left:0;top:0;bottom:0;width:270px;height:100vh;z-index:70;transform:translateX(-100%);transition:transform .25s ease;box-shadow:0 0 44px rgba(0,0,0,.35)}
+  .app.nav-open .side{transform:translateX(0)}
+  .app.nav-open .nav-backdrop{display:block;position:fixed;inset:0;background:rgba(13,28,48,.5);z-index:65;animation:fade .2s ease}
+  /* El botón de "contraer a íconos" es de escritorio (localStorage puede
+     traer esa preferencia puesta): en el cajón no tiene sentido, así que
+     se oculta y se deshace su efecto para que el cajón siempre se vea
+     completo, con etiquetas. */
+  .nav-toggle{display:none}
+  .app.nav-collapsed .logo{display:grid}
+  .app.nav-collapsed .brand{flex-direction:row;gap:12px;padding:22px 22px 18px}
+  .app.nav-collapsed .brand-text{display:block}
+  .app.nav-collapsed .nav-label{display:block}
+  .app.nav-collapsed .nav{padding:14px 12px}
+  .app.nav-collapsed .nav button{justify-content:flex-start;gap:12px;padding:11px 13px}
+  .app.nav-collapsed .nav button .lbl{display:inline}
+  .app.nav-collapsed .side-foot{display:block}
+  /* En el cajón del menú, la barrita de scroll queda siempre dibujada
+     (no solo al scrollear): en celular no hace falta, el dedo alcanza. */
+  .nav{scrollbar-width:none}
+  .nav::-webkit-scrollbar{display:none}
+  /* El encabezado no tiene tanto lugar: título más chico, menos aire.
+     Y se parte en dos filas —botón + acciones arriba, título + fecha
+     abajo a lo ancho— para que la hamburguesa quede bien en la esquina
+     y no flotando al medio cuando la fecha ocupa varias líneas. */
+  .top{padding:14px 16px;flex-wrap:wrap;align-items:center;row-gap:8px}
+  .mobile-nav-toggle{order:1;margin-right:0}
+  .top-r{order:2;margin-left:auto;gap:8px}
+  .top > div:not(.top-r){order:3;flex-basis:100%;min-width:0}
+  .top h1{font-size:20px}
+  .top p{font-size:13px}
+  .who small{display:none} /* el rol no entra; el nombre alcanza */
+  .view{padding:18px 16px 40px}
+  /* El desplegable de notificaciones se anclaba a la campana (que NO
+     está pegada al borde derecho); en celular eso lo dejaba mayormente
+     afuera de la pantalla aunque se le achicara el ancho. Con posición
+     fija y margen de los dos lados, siempre queda dentro. */
+  .notif-drop{position:fixed;top:100px;left:12px;right:12px;width:auto}
+  /* Tablas más compactas: menos padding por celda = menos ancho total,
+     así hace falta correr menos con el dedo para ver el resto. */
+  thead th{padding:11px 12px;font-size:11.5px}
+  tbody td{padding:12px 12px;font-size:15px}
+}
+@media(max-width:520px){
+  .mobile-nav-toggle{margin-right:0}
+  .who > div:last-child{display:none} /* muy angosto: solo el avatar, sin nombre */
+  .top h1{font-size:18px}
+}
 
 .view{padding:30px 34px 56px;animation:rise .4s ease both}
 @keyframes rise{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
@@ -201,7 +286,10 @@ body{font-family:var(--body);background:var(--paper);color:var(--ink);-webkit-fo
 .t-teal{background:var(--teal-50);color:var(--teal-700)} .i-teal{background:var(--teal-50);color:var(--teal-700)}
 
 /* ---- Table ---- */
-.tablewrap{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow:hidden}
+/* overflow-x:auto (no "hidden"): en pantallas angostas la tabla no
+   entra entera — antes quedaba directamente CORTADA sin forma de verla
+   completa; ahora se puede correr con el dedo/scroll horizontal. */
+.tablewrap{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:var(--shadow);overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch}
 table{width:100%;border-collapse:collapse}
 thead th{text-align:left;font-size:12.5px;letter-spacing:.4px;text-transform:uppercase;color:var(--ink-faint);font-weight:600;padding:14px 18px;background:var(--card-2);border-bottom:1px solid var(--line)}
 tbody td{padding:15px 18px;border-bottom:1px solid var(--line-soft);font-size:16.5px;vertical-align:middle}
@@ -218,62 +306,208 @@ tbody tr:last-child td{border-bottom:none}
 .bad{background:var(--red-50);color:var(--red-600)}.bad .d{background:var(--red-600)}
 .chev{color:var(--ink-faint);font-size:18px}
 
-/* ---- Grilla de atención (pacientes × profesionales → hora) ----
-   La planilla fija del centro: se carga a mano y se repite todos los
-   días. Muchas columnas, así que scrollea en horizontal con la columna
-   del paciente fija a la izquierda. */
+/* Intro de una sección: texto de ayuda + botón de acción (p. ej.
+   Profesionales → "+ Nuevo profesional"). En celular el botón no se
+   parte: baja a lo ancho debajo del texto. */
+.seccion-intro{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap}
+.seccion-intro p{color:var(--ink-soft);font-size:15px;flex:1;min-width:200px}
+.seccion-intro .btn{white-space:nowrap;flex-shrink:0}
+@media(max-width:560px){
+  .seccion-intro .btn{flex:1 1 100%;text-align:center}
+}
+
+/* ---- Barra de un listado: buscador + contador (pacientes, profesionales) ---- */
+.lista-toolbar{display:flex;gap:12px;align-items:center;margin-bottom:12px;flex-wrap:wrap}
+.lista-toolbar input{flex:1;min-width:200px;max-width:440px;font-family:var(--body);font-size:15px;padding:10px 13px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
+.lista-toolbar input:focus{outline:none;border-color:var(--teal-500);box-shadow:0 0 0 3px var(--teal-50)}
+.lista-contador{font-size:13px;color:var(--ink-faint);white-space:nowrap}
+/* Paginado (por ahora solo el listado de pacientes) */
+.pac-pager{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:16px;flex-wrap:wrap}
+.pac-pager .btn{min-height:40px}
+.pac-pager .btn[disabled]{opacity:.4;cursor:default}
+.pac-pager-info{font-size:13px;font-weight:600;color:var(--ink-soft);text-align:center}
+/* En pantallas muy angostas el contador de página baja a su propia
+   línea, así los dos botones entran juntos arriba. */
+@media(max-width:420px){
+  .pac-pager .btn{flex:1;padding:9px 8px}
+  .pac-pager-info{order:3;flex-basis:100%}
+}
+
+/* ---- Listados: tabla en escritorio, tarjetas en celular ----
+   Las tablas de pacientes/profesionales tienen 5-6 columnas y en un
+   celular no entran: obligaban a scrollear de costado, dejando los
+   botones afuera. Abajo de 760px cada fila se apila como una tarjeta:
+   el `<td class="tc-nombre">` es la cabecera, los `<td data-t="…">` se
+   muestran "etiqueta → valor", y `<td class="tc-acciones">` pone los
+   botones a lo ancho. */
+@media(max-width:760px){
+  .tabla-cards{overflow:visible;border:none;background:none;box-shadow:none;border-radius:0}
+  .tabla-cards table,.tabla-cards tbody,.tabla-cards tr,.tabla-cards td{display:block;width:auto}
+  .tabla-cards thead{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  .tabla-cards tr{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    box-shadow:var(--shadow);margin-bottom:14px;overflow:hidden}
+  .tabla-cards tr:last-child{margin-bottom:0}
+  .tabla-cards tr:hover{background:var(--card)}
+  .tabla-cards td{border:none;padding:9px 16px;font-size:15px}
+  .tabla-cards .tc-nombre{padding:13px 16px 11px;background:var(--card-2);border-bottom:1px solid var(--line-soft)}
+  .tabla-cards td[data-t]{display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .tabla-cards td[data-t]::before{content:attr(data-t);font-size:11.5px;font-weight:700;
+    letter-spacing:.05em;text-transform:uppercase;color:var(--ink-faint)}
+  .tabla-cards .tc-acciones{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px 14px;
+    border-top:1px solid var(--line-soft)}
+  .tabla-cards .tc-acciones .btn{flex:1 1 auto;text-align:center;padding:10px 12px}
+  /* La fila de pacientes abre el legajo al tocarla. */
+  .pac-lista tr{cursor:pointer}
+}
+
+/* ---- Tono de color de cada fila / tarjeta ----
+   Pacientes, Profesionales y Admisión: cada fila lleva `tono-N` (ver
+   tonoDe en utils/ui.js; los profesionales, el de su profesión). Usa la
+   misma paleta --area-N que la Grilla de atención, que ya tiene versión
+   clara y oscura, así que funciona en los dos temas sin reglas aparte. */
+.tono-0{--tono-bg:var(--area-0-bg);--tono-fg:var(--area-0-fg)}
+.tono-1{--tono-bg:var(--area-1-bg);--tono-fg:var(--area-1-fg)}
+.tono-2{--tono-bg:var(--area-2-bg);--tono-fg:var(--area-2-fg)}
+.tono-3{--tono-bg:var(--area-3-bg);--tono-fg:var(--area-3-fg)}
+.tono-4{--tono-bg:var(--area-4-bg);--tono-fg:var(--area-4-fg)}
+.tono-5{--tono-bg:var(--area-5-bg);--tono-fg:var(--area-5-fg)}
+.tono-6{--tono-bg:var(--area-6-bg);--tono-fg:var(--area-6-fg)}
+.tono-7{--tono-bg:var(--area-7-bg);--tono-fg:var(--area-7-fg)}
+/* El avatar con las iniciales toma el tono (también en la tabla de escritorio). */
+tr[class*="tono-"] .pav{background:color-mix(in srgb, var(--tono-fg) 18%, var(--tono-bg));color:var(--tono-fg)}
+
+@media(max-width:760px){
+  /* Tarjeta: franja de color arriba y encabezado teñido en degradé,
+     como las tarjetas de la Grilla de atención. */
+  .tabla-cards tr[class*="tono-"]{border-top:4px solid var(--tono-fg)}
+  .tabla-cards tr[class*="tono-"] .tc-nombre{
+    background:linear-gradient(120deg, var(--tono-bg) 0%, color-mix(in srgb, var(--tono-bg) 30%, var(--card)) 100%);
+    border-bottom-color:color-mix(in srgb, var(--tono-fg) 18%, var(--line-soft))}
+  /* Botones: la acción principal en celeste y la de baja en rojo suave,
+     para distinguirlas de un vistazo. */
+  .tabla-cards .tc-acciones .btn.destacado{background:var(--teal-50);border-color:var(--teal-100);color:var(--teal-700)}
+  .tabla-cards .tc-acciones .btn.peligro{background:var(--red-50);border-color:var(--red-100)}
+}
+
+/* ---- Grilla de atención (profesional × franja horaria → paciente) ----
+   La organización general de turnos del centro, como la planilla en
+   papel: UNA TARJETA por profesional, coloreada según su sector, con sus
+   franjas de 30 minutos y el paciente de cada una. En pantalla ancha las
+   tarjetas van lado a lado (columnas, como el papel); en el celular, una
+   por vez en un carrusel con flechas — lo decide el media query de acá
+   abajo, el markup es EL MISMO en las dos pantallas. */
 .ga-ayuda{font-size:13.5px;color:var(--ink-faint);margin:2px 4px 12px}
-/* Buscador de la grilla: filtra las filas (paciente o profesional) */
-.ga-toolbar{display:flex;gap:12px;align-items:center;margin-bottom:12px}
+/* Buscador de la grilla: filtra las tarjetas (profesional o paciente) */
+.ga-toolbar{display:flex;gap:12px;align-items:center;margin-bottom:16px}
 .ga-toolbar input{flex:1;max-width:420px;font-family:var(--body);font-size:15px;padding:9px 13px;border:1px solid var(--line);border-radius:10px;background:var(--card);color:var(--ink)}
 .ga-toolbar input:focus{outline:none;border-color:var(--teal-500);box-shadow:0 0 0 3px var(--teal-50)}
 .ga-contador{font-size:13px;color:var(--ink-faint);white-space:nowrap}
-/* Scroll en los dos sentidos: la cabecera de sectores queda fija arriba
-   y la columna de pacientes fija a la izquierda, así nunca se pierde de
-   vista de quién y de qué sector es la celda. */
-.ga-scroll{overflow:auto;max-height:min(62vh,620px);border:1px solid var(--line);border-radius:12px}
-.ga-tabla{width:100%;border-collapse:separate;border-spacing:0}
-.ga-tabla thead th{position:sticky;top:0;z-index:4}
-.ga-tabla th,.ga-tabla td{border-bottom:1px solid var(--line-soft);border-right:1px solid var(--line-soft)}
-.ga-tabla tr:last-child th,.ga-tabla tr:last-child td{border-bottom:none}
-.ga-tabla th:last-child,.ga-tabla td:last-child{border-right:none}
-/* Encabezado: un sector por columna (Psicología, Fono, T.O., …) */
-.ga-col-sector{padding:12px;min-width:132px;background:var(--card-2);text-align:center;font-size:12.5px;white-space:nowrap}
-.ga-sector-nombre{vertical-align:middle}
-/* La × para quitar la columna: discreta, aparece al pasar el mouse */
-.ga-del-sector{all:unset;cursor:pointer;margin-left:6px;width:18px;height:18px;border-radius:50%;display:inline-grid;place-items:center;font-size:14px;line-height:1;color:var(--ink-faint);vertical-align:middle;opacity:0;transition:.15s}
-.ga-col-sector:hover .ga-del-sector{opacity:1}
-.ga-del-sector:hover{background:var(--red-50);color:var(--red-600)}
-.ga-del-sector:focus-visible{opacity:1;outline:2px solid var(--teal-500);outline-offset:1px}
-/* Última columna: turno del paciente + botón para sumar un sector */
-.ga-col-turno{padding:8px 12px;min-width:132px;background:var(--card-2);text-align:center;white-space:nowrap}
-.ga-tabla tbody .ga-col-turno{background:var(--card)}
-.ga-turno{font-family:var(--body);font-size:13.5px;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
-.ga-add-sector{all:unset;cursor:pointer;margin-left:8px;padding:4px 9px;border-radius:7px;background:var(--teal-600);color:#fff;font-size:11.5px;font-weight:600;text-transform:none;letter-spacing:0}
-.ga-add-sector:hover{background:var(--teal-700)}
-/* Columna del paciente: fija a la izquierda */
-.ga-col-pac{position:sticky;left:0;z-index:2;background:var(--card);text-align:left;padding:8px 14px;min-width:210px;display:table-cell}
-/* La esquina (Pacientes) queda fija arriba Y a la izquierda a la vez,
-   así que va por encima del resto de la cabecera. */
-.ga-tabla thead .ga-col-pac{position:sticky;top:0;left:0;background:var(--card-2);z-index:6}
-.ga-esquina{font-size:12.5px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint)}
-.ga-col-pac .pav{width:32px;height:32px;border-radius:9px;display:inline-grid;place-items:center;font-size:12px;font-weight:600;color:var(--teal-700);background:var(--teal-100);vertical-align:middle;margin-right:9px}
-.ga-pac-nombre{display:inline-block;vertical-align:middle}
-.ga-pac-nombre b{display:block;font-size:14.5px;font-weight:600}
-.ga-pac-nombre small{font-size:11.5px;color:var(--ink-faint)}
-/* Celdas: se escribe el nombre del profesional, como en una planilla */
-.ga-celda{text-align:center;padding:0 8px;cursor:text;transition:.12s;height:42px;vertical-align:middle;font-size:13.5px}
-.ga-celda:hover{background:var(--teal-50);box-shadow:inset 0 0 0 1px var(--teal-100)}
-.ga-celda.bloqueada{cursor:default}
-.ga-celda.bloqueada:hover{background:transparent;box-shadow:none}
-.ga-nombre{font-weight:500}
-/* "X" = ese sector no le corresponde al paciente (como en el papel) */
-.ga-equis{color:var(--ink-faint);font-size:14px;font-weight:600}
-/* La celda en edición: el campo ocupa TODA la celda (se estira sobre el
-   padding con el margen negativo) y lleva él mismo el recuadro, así se
-   ve como una celda de planilla al escribir. */
-.ga-celda{position:relative}
-.ga-input{position:absolute;inset:0;width:100%;height:100%;box-sizing:border-box;border:none;outline:none;border-radius:0;box-shadow:inset 0 0 0 2px var(--teal-500);background:var(--card);color:var(--ink);font-family:var(--body);font-size:13.5px;text-align:center;padding:0 6px}
+
+/* Pantalla ancha: las tarjetas lado a lado, como las columnas del papel.
+   `flex-wrap` las baja de línea solas si no entran todas juntas. */
+.ga-tarjetas{display:flex;flex-wrap:wrap;align-items:flex-start;gap:18px;padding:2px}
+.ga-tarjetas .ga-tarjeta{flex:1 1 260px;max-width:300px}
+/* El carrusel del celular es solo un modo de esta MISMA pista: en
+   pantalla ancha no hay flechas que mostrar. */
+.ga-pager{display:none}
+
+@media (max-width:880px){
+  /* Celular: una tarjeta a la vez, pasándose de costado con el dedo,
+     como las sugerencias de Instagram — el scroll-snap la calza justa
+     al soltar. Nada de la siguiente asomando: menos confuso para quien
+     no maneja gestos. */
+  .ga-tarjetas{flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;padding:4px 4px 10px;
+    scroll-snap-type:x mandatory;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .ga-tarjetas::-webkit-scrollbar{display:none}
+  .ga-tarjetas .ga-tarjeta{flex:0 0 100%;max-width:none;scroll-snap-align:start}
+  /* Las flechas: redondas y grandes, para el dedo. El controlador las
+     prende solo si hay más de unas pocas tarjetas (ver MINIMO_PAGINADO). */
+  .ga-pager{display:flex;align-items:center;justify-content:center;gap:16px;margin-top:12px}
+  .ga-pager[hidden]{display:none}
+  .ga-pager .btn{width:44px;height:44px;min-width:44px;padding:0;border-radius:50%;
+    font-size:22px;line-height:1;display:grid;place-items:center}
+  .ga-pager .btn[disabled]{opacity:.35;cursor:default}
+  .ga-pager-info{font-size:12px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+    color:var(--ink-faint);min-width:124px;text-align:center}
+}
+
+/* La tarjeta de un profesional. El borde superior grueso lleva el color
+   de su sector (ver .ga-area-N más abajo): de un vistazo se sabe de qué
+   profesión es, como los encabezados de colores de la planilla en papel. */
+.ga-tarjeta{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--ink-faint);
+  border-radius:16px;box-shadow:var(--shadow);overflow:hidden;
+  transition:border-color .15s ease,box-shadow .15s ease}
+.ga-tarjeta:focus-within{box-shadow:0 0 0 3px var(--teal-50),var(--shadow)}
+.ga-tarjeta-h{display:flex;align-items:center;gap:12px;padding:14px 16px;background:var(--card-2);border-bottom:1px solid var(--line)}
+.ga-tarjeta-h .pav{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;
+  font-size:13.5px;font-weight:700;color:var(--teal-700);background:var(--teal-100);flex-shrink:0}
+.ga-tarjeta-tit{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.ga-tarjeta-tit b{font-size:15.5px;font-weight:700;line-height:1.25;letter-spacing:-.01em;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ga-tarjeta-tit small{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-faint)}
+
+/* Cada fila = una franja de 30 minutos. La hora a la izquierda, ancho
+   fijo, para que todos los nombres arranquen alineados. */
+.ga-fila-horario{display:flex;align-items:center;gap:12px;padding:9px 16px;border-top:1px solid var(--line-soft)}
+.ga-fila-horario:nth-child(even){background:color-mix(in srgb, var(--card-2) 45%, transparent)}
+.ga-hora{flex:0 0 68px;font-size:12.5px;font-weight:700;color:var(--ink-faint);font-variant-numeric:tabular-nums}
+/* Cabecera "HS | PACIENTE" de cada tarjeta, como en la planilla en
+   papel: deja claro qué es cada columna antes de ver la primera franja. */
+.ga-encabezado-fila{background:var(--card-2)!important;padding:7px 16px;border-top:none}
+.ga-encabezado-fila span{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint)}
+/* La celda ocupa el resto del ancho; alta como para tocarla con el dedo
+   y con position:relative para que el campo de edición se estire sobre
+   ella entera al tocarla. */
+.ga-tarjeta .ga-celda{position:relative;flex:1;min-width:0;min-height:38px;display:flex;align-items:center;
+  justify-content:flex-start;text-align:left;padding:4px 0;font-size:14.5px;line-height:1.3;font-weight:600;cursor:text}
+.ga-tarjeta .ga-celda.bloqueada{cursor:default}
+.ga-tarjeta .ga-celda:not(.bloqueada):empty::after{content:'+ asignar';font-size:12.5px;font-weight:600;color:var(--teal-700);opacity:.8}
+.ga-tarjeta .ga-celda.bloqueada:empty::after{content:'—';color:var(--ink-faint);font-weight:400}
+.ga-tarjeta .ga-celda:not(.bloqueada):active{background:var(--teal-50)}
+.ga-nombre{font-weight:600}
+.ga-tarjeta .ga-input{position:absolute;inset:0;width:100%;height:100%;box-sizing:border-box;
+  border:none;outline:none;box-shadow:inset 0 0 0 2px var(--teal-500);background:var(--card);
+  color:var(--ink);font-family:var(--body);font-size:14.5px;text-align:left;padding:4px 8px}
+/* Pestañas de turno (mañana / tarde): el rango horario y cuántos
+   profesionales hay, más chico debajo del nombre. */
+.ga-turnos{margin-bottom:14px}
+.ga-turnos .tab{display:flex;flex-direction:column;align-items:flex-start;gap:1px;padding:9px 18px}
+.ga-turnos .tab small{font-size:12px;font-weight:500;color:var(--ink-faint)}
+@media (max-width:520px){ .ga-turnos .tab{flex:1;align-items:center;padding:9px 8px} }
+
+/* ---- Colores por sector (ver los tokens --area-N-bg/-fg en :root) ---- */
+.ga-area-0{border-top-color:var(--area-0-fg)}
+.ga-area-0 .ga-tarjeta-h{background:var(--area-0-bg)}
+.ga-area-0 .pav{background:color-mix(in srgb, var(--area-0-fg) 20%, var(--area-0-bg));color:var(--area-0-fg)}
+.ga-area-0 .ga-tarjeta-tit small{color:var(--area-0-fg)}
+.ga-area-1{border-top-color:var(--area-1-fg)}
+.ga-area-1 .ga-tarjeta-h{background:var(--area-1-bg)}
+.ga-area-1 .pav{background:color-mix(in srgb, var(--area-1-fg) 20%, var(--area-1-bg));color:var(--area-1-fg)}
+.ga-area-1 .ga-tarjeta-tit small{color:var(--area-1-fg)}
+.ga-area-2{border-top-color:var(--area-2-fg)}
+.ga-area-2 .ga-tarjeta-h{background:var(--area-2-bg)}
+.ga-area-2 .pav{background:color-mix(in srgb, var(--area-2-fg) 20%, var(--area-2-bg));color:var(--area-2-fg)}
+.ga-area-2 .ga-tarjeta-tit small{color:var(--area-2-fg)}
+.ga-area-3{border-top-color:var(--area-3-fg)}
+.ga-area-3 .ga-tarjeta-h{background:var(--area-3-bg)}
+.ga-area-3 .pav{background:color-mix(in srgb, var(--area-3-fg) 20%, var(--area-3-bg));color:var(--area-3-fg)}
+.ga-area-3 .ga-tarjeta-tit small{color:var(--area-3-fg)}
+.ga-area-4{border-top-color:var(--area-4-fg)}
+.ga-area-4 .ga-tarjeta-h{background:var(--area-4-bg)}
+.ga-area-4 .pav{background:color-mix(in srgb, var(--area-4-fg) 20%, var(--area-4-bg));color:var(--area-4-fg)}
+.ga-area-4 .ga-tarjeta-tit small{color:var(--area-4-fg)}
+.ga-area-5{border-top-color:var(--area-5-fg)}
+.ga-area-5 .ga-tarjeta-h{background:var(--area-5-bg)}
+.ga-area-5 .pav{background:color-mix(in srgb, var(--area-5-fg) 20%, var(--area-5-bg));color:var(--area-5-fg)}
+.ga-area-5 .ga-tarjeta-tit small{color:var(--area-5-fg)}
+.ga-area-6{border-top-color:var(--area-6-fg)}
+.ga-area-6 .ga-tarjeta-h{background:var(--area-6-bg)}
+.ga-area-6 .pav{background:color-mix(in srgb, var(--area-6-fg) 20%, var(--area-6-bg));color:var(--area-6-fg)}
+.ga-area-6 .ga-tarjeta-tit small{color:var(--area-6-fg)}
+.ga-area-7{border-top-color:var(--area-7-fg)}
+.ga-area-7 .ga-tarjeta-h{background:var(--area-7-bg)}
+.ga-area-7 .pav{background:color-mix(in srgb, var(--area-7-fg) 20%, var(--area-7-bg));color:var(--area-7-fg)}
+.ga-area-7 .ga-tarjeta-tit small{color:var(--area-7-fg)}
 
 /* ---- Galería del trabajo del mes ---- */
 .gal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px}
@@ -289,7 +523,7 @@ tbody tr:last-child td{border-bottom:none}
 .gal-form .form-grid{margin-bottom:0}
 
 /* ---- Buttons / generic ---- */
-.btn{all:unset;cursor:pointer;font-family:var(--body);font-weight:600;font-size:16px;padding:10px 17px;border-radius:10px;background:var(--teal-600);color:#fff;transition:.15s}
+.btn{all:unset;box-sizing:border-box;cursor:pointer;font-family:var(--body);font-weight:600;font-size:16px;padding:10px 17px;border-radius:10px;background:var(--teal-600);color:#fff;transition:.15s}
 .btn:hover{background:var(--teal-700)}
 .btn.ghost{background:transparent;color:var(--teal-700);border:1px solid var(--line)}
 .btn.ghost:hover{background:var(--teal-50);border-color:var(--teal-100)}
@@ -298,9 +532,18 @@ tbody tr:last-child td{border-bottom:none}
 .back{all:unset;cursor:pointer;color:var(--ink-soft);font-size:14.5px;font-weight:500;display:inline-flex;align-items:center;gap:7px;margin-bottom:18px;padding:6px 10px;border-radius:8px}
 .back:hover{background:var(--card-2);color:var(--ink)}
 .legajo-top{display:flex;gap:18px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:22px 24px;box-shadow:var(--shadow);margin-bottom:20px}
-.legajo-top .bigav{width:70px;height:70px;border-radius:16px;background:var(--teal-600);color:#fff;display:grid;place-items:center;font-family:var(--display);font-weight:600;font-size:28px}
+.legajo-top .bigav{width:70px;height:70px;border-radius:16px;background:var(--teal-600);color:#fff;display:grid;place-items:center;font-family:var(--display);font-weight:600;font-size:28px;flex-shrink:0}
 .legajo-top h2{font-family:var(--display);font-size:27px;font-weight:600;letter-spacing:-.4px}
 .legajo-top .meta{color:var(--ink-soft);font-size:14.5px;margin-top:3px}
+/* Celular: avatar más chico y el botón (Editar…) baja a lo ancho, así
+   el nombre tiene todo el renglón y no se parte palabra por palabra. */
+@media(max-width:560px){
+  .legajo-top{flex-wrap:wrap;gap:14px;padding:18px}
+  .legajo-top .bigav{width:54px;height:54px;font-size:22px;border-radius:14px}
+  .legajo-top h2{font-size:22px;line-height:1.2}
+  .legajo-top > div{min-width:0}
+  .legajo-top > .btn{flex:1 1 100%;text-align:center}
+}
 .legajo-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 @media(max-width:1080px){.legajo-grid{grid-template-columns:1fr}}
 .field{padding:11px 0;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;gap:16px}
@@ -384,10 +627,43 @@ tbody tr:last-child td{border-bottom:none}
    se registró); el opacity:.4 de arriba la dejaba pálida otra vez. */
 .seg button.on-p[disabled], .seg button.on-a[disabled],
 .seg button.on-av[disabled], .seg button.on-e[disabled]{opacity:1}
-/* En pantallas angostas el control de estado baja a una segunda línea */
+/* ---- Asistencia en pantallas angostas ----
+   La fila es ancha (nombre + tira del mes + estados / o + estado +
+   horarios + guardar): en un celular no entra en una línea y se
+   desbordaba de costado. Acá se apila: nombre arriba, y los controles
+   abajo a lo ancho. */
 @media(max-width:760px){
-  .asis-row{flex-wrap:wrap}
-  .asis-row .seg{margin-left:auto}
+  .asis-head{flex-direction:column;align-items:stretch;gap:14px}
+  .datenav{flex-wrap:wrap;gap:8px}
+  .datenav > input[type="date"],.datenav .datechip{flex:0 1 auto;min-width:0;overflow:hidden}
+  .datenav .datechip{padding:9px 12px}
+  .datenav .datechip #asis-dia{display:none} /* el día ya está en la fecha; sacarlo evita que se desborde */
+  .datenav .btn{flex:0 0 auto}
+  .livestat{margin-left:0;gap:12px 6px;flex-wrap:wrap;justify-content:space-between}
+  .livestat div{text-align:center;flex:1 1 auto}
+  .livestat .n{font-size:23px}
+  .livestat small{font-size:10.5px;letter-spacing:.2px}
+
+  .asis-toolbar{flex-wrap:wrap}
+  .asis-toolbar input{flex:1 1 100%}
+  #asis-todos{flex:1;white-space:nowrap}
+
+  .asis-row{gap:10px;padding:14px}
+  .asis-row .ficha-asis{flex:1 1 100%}
+  .asis-row .mini-cal{flex:1 1 auto}
+  /* Los estados / el bloque de fichaje bajan a su propia línea, a lo
+     ancho: los botones de estado quedan en una grilla 2×2, cada uno con
+     su recuadro para que se lean como botones y sean fáciles de tocar. */
+  .asis-row .seg{flex:1 1 100%;margin-left:0;display:grid;grid-template-columns:1fr 1fr;gap:6px;background:none;border:none;padding:0}
+  .asis-row .seg button{text-align:center;padding:11px 8px;font-size:14.5px}
+  /* Los NO seleccionados llevan recuadro para leerse como botón; los
+     seleccionados conservan su color sólido (regla .seg button.on-*). */
+  .asis-row .seg button:not([class*="on-"]){background:var(--card);border:1px solid var(--line)}
+  .asis-row .apf-estado{flex:1 1 100%;min-width:0}
+  .asis-row .apf-horas{flex:1 1 100%;width:100%}
+  .asis-row .apf-hora{flex:1}
+  .asis-row .apf-hora input{width:100%}
+  .asis-row .apf-guardar{flex:1;text-align:center}
 }
 
 /* Nombre de la fila: es un botón que abre la ficha de asistencia
@@ -537,15 +813,31 @@ tbody tr:last-child td{border-bottom:none}
 .modal-h{padding:18px 24px;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;background:var(--card);z-index:1}
 .modal-h h2{font-family:var(--display);font-size:23px;font-weight:600}
 .modal-b{padding:20px 24px}
-.modal-f{padding:14px 24px;border-top:1px solid var(--line-soft);display:flex;justify-content:flex-end;gap:10px;position:sticky;bottom:0;background:var(--card)}
+.modal-f{padding:14px 24px;border-top:1px solid var(--line-soft);display:flex;flex-wrap:wrap;justify-content:flex-end;gap:10px;position:sticky;bottom:0;background:var(--card)}
 .x{all:unset;cursor:pointer;color:var(--ink-faint);font-size:26px;line-height:1;padding:2px 8px;border-radius:8px}
 .x:hover{background:var(--card-2);color:var(--ink)}
+
+/* En pantallas chicas los botones del pie no entran en una fila —sobre
+   todo con tres, como "Usar mis iniciales" + Cancelar + Guardar—: se
+   apilan a lo ancho, con la acción principal (la no-ghost) arriba. Así
+   ninguno queda aplastado ni con el texto partido en varias líneas. */
+@media(max-width:560px){
+  .modal-h,.modal-b,.modal-f{padding-left:16px;padding-right:16px}
+  .modal-f{flex-direction:column;align-items:stretch;gap:8px}
+  .modal-f .btn{display:block;width:100%;text-align:center;padding:12px 16px;white-space:nowrap}
+  .modal-f .btn:not(.ghost){order:-1}
+}
 
 /* ---- Campos de formulario ---- */
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 16px}
 @media(max-width:560px){.form-grid{grid-template-columns:1fr}}
 .form-field{display:flex;flex-direction:column;gap:6px}
 .form-field.full{grid-column:1 / -1}
+.form-field[hidden]{display:none}
+/* Botones al pie de "Informes profesionales" (historia clínica): el
+   informe y la evaluación / certificado, lado a lado; en celular, apilados. */
+.eval-acciones{display:flex;gap:10px;padding:12px 8px 4px;flex-wrap:wrap}
+.eval-acciones .btn{flex:1 1 220px;text-align:center}
 .form-field label{font-size:15px;font-weight:600;color:var(--ink-soft)}
 .form-field input,.form-field select,.form-field textarea{font-family:var(--body);font-size:17px;padding:10px 13px;border:1px solid var(--line);border-radius:9px;background:var(--card-2);color:var(--ink);transition:.15s;width:100%}
 .form-field input:focus,.form-field select:focus,.form-field textarea:focus{outline:none;border-color:var(--teal-500);background:var(--card);box-shadow:0 0 0 3px var(--teal-50)}
@@ -592,7 +884,17 @@ tbody tr:last-child td{border-bottom:none}
 .adm-check{width:20px;height:20px;flex-shrink:0;accent-color:var(--teal-600);cursor:pointer}
 .adm-obs{font-family:var(--body);font-size:14.5px;padding:8px 11px;border:1px solid var(--line);border-radius:8px;background:var(--card-2);color:var(--ink);width:230px;max-width:38vw}
 .adm-obs:focus{outline:none;border-color:var(--teal-500);background:var(--card)}
-@media(max-width:680px){.adm-item{flex-wrap:wrap}.adm-obs{width:100%;max-width:none}}
+/* Celular: requisito + estado en el primer renglón, la observación
+   abajo a lo ancho. */
+@media(max-width:680px){.adm-item{flex-wrap:wrap;row-gap:8px}.adm-obs{width:100%;max-width:none;order:3}}
+/* Rechazar / Aprobar al pie del detalle. En celular se apilan a lo
+   ancho, con Aprobar (la acción principal) arriba. */
+.adm-acciones{display:flex;gap:12px;justify-content:flex-end;margin-top:20px}
+@media(max-width:560px){
+  .adm-acciones{flex-direction:column}
+  .adm-acciones .btn{text-align:center;padding:12px 16px}
+  .adm-acciones .btn:not(.ghost){order:-1}
+}
 
 /* ---- Pestañas (tabs) ---- */
 .tabs{display:flex;gap:4px;margin-bottom:22px;border-bottom:1px solid var(--line)}
@@ -651,12 +953,23 @@ tbody tr:last-child td{border-bottom:none}
 
 /* --- Apilado en pantallas angostas --- */
 @media(max-width:780px){
-  .login-split{flex-direction:column;max-width:420px;min-height:0}
-  .login-side{flex:none;clip-path:none;padding:34px 28px 30px;gap:12px}
+  .login-split{flex-direction:column;max-width:420px;min-height:0;position:relative}
+  /* Apilado: en vez de un bloque de color separado arriba (con su propio
+     fondo) y el blanco abajo, el degradé vive en la TARJETA entera: se
+     ve un solo rectángulo integrado, con el color arriba y disolviéndose
+     en el mismo blanco de la tarjeta antes de llegar al formulario. */
+  .login-split{background:linear-gradient(180deg,#7bcbf0 0%,#f3915a 38%,#ee7623 55%,var(--card) 82%)}
+  .login-side{flex:none;clip-path:none;padding:34px 28px 20px;gap:12px;background:none}
   .login-logo{width:84px;height:84px;border-radius:22px}
   .login-side-name{font-size:25px}
-  .login-main{padding:30px 26px 36px}
+  .login-main{padding:30px 26px 36px;background:none}
   .login-form{max-width:none}
+  /* El botón de modo oscuro vivía "pegado" al formulario (abajo del
+     color, tapado entre el texto). `.login-main` deja de ser el ancla de
+     su posición absoluta para que suba y quede relativo a TODA la
+     tarjeta: arriba de todo, sobre el degradé. */
+  .login-main{position:static}
+  .login-theme{top:16px;right:16px}
 }
 
 /* =====================================================================

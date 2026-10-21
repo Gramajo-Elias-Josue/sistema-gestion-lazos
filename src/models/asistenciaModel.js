@@ -94,13 +94,3 @@ export async function guardarAsistencias(registros) {
   if (error) throw error;
   return data;
 }
-
-// Quita la marca de un paciente en una fecha (volver a "sin marcar").
-export async function eliminarAsistencia(pacienteId, fecha) {
-  const { error } = await supabase
-    .from(TABLA)
-    .delete()
-    .eq('paciente_id', pacienteId)
-    .eq('fecha', fecha);
-  if (error) throw error;
-}

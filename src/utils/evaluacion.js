@@ -2,8 +2,9 @@
 // UTILIDAD: Estructura del informe / evaluación profesional
 // ---------------------------------------------------------------------
 // El informe que carga el profesional NO es texto suelto: sigue una
-// PLANTILLA. Tiene un TIPO (mensual, evaluación, evolución, admisión) que
-// define el título, un TÍTULO editable, y VARIAS SECCIONES para llenar
+// PLANTILLA. Tiene un TIPO (mensual, anual, evolución, admisión, o la
+// evaluación / certificado ocasional) que define el título, un TÍTULO
+// editable, y VARIAS SECCIONES para llenar
 // (el "cuerpo" del desarrollo es el principal; las otras son opcionales).
 //
 // Para no migrar la base, todo eso se guarda serializado en JSON dentro de
@@ -13,64 +14,21 @@
 // anterior de secciones) para que siempre se puedan ver y reimprimir.
 // =====================================================================
 
-// Tipos de informe. `key` = lo que se guarda; `titulo` = título por defecto
-// que se muestra centrado en el PDF (el profesional puede editarlo).
+// Tipos de INFORME (los periódicos, que se cargan tras atender al
+// paciente). `key` = lo que se guarda; `titulo` = título por defecto que
+// se muestra centrado en el PDF (el profesional puede editarlo).
 export const TIPOS_INFORME = [
   { key: 'mensual',   titulo: 'INFORME MENSUAL' },
   { key: 'anual',     titulo: 'INFORME ANUAL' },
-  { key: 'diario',    titulo: 'INFORME DIARIO' },
   { key: 'evolucion', titulo: 'INFORME DE EVOLUCIÓN' },
   { key: 'admision',  titulo: 'INFORME DE ADMISIÓN' },
 ];
 
-// ---------------------------------------------------------------------
-// PLAZO DE LA EVALUACIÓN DIARIA
-// ---------------------------------------------------------------------
-// La evaluación diaria es OPCIONAL: hay profesionales que la llevan en
-// papel y está bien. Pero cuando se carga en el sistema no puede cargarse
-// meses después, porque deja de ser un registro del día: se admite hasta
-// una semana de atraso. Pasado ese plazo el día queda como consulta.
-export const DIAS_PLAZO_EVALUACION = 7;
-
-// Diferencia en días entre dos fechas ISO (yyyy-mm-dd). Positiva si la
-// primera es posterior. Se calcula a mano (sin new Date() implícito) para
-// que la función sea pura y se pueda probar con cualquier "hoy".
-function diasEntre(fechaA, fechaB) {
-  const a = new Date(`${fechaA}T00:00:00`);
-  const b = new Date(`${fechaB}T00:00:00`);
-  return Math.round((a - b) / 86400000);
-}
-
-// ¿Se puede cargar/editar la evaluación diaria de esa fecha?
-// Devuelve { editable, motivo, mensaje } con el mensaje ya escrito para
-// el usuario. motivo: 'futuro' | 'vencido' | null.
-export function estadoCargaEvaluacion(fecha, hoy, dias = DIAS_PLAZO_EVALUACION) {
-  const diferencia = diasEntre(fecha, hoy);
-
-  if (diferencia > 0) {
-    return {
-      editable: false,
-      motivo: 'futuro',
-      mensaje: 'Fecha futura: la evaluación se carga el día de la atención o después.',
-    };
-  }
-  if (-diferencia > dias) {
-    return {
-      editable: false,
-      motivo: 'vencido',
-      mensaje: `Pasó más de una semana de esta fecha (${-diferencia} días): la evaluación diaria ya no se puede cargar ni cambiar. Queda para consulta.`,
-    };
-  }
-  return { editable: true, motivo: null, mensaje: null };
-}
-
-// Días que quedan para cargar la evaluación de una fecha (0 = último
-// día). null si ya no se puede. Sirve para avisar antes de que se cierre.
-export function diasRestantesEvaluacion(fecha, hoy, dias = DIAS_PLAZO_EVALUACION) {
-  const estado = estadoCargaEvaluacion(fecha, hoy, dias);
-  if (!estado.editable) return null;
-  return dias + diasEntre(fecha, hoy);
-}
+// EVALUACIÓN / CERTIFICADO: documento OCASIONAL (se hace cuando alguien
+// lo pide), para pacientes habituales y también para casuales sin legajo.
+// No entra en la lista de informes: tiene su propio botón y su propio
+// requisito (haber asistido alguna vez, no necesariamente hoy).
+export const TIPO_CERTIFICADO = { key: 'certificado', titulo: 'EVALUACIÓN / CERTIFICADO' };
 
 // Secciones que llena el profesional, en orden. `cuerpo` es el desarrollo
 // principal (obligatorio); `objetivos` e `indicaciones` son opcionales.
@@ -82,7 +40,7 @@ export const SECCIONES_INFORME = [
 
 // Título por defecto de un tipo (o el del primer tipo si no se reconoce).
 export function tituloPorTipo(tipoKey) {
-  const t = TIPOS_INFORME.find(x => x.key === tipoKey);
+  const t = [...TIPOS_INFORME, TIPO_CERTIFICADO].find(x => x.key === tipoKey);
   return t ? t.titulo : TIPOS_INFORME[0].titulo;
 }
 
@@ -137,36 +95,55 @@ export function evaluacionVacia(datos = {}) {
 // ---------------------------------------------------------------------
 // GATE "ATENDIDO HOY": quién puede cargar el informe de un paciente
 // ---------------------------------------------------------------------
-// Dos vías, no excluyentes (un paciente puede tener las dos, aunque no
-// es lo común):
-//   1) CASUAL — tiene un turno de HOY marcado "Atendido" (turnoModel).
-//   2) DIARIO — está asignado a ese profesional en la GRILLA (asignación
-//      vigente) y AMBOS figuran presentes hoy (paciente en la planilla de
-//      asistencia, profesional en su fichaje). No hace falta turno: la
-//      grilla es la agenda fija de todos los días.
+// El paciente con legajo se atiende por la GRILLA (la agenda de turnos es
+// solo para casuales sin legajo, que no tienen historia clínica). Puede
+// cargar el informe el profesional que lo tiene asignado en la grilla
+// (asignación vigente), si AMBOS figuran presentes hoy: el paciente en la
+// planilla de asistencia y el profesional en su fichaje.
 //
-// Devuelve la lista de "autores" posibles con la MISMA forma que espera
-// pacientesView.renderFormEvaluacion (id de turno o null, profesional_id,
-// profesionales embebido, hora o null), para no duplicar la vista.
-//   turnosAtendidos -> turnoModel.listarAtendidosPacienteFecha(...)
+// Devuelve la lista de "autores" posibles con la forma que espera
+// pacientesView.renderFormEvaluacion (id de turno null, profesional_id,
+// profesionales embebido, hora null). Un profesional que lo tiene en
+// varias franjas aparece una sola vez.
 //   asignaciones     -> asignacionModel.listarPorPaciente(id, {soloVigentes:true})
 //   pacientePresente -> boolean (asistencias de hoy)
 //   idsProfPresentes -> Set de profesional_id fichados presente hoy
-export function autoresElegiblesHoy({ turnosAtendidos = [], asignaciones = [], pacientePresente = false, idsProfPresentes = new Set() } = {}) {
-  const autores = turnosAtendidos.map(t => ({
-    id: t.id, profesional_id: t.profesional_id, profesionales: t.profesionales, hora: t.hora,
-  }));
+export function autoresElegiblesHoy({ asignaciones = [], pacientePresente = false, idsProfPresentes = new Set() } = {}) {
+  const autores = [];
+  if (!pacientePresente) return autores;
 
-  if (pacientePresente) {
-    asignaciones
-      .filter(a => a.profesional_id && idsProfPresentes.has(String(a.profesional_id)))
-      .forEach(a => {
-        // No duplicar si ese profesional ya entró por la vía del turno.
-        if (!autores.some(x => String(x.profesional_id) === String(a.profesional_id))) {
-          autores.push({ id: null, profesional_id: a.profesional_id, profesionales: a.profesionales, hora: null });
-        }
-      });
-  }
+  asignaciones
+    .filter(a => a.profesional_id && idsProfPresentes.has(String(a.profesional_id)))
+    .forEach(a => {
+      if (!autores.some(x => String(x.profesional_id) === String(a.profesional_id))) {
+        autores.push({ id: null, profesional_id: a.profesional_id, profesionales: a.profesionales, hora: null });
+      }
+    });
 
+  return autores;
+}
+
+// ---------------------------------------------------------------------
+// REQUISITO DE LA EVALUACIÓN / CERTIFICADO (paciente habitual)
+// ---------------------------------------------------------------------
+// No hace falta que haya venido HOY, pero sí que su asistencia con ese
+// profesional esté confirmada alguna vez: un día marcado "presente" en
+// la planilla mientras lo tenía en su grilla (asignación vigente ese día,
+// aunque hoy ya esté cerrada). Así nadie firma por un paciente que nunca
+// atendió.
+//   asignaciones   -> asignacionModel.listarPorPaciente(id) (vigentes Y cerradas)
+//   fechasPresente -> fechas 'yyyy-mm-dd' en que el paciente figuró presente
+// Devuelve los autores con la forma de renderFormEvaluacion (sin turno).
+export function autoresCertificado({ asignaciones = [], fechasPresente = [] } = {}) {
+  const autores = [];
+  asignaciones
+    .filter(a => a.profesional_id)
+    .filter(a => fechasPresente.some(f =>
+      (!a.vigente_desde || f >= a.vigente_desde) && (!a.vigente_hasta || f <= a.vigente_hasta)))
+    .forEach(a => {
+      if (!autores.some(x => String(x.profesional_id) === String(a.profesional_id))) {
+        autores.push({ id: null, profesional_id: a.profesional_id, profesionales: a.profesionales, hora: null });
+      }
+    });
   return autores;
 }

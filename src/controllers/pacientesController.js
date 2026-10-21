@@ -10,19 +10,23 @@
 import * as pacienteModel from '../models/pacienteModel.js';
 import * as documentoModel from '../models/documentoModel.js';
 import * as evaluacionModel from '../models/evaluacionModel.js';
-import * as turnoModel from '../models/turnoModel.js';
 import * as asignacionModel from '../models/asignacionModel.js';
 import * as asistenciaModel from '../models/asistenciaModel.js';
 import * as asistenciaProfModel from '../models/asistenciaProfesionalModel.js';
 import {
   renderEstructura, renderTabla, renderFicha, renderHistoria, renderCategorias,
-  renderFormPaciente, renderFormDocumento, renderFormEvaluacion, renderVistaEvaluacion,
+  renderFormPaciente, renderFormDocumento, renderVistaEvaluacion,
 } from '../views/pacientesView.js';
 import { htmlCargando, htmlError, toast, confirmar } from '../utils/ui.js';
 import { hoyISO } from '../utils/fechas.js';
 import { validarPaciente, validarDocumento, normalizarDni } from '../utils/validacion.js';
-import { parseEvaluacion, serializarEvaluacion, tituloPorTipo, autoresElegiblesHoy } from '../utils/evaluacion.js';
+import { parseEvaluacion, autoresElegiblesHoy, autoresCertificado, TIPO_CERTIFICADO } from '../utils/evaluacion.js';
 import { mensajeError } from '../utils/errores.js';
+import { abrirEditorInforme } from './editorInforme.js';
+
+// Cuántos pacientes por página en el listado, y en qué página está.
+const PAC_POR_PAGINA = 12;
+let pacPagina = 0;
 
 // Punto de entrada de la sección Pacientes (lo llama el router).
 export async function iniciarPacientes() {
@@ -42,6 +46,7 @@ async function cargarLista() {
     // soloActivos:false -> el listado muestra activos e inactivos.
     const pacientes = await pacienteModel.listarPacientes({ soloActivos: false });
     caja.innerHTML = renderTabla(pacientes);
+    pacPagina = 0;
 
     // Click en la fila (pero no en un botón) -> abrir el legajo.
     caja.querySelectorAll('tbody tr[data-id]').forEach(tr => {
@@ -57,10 +62,67 @@ async function cargarLista() {
       b.addEventListener('click', () => editarPaciente(b.dataset.id)));
     caja.querySelectorAll('.btn-baja').forEach(b =>
       b.addEventListener('click', () => cambiarEstado(b.dataset.id, b.dataset.estado, b.dataset.nombre)));
+
+    // Buscador: filtra las filas mientras se escribe y vuelve a la
+    // primera página (si no, un resultado corto podría caer fuera de la
+    // página en la que estaba y no verse nada).
+    const buscador = caja.querySelector('#pac-buscar');
+    buscador?.addEventListener('input', () => { pacPagina = 0; filtrarYPaginar(caja); });
+    caja.querySelector('#pac-prev')?.addEventListener('click', () => cambiarPagina(caja, -1));
+    caja.querySelector('#pac-next')?.addEventListener('click', () => cambiarPagina(caja, 1));
+
+    filtrarYPaginar(caja);
   } catch (err) {
     console.error('Error listando pacientes:', err);
     caja.innerHTML = htmlError('No se pudo cargar la lista de pacientes. Revisá la conexión.');
   }
+}
+
+// Aplica el filtro del buscador y muestra solo la página actual. No
+// consulta la base: solo muestra/esconde filas, así responde al instante.
+function filtrarYPaginar(caja) {
+  const termino = (caja.querySelector('#pac-buscar')?.value || '').trim().toLowerCase();
+  const filas = [...caja.querySelectorAll('tbody tr[data-buscar]')];
+  const coinciden = filas.filter(f => !termino || (f.dataset.buscar || '').includes(termino));
+
+  const paginas = Math.max(1, Math.ceil(coinciden.length / PAC_POR_PAGINA));
+  pacPagina = Math.min(Math.max(pacPagina, 0), paginas - 1);
+  const desde = pacPagina * PAC_POR_PAGINA;
+  const enPagina = new Set(coinciden.slice(desde, desde + PAC_POR_PAGINA));
+
+  filas.forEach(f => { f.style.display = enPagina.has(f) ? '' : 'none'; });
+
+  const contador = caja.querySelector('#pac-contador');
+  if (contador) {
+    contador.textContent = termino
+      ? `${coinciden.length} de ${filas.length} pacientes`
+      : `${filas.length} ${filas.length === 1 ? 'paciente' : 'pacientes'}`;
+  }
+
+  const sinResultados = caja.querySelector('#pac-sin-resultados');
+  if (sinResultados) sinResultados.hidden = coinciden.length > 0;
+
+  const pager = caja.querySelector('#pac-pager');
+  if (pager) {
+    pager.hidden = paginas <= 1;
+    caja.querySelector('#pac-pager-info').textContent = `Página ${pacPagina + 1} de ${paginas}`;
+    caja.querySelector('#pac-prev').disabled = pacPagina === 0;
+    caja.querySelector('#pac-next').disabled = pacPagina >= paginas - 1;
+  }
+}
+
+// Cambia de página (±1) y sube el listado al principio.
+function cambiarPagina(caja, pasos) {
+  pacPagina += pasos;
+  filtrarYPaginar(caja);
+  // Sube hasta el buscador. No sirve scrollIntoView: lo deja pegado al
+  // borde de la pantalla, DEBAJO del encabezado fijo (.top), que en el
+  // celular tapa el primer paciente. Se descuenta su altura.
+  const inicio = caja.querySelector('.lista-toolbar') || caja.querySelector('.pac-lista');
+  if (!inicio) return;
+  const encabezado = document.querySelector('.top')?.offsetHeight || 0;
+  const y = inicio.getBoundingClientRect().top + window.scrollY - encabezado - 12;
+  window.scrollTo({ top: Math.max(0, y), behavior: 'smooth' });
 }
 
 // Muestra el listado y oculta el detalle (legajo / historia).
@@ -117,6 +179,8 @@ async function abrirHistoria(id) {
     // cargar una nueva y un botón por evaluación para reimprimir su PDF.
     const btnNuevaEval = document.querySelector('.btn-nueva-eval');
     if (btnNuevaEval) btnNuevaEval.addEventListener('click', () => abrirFormEvaluacion(paciente, evaluaciones));
+    document.querySelector('.btn-nuevo-certificado')
+      ?.addEventListener('click', () => abrirFormCertificado(paciente, evaluaciones));
     document.querySelectorAll('.btn-eval-ver').forEach(b => b.addEventListener('click', () => {
       const ev = evaluaciones.find(e => String(e.id) === String(b.dataset.evalId));
       if (ev) abrirVistaEvaluacion(paciente, ev, evaluaciones);
@@ -210,6 +274,14 @@ export function abrirFormPaciente(paciente = {}, opts = {}) {
   overlay.querySelectorAll('[data-cerrar]').forEach(b => b.addEventListener('click', cerrar));
   overlay.addEventListener('click', (e) => { if (e.target === overlay) cerrar(); });
 
+  // El diagnóstico según CUD solo se muestra si tiene CUD.
+  const selCud = document.getElementById('pac-tiene-cud');
+  const campoDiagnostico = document.getElementById('pac-campo-diagnostico');
+  selCud.addEventListener('change', () => {
+    campoDiagnostico.hidden = selCud.value !== 'true';
+    if (!campoDiagnostico.hidden) campoDiagnostico.querySelector('input').focus();
+  });
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const btn = document.getElementById('btn-guardar-pac');
@@ -226,6 +298,9 @@ export function abrirFormPaciente(paciente = {}, opts = {}) {
     datos.dni = normalizarDni(datos.dni);
     // ¿Tiene CUD? llega como 'true'/'false' del select -> a booleano real.
     datos.tiene_cud = datos.tiene_cud === 'true';
+    // Sin CUD el campo está oculto: no se manda, así lo que estuviera
+    // escrito (o un diagnóstico ya guardado de antes) no se pisa a ciegas.
+    if (!datos.tiene_cud) delete datos.diagnostico;
 
     // --- Validación de datos (antes de tocar la base) ---
     const v = validarPaciente(datos, { esNuevo: !paciente.id });
@@ -342,22 +417,20 @@ function abrirFormDocumento(pacienteId, tipoDefault = 'cud') {
 // FORMULARIO CARGAR EVALUACIÓN (desde la ficha del paciente)
 // ---------------------------------------------------------------------
 // El profesional carga la evaluación acá, no en Agenda (que es de la
-// secretaría). GATE: solo si el paciente fue ATENDIDO HOY, por cualquiera
-// de las dos vías (ver autoresElegiblesHoy en utils/evaluacion.js):
-//   - CASUAL: turno de hoy marcado "Atendido".
-//   - DIARIO: asignado en la grilla + paciente y profesional presentes hoy.
-// El autor se elige entre esos "autores" elegibles. La evaluación sigue la
+// secretaría y solo para casuales sin legajo). GATE: solo si el paciente
+// fue ATENDIDO HOY: asignado en la grilla + paciente y profesional
+// presentes hoy (ver autoresElegiblesHoy en utils/evaluacion.js).
+// El autor se elige entre esos "autores" elegibles. El informe sigue la
 // PLANTILLA de secciones y, al guardar, genera un PDF que se descarga y se
 // adjunta a la historia clínica. `paciente` = objeto completo (para el
-// PDF); `evalsPaciente` = sus evaluaciones (para prellenar lo ya cargado hoy).
+// PDF); `evalsPaciente` = sus informes (para prellenar lo ya cargado hoy).
 async function abrirFormEvaluacion(paciente, evalsPaciente = []) {
   const pacienteId = paciente.id;
   const hoy = hoyISO();
 
   let turnos = [];
   try {
-    const [turnosAtendidos, asignaciones, asistenciasHoy, fichajesHoy] = await Promise.all([
-      turnoModel.listarAtendidosPacienteFecha(pacienteId, hoy),
+    const [asignaciones, asistenciasHoy, fichajesHoy] = await Promise.all([
       asignacionModel.listarPorPaciente(pacienteId, { soloVigentes: true }),
       asistenciaModel.listarAsistenciasPorFecha(hoy),
       asistenciaProfModel.listarPorFecha(hoy),
@@ -368,104 +441,108 @@ async function abrirFormEvaluacion(paciente, evalsPaciente = []) {
       fichajesHoy.filter(f => f.estado === 'presente').map(f => String(f.profesional_id))
     );
 
-    turnos = autoresElegiblesHoy({ turnosAtendidos, asignaciones, pacientePresente, idsProfPresentes });
+    turnos = autoresElegiblesHoy({ asignaciones, pacientePresente, idsProfPresentes });
   } catch (err) {
     console.error('Error buscando la atención de hoy:', err);
     toast('No se pudo consultar la atención de hoy. Revisá la conexión.', 'bad');
     return;
   }
   if (!turnos.length) {
-    toast('Este paciente todavía no figura atendido hoy. Para casuales: marcá su turno como Atendido. Para pacientes de la grilla: marcá presente al paciente y al profesional en Asistencia.', 'bad');
+    toast('Este paciente todavía no figura atendido hoy: marcá presente al paciente y a su profesional de la grilla en Asistencia.', 'bad');
     return;
   }
 
-  // Prellenado: informe ya cargado hoy por cada profesional (upsert diario).
-  const datosPorProf = {};
+  abrirEditorInforme({
+    paciente,
+    autores: turnos,
+    datosPorProf: cargadoHoyPorProf(evalsPaciente, hoy, t => t !== TIPO_CERTIFICADO.key),
+    alGuardar: (r) => guardarYAdjuntar(paciente, r),
+  });
+}
+
+// ---------------------------------------------------------------------
+// EVALUACIÓN / CERTIFICADO (ocasional, desde la ficha del paciente)
+// ---------------------------------------------------------------------
+// Se hace cuando alguien lo pide, cualquier día: NO exige que el
+// paciente haya venido hoy, pero sí que su asistencia con ese profesional
+// esté confirmada alguna vez (ver autoresCertificado en utils/evaluacion.js).
+async function abrirFormCertificado(paciente, evalsPaciente = []) {
+  const pacienteId = paciente.id;
+  const hoy = hoyISO();
+
+  let autores = [];
+  try {
+    const [asignaciones, asistencias] = await Promise.all([
+      asignacionModel.listarPorPaciente(pacienteId),
+      asistenciaModel.listarPorPacienteRango(pacienteId, '2000-01-01', hoy),
+    ]);
+    const fechasPresente = asistencias.filter(a => a.estado === 'presente').map(a => a.fecha);
+    autores = autoresCertificado({ asignaciones, fechasPresente });
+  } catch (err) {
+    console.error('Error buscando la asistencia del paciente:', err);
+    toast('No se pudo consultar la asistencia del paciente. Revisá la conexión.', 'bad');
+    return;
+  }
+  if (!autores.length) {
+    toast('Para hacer una evaluación o certificado, el paciente tiene que haber asistido al menos una vez con ese profesional (presente en Asistencia mientras estaba en su grilla).', 'bad');
+    return;
+  }
+
+  abrirEditorInforme({
+    paciente,
+    autores,
+    datosPorProf: cargadoHoyPorProf(evalsPaciente, hoy, t => t === TIPO_CERTIFICADO.key),
+    vista: {
+      tipos: [TIPO_CERTIFICADO],
+      titulo: 'Evaluación / certificado',
+      etiquetaProf: 'Profesional que firma (lo atendió) *',
+      nota: 'Documento ocasional. Al guardar se genera el PDF con el membrete y se adjunta a la historia clínica.',
+    },
+    alGuardar: (r) => guardarYAdjuntar(paciente, r),
+  });
+}
+
+// Lo que cada profesional ya cargó HOY de ese tipo de documento (para
+// prellenar el editor: guardar de nuevo el mismo día lo actualiza).
+function cargadoHoyPorProf(evalsPaciente, hoy, esDelTipo) {
+  const porProf = {};
   evalsPaciente
-    .filter(ev => ev.fecha === hoy)
-    .forEach(ev => { datosPorProf[String(ev.profesional_id)] = parseEvaluacion(ev.contenido); });
+    .filter(ev => ev.fecha === hoy && esDelTipo(ev.tipo))
+    .forEach(ev => { porProf[String(ev.profesional_id)] = parseEvaluacion(ev.contenido); });
+  return porProf;
+}
 
-  document.body.insertAdjacentHTML('beforeend', renderFormEvaluacion(paciente, turnos, datosPorProf));
-  const overlay = document.getElementById('overlay-eval');
-  const form = document.getElementById('form-eval');
-  const selProf = document.getElementById('eval-prof');
-  const selTipo = document.getElementById('eval-tipo');
-  const inputTitulo = document.getElementById('eval-titulo');
-  const txtCuerpo = document.getElementById('eval-cuerpo'); // la hoja de escritura
-  const cerrar = () => overlay.remove();
-
-  overlay.querySelectorAll('[data-cerrar]').forEach(b => b.addEventListener('click', cerrar));
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) cerrar(); });
-
-  // Al cambiar el TIPO, se sugiere el título por defecto de ese tipo.
-  selTipo.addEventListener('change', () => { inputTitulo.value = tituloPorTipo(selTipo.value); });
-
-  // Al cambiar de PROFESIONAL, recarga tipo/título/cuerpo con lo que ese
-  // profesional ya cargó hoy (o el informe en blanco si todavía no cargó).
-  selProf.addEventListener('change', () => {
-    const inf = datosPorProf[selProf.value] || { tipo: 'mensual', titulo: tituloPorTipo('mensual'), cuerpo: '' };
-    selTipo.value = inf.tipo || 'mensual';
-    inputTitulo.value = inf.titulo || tituloPorTipo(selTipo.value);
-    txtCuerpo.value = inf.cuerpo || '';
+// Guarda el informe / certificado del paciente, genera el PDF (se
+// descarga) y lo adjunta a su historia clínica. Si el adjunto falla, el
+// documento ya quedó guardado igual.
+async function guardarYAdjuntar(paciente, { datos, contenido, autor, turnoId }) {
+  const hoy = hoyISO();
+  await evaluacionModel.guardarEvaluacion({
+    pacienteId: paciente.id,
+    profesionalId: autor.profesional_id,
+    fecha: hoy,
+    contenido,
+    turnoId,
+    tipo: datos.tipo,
   });
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
+  try {
+    const { generarInformeEvaluacion } = await import('../utils/informePdf.js');
+    const { blob, filename } = await generarInformeEvaluacion({
+      paciente, profesional: autor.profesionales || {}, fecha: hoy, informe: datos,
+    });
+    const archivo = new File([blob], filename, { type: 'application/pdf' });
+    await documentoModel.guardarDocumento({
+      pacienteId: paciente.id, tipo: 'informe', archivo, fechaEmision: hoy,
+      observaciones: `${datos.titulo} — ${autor.profesionales?.nombre_completo || ''}`.trim(),
+    });
+    toast('Guardado y adjuntado a la historia clínica.');
+  } catch (errPdf) {
+    console.error('Documento guardado, pero falló el PDF/adjunto:', errPdf);
+    toast('Se guardó, pero no se pudo adjuntar el PDF.', 'bad');
+  }
 
-    // Arma el informe: tipo + título + cuerpo (lo escrito en la hoja).
-    const datos = { tipo: selTipo.value, titulo: inputTitulo.value, cuerpo: txtCuerpo.value };
-    if (!(datos.cuerpo || '').trim()) {
-      toast('Escribí el informe antes de guardar.', 'bad');
-      return;
-    }
-
-    const opt = selProf.options[selProf.selectedIndex];
-    const turnoSel = turnos.find(t => String(t.profesional_id) === String(selProf.value)) || {};
-    const btn = document.getElementById('btn-guardar-eval');
-    btn.disabled = true;
-    btn.textContent = 'Guardando…';
-    try {
-      // 1) Guarda el informe (serializado a JSON) en la base.
-      await evaluacionModel.guardarEvaluacion({
-        pacienteId,
-        profesionalId: selProf.value,
-        fecha: hoy,
-        contenido: serializarEvaluacion(datos),
-        // Vacío = paciente de la grilla, sin turno (no confundir con la
-        // columna uuid, que rechaza "" tanto como rechazaría "null").
-        turnoId: (opt && opt.dataset.turno) ? opt.dataset.turno : null,
-        // El tipo va en la clave: así el informe del mes NO pisa la
-        // evaluación diaria del mismo paciente y el mismo día.
-        tipo: datos.tipo,
-      });
-
-      // 2) Genera el PDF (se descarga) y lo adjunta a la historia clínica.
-      //    Si el adjunto falla, el informe ya quedó guardado igual.
-      try {
-        const { generarInformeEvaluacion } = await import('../utils/informePdf.js');
-        const { blob, filename } = await generarInformeEvaluacion({
-          paciente, profesional: turnoSel.profesionales || {}, fecha: hoy, informe: datos,
-        });
-        const archivo = new File([blob], filename, { type: 'application/pdf' });
-        await documentoModel.guardarDocumento({
-          pacienteId, tipo: 'informe', archivo, fechaEmision: hoy,
-          observaciones: `${datos.titulo} — ${turnoSel.profesionales?.nombre_completo || ''}`.trim(),
-        });
-        toast('Informe guardado y adjuntado a la historia clínica.');
-      } catch (errPdf) {
-        console.error('Informe guardado, pero falló el PDF/adjunto:', errPdf);
-        toast('Se guardó el informe, pero no se pudo adjuntar el PDF.', 'bad');
-      }
-
-      cerrar();
-      await abrirHistoria(pacienteId); // refresca el apartado + el documento
-    } catch (err) {
-      console.error('Error guardando el informe:', err);
-      btn.disabled = false;
-      btn.textContent = 'Guardar y generar PDF';
-      toast(mensajeError(err, 'No se pudo guardar el informe. Probá de nuevo.'), 'bad');
-    }
-  });
+  await abrirHistoria(paciente.id); // refresca el apartado + el documento
 }
 
 // Reimprime el PDF de un informe ya guardado (desde su botón en la historia
@@ -502,7 +579,11 @@ function abrirVistaEvaluacion(paciente, ev, evalsPaciente = []) {
 
   // Solo el informe de hoy: botón Editar → abre el editor (prellenado).
   const btnEditar = document.getElementById('btn-vista-editar');
-  if (btnEditar) btnEditar.addEventListener('click', () => { cerrar(); abrirFormEvaluacion(paciente, evalsPaciente); });
+  if (btnEditar) btnEditar.addEventListener('click', () => {
+    cerrar();
+    if (ev.tipo === TIPO_CERTIFICADO.key) abrirFormCertificado(paciente, evalsPaciente);
+    else abrirFormEvaluacion(paciente, evalsPaciente);
+  });
 }
 
 // ---------------------------------------------------------------------

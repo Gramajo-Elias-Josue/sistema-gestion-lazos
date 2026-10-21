@@ -2,7 +2,7 @@
 // UTILIDADES: Interfaz (UI)
 // ---------------------------------------------------------------------
 // Pequeños ayudantes de presentación compartidos por varias vistas:
-// estados de carga/error/vacío, notificaciones (toast), el pill de
+// estados de carga/error, notificaciones (toast), el pill de
 // estado y un escape de HTML. No contienen lógica de negocio ni acceso
 // a datos: solo arman fragmentos de interfaz.
 // =====================================================================
@@ -15,11 +15,6 @@ export function htmlCargando(texto = 'Cargando…') {
 // HTML del estado "error".
 export function htmlError(mensaje = 'Ocurrió un error.') {
   return `<div class="state error"><span class="ic">⚠</span>${esc(mensaje)}</div>`;
-}
-
-// HTML del estado "vacío" (sin registros).
-export function htmlVacio(texto = 'Sin registros.') {
-  return `<div class="state">${esc(texto)}</div>`;
 }
 
 // Pill de estado (ok / warn / bad).
@@ -106,4 +101,17 @@ export function esc(valor) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
+}
+
+// Tonos de color de las tarjetas: los mismos --area-N de la Grilla de
+// atención (tienen versión clara y oscura). El 5 se saltea: es el gris
+// de "sin sector".
+const TONOS = [0, 1, 2, 3, 4, 6, 7];
+
+// Tono fijo para un texto (p. ej. el id de un paciente): la misma
+// persona tiene siempre el mismo color, en cualquier página o recarga.
+export function tonoDe(texto) {
+  let h = 0;
+  for (const c of String(texto ?? '')) h = (h * 31 + c.codePointAt(0)) >>> 0;
+  return TONOS[h % TONOS.length];
 }

@@ -9,6 +9,8 @@
 
 import { iniciales } from '../utils/fechas.js';
 import { esc, pill } from '../utils/ui.js';
+import { areaDelProfesional } from '../utils/areas.js';
+import { TURNOS_CENTRO, rangoTurno, textoTurnos } from '../utils/turnosCentro.js';
 
 // Estructura base: pestañas Equipo / Profesiones.
 export function renderEstructura() {
@@ -18,15 +20,15 @@ export function renderEstructura() {
       <button class="tab" data-tab="sectores">Profesiones</button>
     </div>
     <div id="prof-pane-equipo">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
-        <p style="color:var(--ink-soft);font-size:15px">Equipo interdisciplinario. Podés crear, editar o dar de baja un profesional.</p>
+      <div class="seccion-intro">
+        <p>Equipo interdisciplinario. Podés crear, editar o dar de baja un profesional.</p>
         <button class="btn" id="btn-nuevo-prof">+ Nuevo profesional</button>
       </div>
       <div id="prof-tabla"></div>
     </div>
     <div id="prof-pane-sectores" class="hidden">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px">
-        <p style="color:var(--ink-soft);font-size:15px">Profesiones del centro: son las columnas de la Grilla de atención y lo que cada profesional elige al darse de alta.</p>
+      <div class="seccion-intro">
+        <p>Profesiones del centro: son las columnas de la Grilla de atención y lo que cada profesional elige al darse de alta.</p>
         <button class="btn" id="btn-nuevo-sector">+ Nueva profesión</button>
       </div>
       <div id="sectores-tabla"></div>
@@ -81,8 +83,12 @@ export function renderModalSector() {
     </div>`;
 }
 
-// Tabla del listado de profesionales.
-export function renderTabla(profesionales) {
+// Tabla del listado de profesionales. Arriba lleva un buscador (lo
+// maneja el controlador escondiendo filas). En escritorio es una tabla;
+// en celular el CSS (.tabla-cards) la convierte en tarjetas.
+// `sectores` (en el orden de la pestaña "Profesiones") da el color de
+// cada uno: el mismo que su tarjeta en la Grilla de atención.
+export function renderTabla(profesionales, sectores = []) {
   if (!profesionales.length) {
     return `<div class="tablewrap"><div class="state">No hay profesionales cargados todavía.</div></div>`;
   }
@@ -95,47 +101,63 @@ export function renderTabla(profesionales) {
     const activo = p.estado === 'activo';
     // Para las iniciales del avatar, sacamos el título (Lic./Prof./Dr./Dra.).
     const nombreSinTitulo = (p.nombre_completo || '').replace(/^(Lic\.|Prof\.|Dra\.|Dr\.)\s/, '');
+    const especialidad = p.especialidad || p.profesion || '';
+    // Texto por el que filtra el buscador: nombre, email, especialidad y matrícula.
+    const buscar = `${p.nombre_completo || ''} ${p.email || ''} ${especialidad} ${p.matricula || ''}`.toLowerCase();
+    const dias = (p.dias_trabajo && p.dias_trabajo.length
+      ? esc(p.dias_trabajo.map(d => d.slice(0, 3)).join(', '))
+      : 'Sin días asignados')
+      + ' · ' + esc(textoTurnos(p) || 'Sin turno');
+
+    // Mismo cálculo que la grilla: posición del sector en la lista; sin
+    // sector conocido, el gris (5).
+    const iSector = sectores.findIndex(s => s.clave === areaDelProfesional(p));
+    const tono = iSector >= 0 ? iSector % 8 : 5;
 
     return `
-      <tr style="cursor:default">
-        <td>
+      <tr class="tono-${tono}" data-buscar="${esc(buscar)}" style="cursor:default${activo ? '' : ';opacity:.55'}">
+        <td class="tc-nombre">
           <div class="pname">
             <div class="pav">${esc(iniciales(nombreSinTitulo))}</div>
             <div>
               <b>${esc(p.nombre_completo)}</b><br>
               <small>${esc(p.email || '')}</small>
-              <div style="font-size:11px;color:var(--ink-soft);margin-top:2px">
-                🗓️ ${p.dias_trabajo && p.dias_trabajo.length ? esc(p.dias_trabajo.map(d => d.slice(0, 3)).join(', ')) : 'Sin días asignados'}
-              </div>
+              <div style="font-size:11px;color:var(--ink-soft);margin-top:2px">🗓️ ${dias}</div>
             </div>
           </div>
         </td>
-        <td>${esc(p.especialidad || p.profesion || '—')}</td>
-        <td>${esc(p.matricula || '—')}</td>
-        <td>${cantPacientes} asignados</td>
-        <td>${activo ? pill('ok', 'Activo') : pill('bad', 'Inactivo')}</td>
-        <td style="white-space:nowrap;text-align:right">
-          <button class="btn ghost btn-editar-prof" data-id="${p.id}" style="padding:6px 12px">Editar</button>
-          <button class="btn ghost btn-baja-prof" data-id="${p.id}" data-estado="${esc(p.estado || '')}" data-nombre="${esc(p.nombre_completo)}" style="padding:6px 12px;color:${activo ? 'var(--red-600)' : 'var(--teal-700)'}">${activo ? 'Desactivar' : 'Activar'}</button>
+        <td data-t="Especialidad">${esc(especialidad || '—')}</td>
+        <td data-t="Matrícula">${esc(p.matricula || '—')}</td>
+        <td data-t="Pacientes">${cantPacientes} asignados</td>
+        <td data-t="Estado">${activo ? pill('ok', 'Activo') : pill('bad', 'Inactivo')}</td>
+        <td class="tc-acciones">
+          <button class="btn ghost btn-editar-prof destacado" data-id="${p.id}" style="padding:6px 12px">Editar</button>
+          <button class="btn ghost btn-baja-prof${activo ? ' peligro' : ''}" data-id="${p.id}" data-estado="${esc(p.estado || '')}" data-nombre="${esc(p.nombre_completo)}" style="padding:6px 12px;color:${activo ? 'var(--red-600)' : 'var(--teal-700)'}">${activo ? 'Desactivar' : 'Activar'}</button>
         </td>
       </tr>`;
   }).join('');
 
   return `
-    <div class="tablewrap">
+    <div class="lista-toolbar">
+      <input id="prof-buscar" type="search" autocomplete="off"
+             placeholder="🔎 Buscar por nombre, email o especialidad…">
+      <span class="lista-contador" id="prof-contador"></span>
+    </div>
+    <div class="tablewrap tabla-cards">
       <table>
         <thead>
           <tr><th>Profesional</th><th>Especialidad</th><th>Matrícula</th><th>Pacientes</th><th>Estado</th><th></th></tr>
         </thead>
         <tbody>${filas}</tbody>
       </table>
-    </div>`;
+    </div>
+    <div class="state" id="prof-sin-resultados" hidden>Ningún profesional coincide con la búsqueda.</div>`;
 }
 
 // Formulario (modal) de alta/edición de profesional.
-// `permiteCrearUsuario` = el que abre el form es director o secretaría
-// (puede tildar "crear también su usuario de acceso"; solo tiene sentido
-// al CREAR, no al editar uno ya existente).
+// `permiteCrearUsuario` = el que abre el form es director o secretaría:
+// al crearlo, se le crea también su usuario de acceso automáticamente
+// (solo tiene sentido al CREAR, no al editar uno ya existente).
 // `sectores` = profesiones cargadas (pestaña "Profesiones"), para el
 // desplegable que lo enlaza con su columna de la Grilla de atención.
 export function renderFormProfesional(prof = {}, { permiteCrearUsuario = false, sectores = [] } = {}) {
@@ -175,15 +197,24 @@ export function renderFormProfesional(prof = {}, { permiteCrearUsuario = false, 
               <div class="form-field full"><label>Email${marca}</label><input type="email" name="email" id="prof-email" ${req} value="${v('email')}"></div>
               ${ofrecerUsuario ? `
               <div class="form-field full" style="background:var(--teal-50);border:1px solid var(--teal-100);border-radius:10px;padding:12px 14px">
-                <label style="display:flex;align-items:center;gap:8px;font-weight:600;cursor:pointer">
-                  <input type="checkbox" name="crear_usuario" id="prof-crear-usuario">
-                  Crear también su usuario de acceso
-                </label>
-                <small style="color:var(--ink-faint)">Le mandamos un mail a ese email para que elija su propia contraseña. Necesita el email completo.</small>
+                <b>Le vamos a crear su usuario de acceso.</b>
+                <br><small style="color:var(--ink-faint)">Apenas lo guardes, le mandamos un mail a ese email para que elija su propia contraseña. Necesita el email completo.</small>
               </div>` : ''}
               <div class="form-field full"><label>Dirección${marca}</label><input name="direccion" ${req} value="${v('direccion')}"></div>
-              <div class="form-field"><label>Horario de entrada${marca}</label><input type="time" name="horario_entrada" ${req} value="${v('horario_entrada')}"></div>
-              <div class="form-field"><label>Horario de salida${marca}</label><input type="time" name="horario_salida" ${req} value="${v('horario_salida')}"></div>
+              <div class="form-field full">
+                <label>Turno *</label>
+                <div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:8px">
+                  ${TURNOS_CENTRO.map(t => {
+                    const checked = Array.isArray(prof.turnos_trabajo) && prof.turnos_trabajo.includes(t.clave) ? 'checked' : '';
+                    return `
+                      <label style="display:flex;align-items:center;gap:6px;font-weight:normal;cursor:pointer">
+                        <input type="checkbox" name="turnos_trabajo" value="${t.clave}" ${checked} style="width:auto">
+                        <span>${esc(t.etiqueta)} <small style="color:var(--ink-faint)">(${esc(rangoTurno(t))})</small></span>
+                      </label>`;
+                  }).join('')}
+                </div>
+                <small style="color:var(--ink-faint)">Si trabaja en los dos, tildá los dos: aparece en ambos turnos de la grilla.</small>
+              </div>
               <div class="form-field full">
                 <label>Días de trabajo${marca}</label>
                 <div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:8px">

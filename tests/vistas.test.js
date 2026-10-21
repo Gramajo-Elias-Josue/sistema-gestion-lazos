@@ -24,6 +24,7 @@ import {
   renderFotos as galeriaFotos,
 } from '../src/views/galeriaView.js';
 import { armarCalendario } from '../src/utils/calendario.js';
+import { tonoDe } from '../src/utils/ui.js';
 
 // Fecha ISO a N días de hoy (para armar vencimientos relativos).
 const isoDesdeHoy = (dias) => {
@@ -36,6 +37,16 @@ describe('pacientesView.renderTabla', () => {
 
   it('muestra el estado vacío cuando no hay pacientes', () => {
     expect(tablaPacientes([])).toContain('No hay pacientes');
+  });
+
+  it('cada paciente lleva un color fijo (el mismo en cada recarga), nunca el gris', () => {
+    const html = tablaPacientes([base]);
+    const tono = tonoDe(base.id);
+    expect(html).toContain(`class="tono-${tono}"`);
+    expect(tonoDe(base.id)).toBe(tono);
+    for (const id of ['a', 'b', 'c', 'uuid-1', 'uuid-2', 42]) {
+      expect([0, 1, 2, 3, 4, 6, 7]).toContain(tonoDe(id));
+    }
   });
 
   it('muestra el nombre y el DNI del paciente', () => {
@@ -54,12 +65,42 @@ describe('pacientesView.renderTabla', () => {
     const html = tablaPacientes([{ ...base, estado: 'inactivo' }]);
     expect(html).toContain('Inactivo');
   });
+
+  it('lleva las marcas para volverse tarjetas en celular (sin scroll horizontal)', () => {
+    const html = tablaPacientes([base]);
+    expect(html).toContain('tabla-cards');          // el CSS engancha acá
+    expect(html).toContain('data-t="Edad"');        // etiqueta de la fila apilada
+    expect(html).toContain('data-t="Obra social"');
+    expect(html).toContain('tc-acciones');          // los botones, a lo ancho
+  });
+
+  it('trae el buscador y el paginado (los maneja el controlador)', () => {
+    const html = tablaPacientes([base]);
+    expect(html).toContain('id="pac-buscar"');
+    expect(html).toContain('id="pac-pager"');
+    expect(html).toContain('id="pac-prev"');
+    expect(html).toContain('id="pac-next"');
+    expect(html).toMatch(/id="pac-pager"[^>]*hidden/); // arranca oculto
+  });
+
+  it('cada fila lleva su texto de búsqueda: nombre, DNI y obra social', () => {
+    const html = tablaPacientes([{ ...base, nombre_completo: 'Ana Test', dni: '12345678', obra_social: 'OSDE' }]);
+    expect(html).toContain('data-buscar="ana test 12345678 osde"');
+  });
 });
 
 describe('pacientesView.renderFormPaciente', () => {
   it('[regresión] el formulario NO pide el campo "estado" (es interno)', () => {
     expect(renderFormPaciente({})).not.toContain('name="estado"');       // alta
     expect(renderFormPaciente({ id: 5, estado: 'inactivo' })).not.toContain('name="estado"'); // edición
+  });
+
+  it('primero pregunta si tiene CUD; el diagnóstico según CUD solo se ve si tiene', () => {
+    const alta = renderFormPaciente({});
+    expect(alta.indexOf('name="tiene_cud"')).toBeLessThan(alta.indexOf('name="diagnostico"'));
+    expect(alta).toMatch(/id="pac-campo-diagnostico"\s+hidden/);
+    expect(renderFormPaciente({ id: 5, tiene_cud: true, diagnostico: 'TEA' }))
+      .not.toMatch(/id="pac-campo-diagnostico"\s+hidden/);
   });
 
   it('conserva los datos al editar', () => {
@@ -93,6 +134,20 @@ describe('profesionalesView.renderTabla (baja lógica)', () => {
     expect(html).toContain('btn-baja-prof');
     expect(html).toContain('data-estado="activo"');
   });
+
+  it('trae el buscador y las marcas para volverse tarjetas en celular', () => {
+    const html = tablaProfesionales([base]);
+    expect(html).toContain('id="prof-buscar"');
+    expect(html).toContain('tabla-cards');
+    expect(html).toContain('data-t="Especialidad"');
+    expect(html).toContain('data-t="Matrícula"');
+    expect(html).toContain('tc-acciones');
+  });
+
+  it('cada fila lleva su texto de búsqueda (nombre, email, especialidad)', () => {
+    const html = tablaProfesionales([{ ...base, nombre_completo: 'Lic. María', email: 'maria@lazos.test', profesion: 'Psicología' }]);
+    expect(html).toMatch(/data-buscar="[^"]*maría[^"]*maria@lazos\.test[^"]*psicología[^"]*"/);
+  });
 });
 
 describe('profesionalesView.renderFormProfesional', () => {
@@ -101,11 +156,11 @@ describe('profesionalesView.renderFormProfesional', () => {
     expect(renderFormProfesional({ id: 3, estado: 'inactivo' })).not.toContain('name="estado"');
   });
 
-  it('el check "crear usuario" solo aparece al CREAR y si lo puede usar (director)', () => {
-    expect(renderFormProfesional({})).not.toContain('name="crear_usuario"'); // sin permiso
-    expect(renderFormProfesional({}, { permiteCrearUsuario: true })).toContain('name="crear_usuario"');
+  it('el aviso de "se crea su usuario" solo aparece al CREAR y si lo puede usar (director)', () => {
+    expect(renderFormProfesional({})).not.toContain('Le vamos a crear su usuario'); // sin permiso
+    expect(renderFormProfesional({}, { permiteCrearUsuario: true })).toContain('Le vamos a crear su usuario');
     // Editando uno existente, ni con permiso: no tiene sentido ahí.
-    expect(renderFormProfesional({ id: 3 }, { permiteCrearUsuario: true })).not.toContain('name="crear_usuario"');
+    expect(renderFormProfesional({ id: 3 }, { permiteCrearUsuario: true })).not.toContain('Le vamos a crear su usuario');
   });
 
   it('el desplegable de sector lista las profesiones cargadas y marca la elegida', () => {
@@ -118,13 +173,27 @@ describe('profesionalesView.renderFormProfesional', () => {
 
   it('[regresión] los datos obligatorios llevan required solo al CREAR, no al editar', () => {
     const alta = renderFormProfesional({});
-    for (const campo of ['dni', 'fecha_nacimiento', 'profesion', 'sector', 'especialidad', 'telefono', 'email', 'direccion', 'horario_entrada', 'horario_salida']) {
+    for (const campo of ['dni', 'fecha_nacimiento', 'profesion', 'sector', 'especialidad', 'telefono', 'email', 'direccion']) {
       expect(alta, `"${campo}" debería ser required al crear`).toMatch(new RegExp(`name="${campo}"[^>]*required`));
     }
     const edicion = renderFormProfesional({ id: 3 });
-    for (const campo of ['dni', 'fecha_nacimiento', 'profesion', 'sector', 'especialidad', 'telefono', 'email', 'direccion', 'horario_entrada', 'horario_salida']) {
+    for (const campo of ['dni', 'fecha_nacimiento', 'profesion', 'sector', 'especialidad', 'telefono', 'email', 'direccion']) {
       expect(edicion, `"${campo}" NO debería ser required al editar`).not.toMatch(new RegExp(`name="${campo}"[^>]*required`));
     }
+  });
+
+  it('pide el turno (mañana / tarde) con casillas, ya no horario de entrada y salida', () => {
+    const alta = renderFormProfesional({});
+    expect(alta).toContain('name="turnos_trabajo" value="manana"');
+    expect(alta).toContain('name="turnos_trabajo" value="tarde"');
+    expect(alta).not.toContain('name="horario_entrada"');
+    expect(alta).not.toContain('name="horario_salida"');
+  });
+
+  it('al editar, vienen tildados los turnos que ya tenía', () => {
+    const html = renderFormProfesional({ id: 3, turnos_trabajo: ['manana', 'tarde'] });
+    expect(html).toMatch(/value="manana" checked/);
+    expect(html).toMatch(/value="tarde" checked/);
   });
 
   it('matrícula y teléfono 2 nunca llevan required', () => {
@@ -186,7 +255,7 @@ describe('galeriaView (solo fotos)', () => {
     const pantalla = [
       galeriaEstructura('2026-08'),
       galeriaPendientes({ periodo: '2026-08', fotos: equipo }),
-      galeriaFotos({ fotos: [], profesionales: equipo, periodo: '2026-08' }),
+      galeriaFotos({ fotos: [], miNombre: 'Flores Ingrid', periodo: '2026-08' }),
     ].join(' ');
     expect(pantalla.toLowerCase()).not.toContain('informe');
   });
@@ -202,16 +271,21 @@ describe('galeriaView (solo fotos)', () => {
     expect(galeriaPendientes({ periodo: '2026-08', fotos: [] })).toContain('Todo el equipo subió su foto');
   });
 
-  it('el formulario aclara que la foto se borra sola', () => {
-    const html = galeriaFotos({ fotos: [], profesionales: equipo, periodo: '2026-08' });
-    expect(html).toContain('se borra a los 3 meses');
-    expect(html).toContain('Flores Ingrid'); // se elige de quién es la foto
+  it('[regresión] el formulario ya no dice que la foto se borra sola', () => {
+    const html = galeriaFotos({ fotos: [], miNombre: 'Flores Ingrid', periodo: '2026-08' });
+    expect(html).not.toContain('se borra a los 3 meses');
   });
 
-  it('el CM ve las fotos pero no el formulario de carga', () => {
+  it('el formulario sube a nombre del profesional logueado, sin elegir a quién', () => {
+    const html = galeriaFotos({ fotos: [], miNombre: 'Flores Ingrid', periodo: '2026-08' });
+    expect(html).toContain('Flores Ingrid'); // aviso de a nombre de quién se sube
+    expect(html).not.toContain('name="profesional_id"'); // ya no se elige de un desplegable
+  });
+
+  it('quien no es profesional (CM, director, secretaría) ve las fotos pero no el formulario de carga', () => {
     const html = galeriaFotos({
       fotos: [{ id: 'f1', storage_path: 'x', url: '', profesionales: { nombre_completo: 'Flores Ingrid' } }],
-      profesionales: equipo, periodo: '2026-08', puedeSubir: false,
+      periodo: '2026-08', puedeSubir: false,
     });
     expect(html).toContain('gal-foto');
     expect(html).not.toContain('gal-form-foto');
@@ -288,11 +362,27 @@ describe('calendarioAsistenciaView.renderCalendario', () => {
 });
 
 describe('turnosView.renderLista', () => {
+  // Turno casual: los datos de la persona vienen anotados en el turno.
   const turno = {
     id: 9, estado: 'programado', hora: '10:30:00',
-    pacientes: { nombre_completo: 'Ana Test', dni: '12345678' },
+    paciente_nombre: 'Ana Test', paciente_dni: '12345678', paciente_telefono: '3865111222',
     profesionales: { nombre_completo: 'Lic. María', profesion: 'Psicología' },
   };
+
+  it('muestra los datos de contacto del casual', () => {
+    const html = listaTurnos([turno]);
+    expect(html).toContain('DNI 12345678');
+    expect(html).toContain('Tel. 3865111222');
+  });
+
+  it('los turnos viejos (de un paciente cargado) se siguen leyendo', () => {
+    const viejo = { ...turno, paciente_nombre: null, paciente_dni: null, pacientes: { nombre_completo: 'Paciente Viejo', dni: '1' } };
+    expect(listaTurnos([viejo])).toContain('Paciente Viejo');
+  });
+
+  it('en celular es tarjeta (tabla-cards)', () => {
+    expect(listaTurnos([turno])).toContain('tabla-cards');
+  });
 
   it('muestra el estado vacío cuando no hay turnos', () => {
     expect(listaTurnos([])).toContain('No hay turnos');
@@ -312,7 +402,7 @@ describe('turnosView.renderLista', () => {
   });
 
   it('escapa el nombre del paciente', () => {
-    const html = listaTurnos([{ ...turno, pacientes: { nombre_completo: '<x>', dni: '1' } }]);
+    const html = listaTurnos([{ ...turno, paciente_nombre: '<x>' }]);
     expect(html).not.toContain('<x>');
     expect(html).toContain('&lt;x&gt;');
   });
@@ -323,6 +413,15 @@ describe('turnosView.renderLista', () => {
     expect(html).not.toContain('btn-eliminar-turno'); // ni eliminar
     expect(html).toContain('Ana Test');               // pero sí ve el turno
     expect(html).toContain('Programado');             // (la pill de estado sigue visible)
+  });
+
+  it('[clave] evaluación / certificado: solo en turnos casuales ATENDIDOS (asistencia confirmada)', () => {
+    expect(listaTurnos([turno])).not.toContain('btn-cert-turno');                           // programado
+    expect(listaTurnos([{ ...turno, estado: 'atendido' }])).toContain('+ Evaluación / certificado');
+    expect(listaTurnos([{ ...turno, estado: 'atendido' }], false)).toContain('btn-cert-turno'); // el profesional también
+    expect(listaTurnos([{ ...turno, estado: 'atendido' }], true, { 9: { id: 'c1' } })).toContain('Ver certificado');
+    // Turno viejo de un paciente con legajo: el certificado se hace desde su historia clínica.
+    expect(listaTurnos([{ ...turno, estado: 'atendido', paciente_id: 'p1' }])).not.toContain('btn-cert-turno');
   });
 
   it('quien gestiona la agenda sí ve el selector y Eliminar', () => {
@@ -347,24 +446,28 @@ describe('turnosView.renderEstructura (según el rol)', () => {
   });
 });
 
-describe('turnosView.renderFormTurno', () => {
-  const pac = { id: 1, nombre_completo: 'Ana', dni: '123' };
-  const prof = { id: 2, nombre_completo: 'Lic. María', profesion: 'Psicología', horario_entrada: '08:00', horario_salida: '16:00', dias_trabajo: ['Lunes'] };
+describe('turnosView.renderFormTurno (paciente casual)', () => {
+  const prof = { id: 2, nombre_completo: 'Lic. María', profesion: 'Psicología', turnos_trabajo: ['manana'], dias_trabajo: ['Lunes'] };
 
-  it('avisa si faltan pacientes o profesionales cargados', () => {
-    expect(renderFormTurno([], [prof], '2026-07-16')).toContain('Necesitás al menos un paciente');
-    expect(renderFormTurno([pac], [], '2026-07-16')).toContain('Necesitás al menos un paciente');
+  it('avisa si no hay profesionales cargados', () => {
+    expect(renderFormTurno([], '2026-07-16')).toContain('Necesitás al menos un profesional');
+    expect(renderFormTurno([prof], '2026-07-16')).not.toContain('Necesitás al menos un profesional');
   });
 
-  it('con datos completos, no muestra el aviso', () => {
-    expect(renderFormTurno([pac], [prof], '2026-07-16')).not.toContain('Necesitás al menos un paciente');
+  it('[clave] el paciente se ESCRIBE (no tiene legajo): nombre, teléfono y DNI; no hay lista de pacientes', () => {
+    const html = renderFormTurno([prof], '2026-07-16');
+    expect(html).toMatch(/name="paciente_nombre"[^>]*required/);
+    expect(html).toContain('name="paciente_telefono"');
+    expect(html).toContain('name="paciente_dni"');
+    expect(html).not.toContain('name="paciente_id"');
   });
 
-  it('las opciones de profesional llevan los data-* que lee el controlador', () => {
-    const html = renderFormTurno([pac], [prof], '2026-07-16');
-    expect(html).toContain('data-entrada="08:00"');
-    expect(html).toContain('data-salida="16:00"');
-    expect(html).toContain('data-dias='); // días de trabajo serializados
+  it('la hora es obligatoria (para controlar que no pise la grilla)', () => {
+    expect(renderFormTurno([prof], '2026-07-16')).toMatch(/name="hora"[^>]*required/);
+  });
+
+  it('las opciones de profesional llevan los días de trabajo que lee el controlador', () => {
+    expect(renderFormTurno([prof], '2026-07-16')).toContain('data-dias='); // días de trabajo serializados
   });
 });
 
@@ -458,7 +561,7 @@ describe('asistenciaView.filaHtml (planilla de pacientes)', () => {
 });
 
 describe('asistenciaProfView.filaHtml (fichaje)', () => {
-  const prof = { id: 5, nombre_completo: 'Lic. María', profesion: 'Psicología', horario_entrada: '08:00', horario_salida: '16:00' };
+  const prof = { id: 5, nombre_completo: 'Lic. María', profesion: 'Psicología', turnos_trabajo: ['manana'] };
 
   it('estado vacío cuando no hay profesionales', () => {
     expect(filasFichaje([], {}, {})).toContain('No hay profesionales activos');
@@ -489,10 +592,17 @@ describe('asistenciaProfView.filaHtml (fichaje)', () => {
     expect(html).toContain('class="apf-entrada" value="09:15"'); // no 18:00 (aún no ocurrió)
   });
 
-  it('fecha pasada: usa el horario habitual del perfil', () => {
+  it('fecha pasada: usa el horario de su turno (mañana: 8 a 12)', () => {
     const html = filaFichaje(prof, undefined, { esHoy: false });
     expect(html).toContain('class="apf-entrada" value="08:00"');
-    expect(html).toContain('class="apf-salida" value="16:00"');
+    expect(html).toContain('class="apf-salida" value="12:00"');
+  });
+
+  it('con los dos turnos, el horario va de la entrada de la mañana a la salida de la tarde', () => {
+    const html = filaFichaje({ ...prof, turnos_trabajo: ['manana', 'tarde'] }, undefined, { esHoy: false });
+    expect(html).toContain('class="apf-entrada" value="08:00"');
+    expect(html).toContain('class="apf-salida" value="18:00"');
+    expect(html).toContain('Mañana y tarde');
   });
 });
 
@@ -501,6 +611,12 @@ describe('pacientesView.renderEvaluacionesHistoria (informes)', () => {
 
   it('estado vacío cuando no hay informes', () => {
     expect(renderEvaluacionesHistoria([])).toContain('Todavía no hay informes');
+  });
+
+  it('además del informe de hoy, ofrece la evaluación / certificado ocasional', () => {
+    const html = renderEvaluacionesHistoria([]);
+    expect(html).toContain('btn-nueva-eval');
+    expect(html).toContain('btn-nuevo-certificado');
   });
 
   it('muestra el título, el profesional y los botones Ver / PDF', () => {

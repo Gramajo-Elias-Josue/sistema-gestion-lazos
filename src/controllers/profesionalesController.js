@@ -45,8 +45,10 @@ export async function iniciarProfesionales() {
   });
 
   // Los sectores se cargan siempre (no solo al abrir la pestaña): el
-  // formulario de "Nuevo profesional" los necesita para su desplegable.
-  await Promise.all([cargarLista(), cargarSectores()]);
+  // formulario de "Nuevo profesional" los necesita para su desplegable,
+  // y la lista para pintar cada profesional con el color de su profesión.
+  const sectoresListos = cargarSectores();
+  await Promise.all([sectoresListos, cargarLista(sectoresListos)]);
 }
 
 // Pestañas Equipo / Profesiones (mismo patrón que Asistencia).
@@ -59,12 +61,17 @@ function cambiarTab(tab) {
 // ---------------------------------------------------------------------
 // LISTADO (Read)
 // ---------------------------------------------------------------------
-async function cargarLista() {
+// `esperarSectores`: al entrar a la sección, la promesa de cargarSectores
+// (se piden en paralelo, pero el color de cada fila depende de ellos).
+async function cargarLista(esperarSectores = null) {
   const caja = document.getElementById('prof-tabla');
   caja.innerHTML = htmlCargando('Cargando profesionales…');
   try {
-    const profesionales = await profesionalModel.listarProfesionales({ soloActivos: false });
-    caja.innerHTML = renderTabla(profesionales);
+    const [profesionales] = await Promise.all([
+      profesionalModel.listarProfesionales({ soloActivos: false }),
+      esperarSectores,
+    ]);
+    caja.innerHTML = renderTabla(profesionales, sectoresCargados);
 
     // Botones "Editar" de cada fila.
     caja.querySelectorAll('.btn-editar-prof').forEach(btn => {
@@ -74,10 +81,37 @@ async function cargarLista() {
     caja.querySelectorAll('.btn-baja-prof').forEach(btn => {
       btn.addEventListener('click', () => cambiarEstado(btn.dataset.id, btn.dataset.estado, btn.dataset.nombre));
     });
+
+    // Buscador: filtra las filas mientras se escribe (nombre / email /
+    // especialidad / matrícula). No consulta la base, solo muestra/esconde.
+    const buscador = caja.querySelector('#prof-buscar');
+    buscador?.addEventListener('input', () => filtrar(caja));
+    filtrar(caja);
   } catch (err) {
     console.error('Error listando profesionales:', err);
     caja.innerHTML = htmlError('No se pudo cargar el equipo. Revisá la conexión.');
   }
+}
+
+// Filtra el listado por lo escrito en el buscador.
+function filtrar(caja) {
+  const termino = (caja.querySelector('#prof-buscar')?.value || '').trim().toLowerCase();
+  const filas = [...caja.querySelectorAll('tbody tr[data-buscar]')];
+  let visibles = 0;
+  filas.forEach(f => {
+    const coincide = !termino || (f.dataset.buscar || '').includes(termino);
+    f.style.display = coincide ? '' : 'none';
+    if (coincide) visibles++;
+  });
+
+  const contador = caja.querySelector('#prof-contador');
+  if (contador) {
+    contador.textContent = termino
+      ? `${visibles} de ${filas.length} profesionales`
+      : `${filas.length} ${filas.length === 1 ? 'profesional' : 'profesionales'}`;
+  }
+  const sinResultados = caja.querySelector('#prof-sin-resultados');
+  if (sinResultados) sinResultados.hidden = visibles > 0;
 }
 
 // ---------------------------------------------------------------------
@@ -204,18 +238,20 @@ function abrirForm(prof = {}, opciones = {}) {
 
     // Valores del formulario; los vacíos pasan a null.
     const fd = new FormData(form);
-    const crearUsuario = fd.get('crear_usuario') === 'on';
     const datos = Object.fromEntries(fd.entries());
-    delete datos.crear_usuario; // no es columna de `profesionales`
     for (const k of Object.keys(datos)) if (datos[k] === '') datos[k] = null;
 
-    // Obtener los días de trabajo seleccionados como array.
+    // Días y turnos tildados, como arrays (FormData solo deja el último).
     datos.dias_trabajo = fd.getAll('dias_trabajo') || [];
+    datos.turnos_trabajo = fd.getAll('turnos_trabajo') || [];
 
     // --- Validación: todos los datos obligatorios al CREAR (menos
     //     matrícula y teléfono 2); al editar no se exige retroactivo ---
     const v = validarProfesional(datos, { esNuevo: !prof.id });
     if (!v.ok) { toast(v.mensaje, 'bad'); return; }
+    // Al CREAR (no al editar), si quien lo da de alta puede operar se le
+    // crea el usuario de acceso directo, sin preguntar (ver renderFormProfesional).
+    const crearUsuario = !prof.id && !!opciones.permiteCrearUsuario;
     if (crearUsuario && !datos.email) {
       toast('Para crear el usuario de acceso hace falta el email.', 'bad');
       return;

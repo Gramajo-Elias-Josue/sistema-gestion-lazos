@@ -3,12 +3,12 @@
 // ---------------------------------------------------------------------
 // Funciones PURAS (sin DOM ni Supabase) para lo que cada profesional
 // entrega por mes:
-//   - el informe MENSUAL (y el ANUAL una vez al año);
+//   - el informe MENSUAL;
 //   - al menos UNA FOTO de su trabajo.
 //
-// Un "período" es un texto corto y ordenable: '2026-08' para un mes y
-// '2026' para un año. Se guarda así en la base para poder comparar y
-// agrupar sin hacer cuentas con fechas.
+// Un "período" es un texto corto y ordenable: '2026-08' para un mes. Se
+// guarda así en la base para poder comparar y agrupar sin hacer cuentas
+// con fechas.
 // =====================================================================
 
 import { hoyISO } from './fechas.js';
@@ -30,11 +30,6 @@ const pad = (n) => String(n).padStart(2, '0');
 // Período MENSUAL de una fecha ISO. '2026-08-15' -> '2026-08'.
 export function periodoMensual(fechaISO = hoyISO()) {
   return String(fechaISO).slice(0, 7);
-}
-
-// Período ANUAL de una fecha ISO. '2026-08-15' -> '2026'.
-export function periodoAnual(fechaISO = hoyISO()) {
-  return String(fechaISO).slice(0, 4);
 }
 
 // Nombre legible de un período: '2026-08' -> 'Agosto 2026'; '2026' -> '2026'.
@@ -99,16 +94,6 @@ export function pendientesDelMes({ profesionales = [], informes = [], fotos = []
     fotos: sinFoto,
     alDia: sinInforme.length === 0 && sinFoto.length === 0,
   };
-}
-
-// Quiénes deben el informe ANUAL de un año.
-export function pendientesDelAnio({ profesionales = [], informes = [], periodo = periodoAnual() } = {}) {
-  const entregaron = new Set(
-    informes
-      .filter(i => i.tipo === 'anual' && periodoAnual(i.fecha) === periodo)
-      .map(i => String(i.profesional_id))
-  );
-  return { periodo, informes: profesionales.filter(p => !entregaron.has(String(p.id))) };
 }
 
 // ---------------------------------------------------------------------

@@ -8,6 +8,7 @@
 import { estadoVencimiento, fechaLarga, formatearFecha, iniciales } from '../utils/fechas.js';
 import { etiquetaPeriodo } from '../utils/periodos.js';
 import { esc, pill } from '../utils/ui.js';
+import { horarioDe } from '../utils/turnosCentro.js';
 
 // Estructura general de la vista: contenedores que el controlador rellena.
 export function renderInicio() {
@@ -19,8 +20,8 @@ export function renderInicio() {
       </div>
       <div class="panel-b">
         <p class="ga-ayuda">
-          Tocá una celda y escribí el profesional que atiende a ese paciente.
-          Enter baja a la celda de abajo y Tab pasa a la de al lado.
+          Tocá una franja horaria y escribí el paciente que la ocupa.
+          Enter baja a la franja de abajo; Shift+Tab sube a la de arriba.
         </p>
         <div id="inicio-grilla"></div>
       </div>
@@ -87,8 +88,8 @@ export function renderDisponibilidad(profesionales, fichajesPorId = {}) {
     else estadoPill = pill('bad', 'Ausente');
 
     // Horario: lo fichado hoy si está, si no el horario habitual del perfil.
-    const ent = hhmm(f?.hora_entrada) || hhmm(p.horario_entrada);
-    const sal = hhmm(f?.hora_salida) || hhmm(p.horario_salida);
+    const ent = hhmm(f?.hora_entrada) || horarioDe(p).entrada;
+    const sal = hhmm(f?.hora_salida) || horarioDe(p).salida;
     const horario = (ent || sal) ? `${ent || '—'} a ${sal || '—'}` : 'Sin horario';
 
     return `

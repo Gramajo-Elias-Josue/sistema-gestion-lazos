@@ -8,6 +8,7 @@
 
 import { esc } from '../utils/ui.js';
 import { nombreDia, iniciales } from '../utils/fechas.js';
+import { horarioDe, textoTurnos } from '../utils/turnosCentro.js';
 
 export const ESTADOS_FICHAJE = { presente: 'Presente', ausente: 'Ausente', licencia: 'Licencia' };
 
@@ -31,7 +32,7 @@ export function renderEstructura(fecha) {
         <div><div class="n" id="apf-aus">0</div><small>Ausentes</small></div>
         <div><div class="n" id="apf-lic">0</div><small>Licencia</small></div>
         <div><div class="n" id="apf-sf">0</div><small>Sin fichar</small></div>
-        <div><div class="n" id="apf-pct">0%</div><small>Presentes</small></div>
+        <div><div class="n" id="apf-pct">0%</div><small>Asistencia</small></div>
       </div>
     </div>
     <div id="apf-body"></div>`;
@@ -54,7 +55,7 @@ export function filaHtml(prof, fichaje, ctx = {}) {
       return hhmm(f.hora_entrada);
     }
     if (esHoy && ahora) return ahora;
-    return hhmm(prof.horario_entrada);
+    return horarioDe(prof).entrada;
   };
   const prefillSalida = () => {
     if (f.hora_salida) {
@@ -62,7 +63,7 @@ export function filaHtml(prof, fichaje, ctx = {}) {
       return hhmm(f.hora_salida);
     }
     if (esHoy) return '';
-    return hhmm(prof.horario_salida);
+    return horarioDe(prof).salida;
   };
   const conHoras = estado === 'presente';
   const entrada = conHoras ? prefillEntrada() : '';
@@ -79,7 +80,7 @@ export function filaHtml(prof, fichaje, ctx = {}) {
         <span class="pav">${esc(iniciales(prof.nombre_completo))}</span>
         <span class="nm">
           <b>${esc(prof.nombre_completo)}</b><br>
-          <small>${esc(prof.profesion || '')}${prof.matricula ? ' · ' + esc(prof.matricula) : ''}${prof.horario_entrada ? ' · ' + hhmm(prof.horario_entrada) + '–' + (hhmm(prof.horario_salida) || '') : ''}</small>
+          <small>${esc(prof.profesion || '')}${prof.matricula ? ' · ' + esc(prof.matricula) : ''}${textoTurnos(prof) ? ' · ' + esc(textoTurnos(prof)) : ''}</small>
         </span>
       </button>
       <select class="apf-estado" ${bloqueado ? 'disabled' : ''}>${opts}</select>
