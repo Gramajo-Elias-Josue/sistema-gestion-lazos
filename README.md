@@ -195,6 +195,7 @@ npm test
 
 ## 📚 Documentación
 
+- [`docs/base-de-datos.md`](docs/base-de-datos.md) — tablas, relaciones, reglas y decisiones de diseño.
 - [`docs/despliegue.md`](docs/despliegue.md) — publicar en un hosting gratuito.
 - [`docs/seguridad-rls.md`](docs/seguridad-rls.md) — matriz de permisos y cómo probarlos.
 - [`docs/usuarios-y-roles.md`](docs/usuarios-y-roles.md) — Edge Function y pantalla de usuarios.
