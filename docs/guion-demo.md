@@ -198,5 +198,9 @@ Son datos sensibles (Ley 25.326): acceso solo con login, permisos por rol en la 
 archivos en un bucket privado con enlaces temporales, y nada se borra sin dejar rastro.
 
 **¿Qué mejorarías?**
-Estadísticas mensuales, tests de los controladores con un navegador simulado, y liberar
-automáticamente la grilla al dar de baja un paciente o un profesional.
+Estadísticas mensuales y tests de los controladores con un navegador simulado.
+
+**¿Qué pasa con la grilla si un paciente o un profesional se va?**
+Al desactivarlo se liberan solos sus horarios: las celdas no se borran, se cierran con
+fecha (queda la historia de con quién se atendía). Al reactivarlo no se le devuelven
+automáticamente, porque esos horarios pueden haberse dado a otro.

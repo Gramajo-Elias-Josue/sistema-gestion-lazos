@@ -10,6 +10,7 @@
 import * as profesionalModel from '../models/profesionalModel.js';
 import * as usuarioModel from '../models/usuarioModel.js';
 import * as sectorModel from '../models/sectorModel.js';
+import * as asignacionModel from '../models/asignacionModel.js';
 import { renderEstructura, renderTabla, renderFormProfesional, renderListaSectores, renderModalSector } from '../views/profesionalesView.js';
 import { htmlCargando, htmlError, toast, confirmar } from '../utils/ui.js';
 import { validarProfesional } from '../utils/validacion.js';
@@ -319,7 +320,7 @@ async function cambiarEstado(id, estadoActual, nombre) {
   if (desactivar) {
     const seguir = await confirmar({
       titulo: 'Desactivar',
-      mensaje: `${nombre} deja de aparecer para asignar turnos. Sus turnos e informes se conservan y podés volver a activarlo cuando quieras.`,
+      mensaje: `${nombre} deja de aparecer para asignar turnos y se liberan sus horarios en la Grilla de atención. Sus turnos e informes se conservan y podés volver a activarlo cuando quieras.`,
       textoOk: 'Desactivar',
       textoCancelar: 'Volver',
       peligro: true,
@@ -329,6 +330,17 @@ async function cambiarEstado(id, estadoActual, nombre) {
   try {
     await profesionalModel.cambiarEstadoProfesional(id, desactivar ? 'inactivo' : 'activo');
     toast(desactivar ? `${nombre} quedó como inactivo.` : `${nombre} está activo de nuevo.`);
+    // Al desactivarlo se liberan sus franjas de la grilla (quedan como
+    // historia, no se borran): sus pacientes quedan libres para asignarlos
+    // a otro profesional. Si falla, la desactivación ya quedó hecha.
+    if (desactivar) {
+      try {
+        await asignacionModel.cerrarPorProfesional(id);
+      } catch (err) {
+        console.error('No se pudieron liberar sus horarios de la grilla:', err);
+        toast('Quedó desactivado, pero no se pudieron liberar sus horarios en la Grilla de atención.', 'bad');
+      }
+    }
     await cargarLista();
   } catch (err) {
     console.error('Error cambiando estado:', err);

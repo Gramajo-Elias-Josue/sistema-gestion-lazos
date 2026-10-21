@@ -242,7 +242,7 @@ async function cambiarEstado(id, estadoActual, nombre) {
   if (desactivar) {
     const seguir = await confirmar({
       titulo: 'Desactivar',
-      mensaje: `${nombre} deja de aparecer en las listas del día a día. Su historia clínica se conserva y podés volver a activarlo cuando quieras.`,
+      mensaje: `${nombre} deja de aparecer en las listas del día a día y se liberan sus horarios en la Grilla de atención. Su historia clínica se conserva y podés volver a activarlo cuando quieras.`,
       textoOk: 'Desactivar',
       textoCancelar: 'Volver',
       peligro: true,
@@ -252,10 +252,26 @@ async function cambiarEstado(id, estadoActual, nombre) {
   try {
     await pacienteModel.cambiarEstadoPaciente(id, desactivar ? 'inactivo' : 'activo');
     toast(desactivar ? `${nombre} quedó como inactivo.` : `${nombre} está activo de nuevo.`);
+    // Al desactivarlo se liberan sus franjas de la grilla (quedan como
+    // historia, no se borran). Al reactivarlo NO se le devuelven solas:
+    // esos horarios pueden haberse dado a otro paciente mientras tanto.
+    if (desactivar) await liberarGrilla(() => asignacionModel.cerrarPorPaciente(id));
     await cargarLista();
   } catch (err) {
     console.error('Error cambiando estado:', err);
     toast(mensajeError(err, 'No se pudo hacer el cambio. Probá de nuevo.'), 'bad');
+  }
+}
+
+// Libera los horarios de la grilla tras desactivar a alguien. Si falla,
+// la desactivación ya quedó hecha: solo se avisa que las franjas hay que
+// vaciarlas a mano (no se revierte nada).
+async function liberarGrilla(cerrar) {
+  try {
+    await cerrar();
+  } catch (err) {
+    console.error('No se pudieron liberar sus horarios de la grilla:', err);
+    toast('Quedó desactivado, pero no se pudieron liberar sus horarios en la Grilla de atención. Vacialos a mano desde Inicio.', 'bad');
   }
 }
 
