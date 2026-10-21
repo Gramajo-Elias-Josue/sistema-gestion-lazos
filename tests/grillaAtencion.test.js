@@ -7,6 +7,7 @@ import { describe, it, expect } from 'vitest';
 import {
   renderGrilla, renderInputCelda, renderListaPacientes,
   contenidoCelda, claveCelda, pacienteDeCelda, franjasDe, franjasEntre, MINUTOS_FRANJA,
+  franjaDeHora, casualesPorCelda,
 } from '../src/views/grillaAtencionView.js';
 
 const sectores = [
@@ -221,5 +222,64 @@ describe('renderGrilla', () => {
     expect(html).toMatch(/id="ga-pager"[^>]*hidden/); // arrancan ocultas
     expect(html).toContain('aria-label="Profesional anterior"');
     expect(html).toContain('aria-label="Profesional siguiente"');
+  });
+});
+
+// Turnos casuales de HOY: se ven en su franja, pero no se guardan en la
+// grilla (se leen de los turnos del día), así que mañana no aparecen.
+describe('turnos casuales en la grilla', () => {
+  const casual = (extra = {}) => ({
+    id: 't1', profesional_id: 'x1', hora: '09:15:00', estado: 'programado',
+    paciente_id: null, paciente_nombre: 'Juan Casual', ...extra,
+  });
+
+  it('franjaDeHora: la hora cae en su franja de 30 minutos', () => {
+    expect(franjaDeHora('09:15')).toBe('09:00');
+    expect(franjaDeHora('09:30:00')).toBe('09:30');
+    expect(franjaDeHora('14:59')).toBe('14:30');
+    expect(franjaDeHora(null)).toBe(null);
+  });
+
+  it('casualesPorCelda: solo casuales (sin legajo) y no cancelados', () => {
+    const r = casualesPorCelda([
+      casual(),
+      casual({ id: 't2', profesional_id: 'x2', hora: '15:00', estado: 'cancelado' }),
+      casual({ id: 't3', profesional_id: 'x5', hora: '10:00', paciente_id: 'p1' }), // turno viejo con legajo
+    ]);
+    expect(Object.keys(r)).toEqual(['x1|09:00']);
+  });
+
+  it('[clave] se muestra en su franja, marcado "Casual" y SIN poder editarse', () => {
+    const html = renderGrilla({
+      profesionales, sectores, pacientes, celdas: {}, turno: 'manana',
+      casuales: casualesPorCelda([casual()]),
+    });
+    expect(html).toContain('ga-casual');
+    expect(html).toContain('Juan Casual');
+    // Esa franja no es una celda editable (el resto sí).
+    expect(html).not.toMatch(/data-profesional="x1"[^>]*data-hora="09:00"/);
+    expect(html).toMatch(/data-profesional="x1"[^>]*data-hora="09:30"/);
+  });
+
+  it('el paciente fijo de la grilla tiene prioridad sobre el casual', () => {
+    const html = renderGrilla({
+      profesionales, sectores, pacientes, celdas, turno: 'manana',
+      casuales: casualesPorCelda([casual({ hora: '08:00' })]),
+    });
+    expect(html).toContain('Gálvez Santiago');
+    expect(html).not.toContain('Juan Casual');
+  });
+
+  it('se puede buscar por el nombre del casual', () => {
+    const html = renderGrilla({
+      profesionales, sectores, pacientes, celdas: {}, turno: 'manana',
+      casuales: casualesPorCelda([casual()]),
+    });
+    expect(html).toMatch(/data-buscar="[^"]*juan casual[^"]*"/);
+  });
+
+  it('sin casuales, la grilla queda igual que siempre', () => {
+    expect(renderGrilla({ profesionales, sectores, pacientes, celdas }))
+      .toBe(renderGrilla({ profesionales, sectores, pacientes, celdas, casuales: {} }));
   });
 });

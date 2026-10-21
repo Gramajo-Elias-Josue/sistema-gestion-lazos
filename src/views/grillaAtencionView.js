@@ -104,35 +104,79 @@ function agruparPorSector(profesionales, sectores) {
   return grupos.filter(g => g.profesionales.length);
 }
 
+// ---------------------------------------------------------------------
+// TURNOS CASUALES DE HOY EN LA GRILLA (solo para ver)
+// ---------------------------------------------------------------------
+// Los turnos casuales (Agenda) se muestran en su franja SOLO el día del
+// turno: no se guardan en la grilla, se leen de `turnos` con la fecha de
+// hoy. Por eso al día siguiente desaparecen solos, sin borrar nada.
+
+// Franja de 30 min en la que cae una hora: '09:15' -> '09:00'.
+export function franjaDeHora(hora, minutos = MINUTOS_FRANJA) {
+  const hhmm = String(hora || '').slice(0, 5);
+  if (!/^\d{2}:\d{2}$/.test(hhmm)) return null;
+  const [h, m] = hhmm.split(':').map(Number);
+  const total = Math.floor((h * 60 + m) / minutos) * minutos;
+  return `${String(Math.floor(total / 60)).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`;
+}
+
+// Turnos de hoy -> { 'profesionalId|franja': turno } con los CASUALES (sin
+// legajo) que no están cancelados.
+export function casualesPorCelda(turnos = []) {
+  const porCelda = {};
+  turnos
+    .filter(t => !t.paciente_id && t.estado !== 'cancelado' && t.hora && t.profesional_id)
+    .forEach(t => {
+      const clave = claveCelda(t.profesional_id, franjaDeHora(t.hora));
+      if (!porCelda[clave]) porCelda[clave] = t;
+    });
+  return porCelda;
+}
+
+// Franja ocupada por un casual: se ve distinta y NO se puede tocar (no
+// es la clase .ga-celda, así que el controlador no la abre para editar).
+function celdaCasual(turno) {
+  const nombre = turno.paciente_nombre || turno.pacientes?.nombre_completo || 'Paciente casual';
+  return `
+        <div class="ga-casual" title="Turno casual de hoy, cargado en Turnos. Mañana esta franja vuelve a estar libre.">
+          <span class="ga-casual-tag">Casual</span>
+          <span class="ga-nombre">${esc(nombre)}</span>
+        </div>`;
+}
+
 // Texto de búsqueda de una tarjeta: el profesional, su sector y todos
-// los pacientes que hoy tiene cargados en alguna franja.
-function textoBuscable(prof, grupo, franjas, celdas) {
+// los pacientes que hoy tiene en alguna franja (fijos y casuales).
+function textoBuscable(prof, grupo, franjas, celdas, casuales) {
   return [
     prof.nombre_completo,
     grupo.etiqueta,
     ...franjas.map(hora => pacienteDeCelda(celdas[claveCelda(prof.id, hora)])),
+    ...franjas.map(hora => casuales[claveCelda(prof.id, hora)]?.paciente_nombre),
   ].filter(Boolean).join(' ').toLowerCase();
 }
 
 // Una tarjeta = un profesional, con las franjas del turno que se está
 // viendo. Coloreada según su sector (`ga-area-N`, ver estilos) para
 // identificarlo de un vistazo, como los colores de la planilla en papel.
-function renderTarjetaProfesional(prof, grupo, celdas, editable, turno) {
+// Si una franja está vacía en la grilla pero hoy tiene un turno casual,
+// se muestra el casual (el paciente fijo siempre tiene prioridad).
+function renderTarjetaProfesional(prof, grupo, celdas, editable, turno, casuales) {
   const franjas = franjasDe(prof, turno);
   const filas = franjas.map(hora => {
     const a = celdas[claveCelda(prof.id, hora)];
+    const casual = !a && casuales[claveCelda(prof.id, hora)];
     return `
       <div class="ga-fila-horario">
-        <span class="ga-hora">${hora}</span>
+        <span class="ga-hora">${hora}</span>${casual ? celdaCasual(casual) : `
         <div class="ga-celda${editable ? '' : ' bloqueada'}"
              data-profesional="${prof.id}" data-hora="${hora}"
-             ${a?.id ? `data-asignacion="${a.id}"` : ''}>${contenidoCelda(a)}</div>
+             ${a?.id ? `data-asignacion="${a.id}"` : ''}>${contenidoCelda(a)}</div>`}
       </div>`;
   }).join('');
 
   return `
     <article class="ga-tarjeta ga-area-${grupo.indice % 8}"
-             data-buscar="${esc(textoBuscable(prof, grupo, franjas, celdas))}">
+             data-buscar="${esc(textoBuscable(prof, grupo, franjas, celdas, casuales))}">
       <header class="ga-tarjeta-h">
         <span class="pav">${esc(iniciales(prof.nombre_completo))}</span>
         <div class="ga-tarjeta-tit">
@@ -170,7 +214,8 @@ function renderPestanasTurno(profesionales, turno) {
 //   celdas        -> { 'profesionalId|hora': asignación }
 //   editable      -> false = solo lectura (perfil sin permiso de operar)
 //   turno         -> 'manana' | 'tarde': la pestaña que se está viendo
-export function renderGrilla({ profesionales = [], sectores = [], pacientes = [], celdas = {}, editable = true, turno = 'manana' }) {
+//   casuales      -> { 'profesionalId|franja': turno } de HOY (casualesPorCelda)
+export function renderGrilla({ profesionales = [], sectores = [], pacientes = [], celdas = {}, editable = true, turno = 'manana', casuales = {} }) {
   if (!profesionales.length) {
     return `<div class="state">No hay profesionales activos. Cargalos desde <b>Profesionales</b> y aparecen acá solos.</div>`;
   }
@@ -181,7 +226,7 @@ export function renderGrilla({ profesionales = [], sectores = [], pacientes = []
   const delTurno = profesionales.filter(p => turnosDe(p).some(t => t.clave === turno));
   const grupos = agruparPorSector(delTurno, sectores);
   const tarjetas = grupos
-    .flatMap(g => g.profesionales.map(p => renderTarjetaProfesional(p, g, celdas, editable, turno)))
+    .flatMap(g => g.profesionales.map(p => renderTarjetaProfesional(p, g, celdas, editable, turno, casuales)))
     .join('');
 
   // Los que no tienen ningún turno tildado no entran en ninguna pestaña:

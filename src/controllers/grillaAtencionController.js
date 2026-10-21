@@ -14,19 +14,24 @@
 // El sistema no completa ni acomoda nada por su cuenta, pero sí avisa si
 // el paciente no existe, si esa franja ya tiene a otro, o si el paciente
 // ya está citado a esa hora con otro profesional.
+//
+// Los turnos CASUALES de hoy (sección Turnos) también se ven en su franja,
+// marcados como "Casual" y sin poder tocarlos. No se guardan en la grilla:
+// se leen de los turnos del día, así que mañana ya no aparecen.
 // =====================================================================
 
 import * as pacienteModel from '../models/pacienteModel.js';
 import * as profesionalModel from '../models/profesionalModel.js';
 import * as asignacionModel from '../models/asignacionModel.js';
 import * as sectorModel from '../models/sectorModel.js';
+import * as turnoModel from '../models/turnoModel.js';
 import {
   renderGrilla, renderInputCelda, contenidoCelda,
-  claveCelda, pacienteDeCelda, franjasDe,
+  claveCelda, pacienteDeCelda, franjasDe, casualesPorCelda,
 } from '../views/grillaAtencionView.js';
 import { htmlCargando, htmlError, toast } from '../utils/ui.js';
 import { normalizar } from '../utils/areas.js';
-import { ahoraHHMM } from '../utils/fechas.js';
+import { ahoraHHMM, hoyISO } from '../utils/fechas.js';
 import { turnoSegunHora } from '../utils/turnosCentro.js';
 import { perfilActual } from '../sesion.js';
 import { puedeOperar } from '../permisos.js';
@@ -40,6 +45,7 @@ let editable = true;
 let editando = null;  // la celda que tiene el campo abierto
 let caja = null;      // contenedor de la grilla
 let turno = 'manana'; // pestaña visible: 'manana' | 'tarde'
+let casuales = {};    // { 'profesionalId|franja': turno casual de HOY } (solo para ver)
 
 // Arranca la grilla dentro del contenedor que le pasa el inicio.
 export async function iniciarGrillaAtencion(contenedor) {
@@ -50,15 +56,22 @@ export async function iniciarGrillaAtencion(contenedor) {
   contenedor.innerHTML = htmlCargando('Cargando la grilla…');
 
   try {
-    const [pacs, profs, secs, asignaciones] = await Promise.all([
+    const [pacs, profs, secs, asignaciones, turnosHoy] = await Promise.all([
       pacienteModel.listarPacientes({ soloActivos: true }),
       profesionalModel.listarProfesionales({ soloActivos: true }),
       sectorModel.listarSectores(),
       asignacionModel.listarVigentes(),
+      // Los turnos casuales de HOY se muestran en su franja. Son un
+      // agregado: si esta consulta falla, la grilla carga igual sin ellos.
+      turnoModel.listarTurnosPorFecha(hoyISO()).catch(err => {
+        console.error('No se pudieron traer los turnos casuales de hoy:', err);
+        return [];
+      }),
     ]);
     pacientes = pacs;
     profesionales = profs;
     sectores = secs;
+    casuales = casualesPorCelda(turnosHoy);
     celdas = {};
     asignaciones.forEach(a => {
       // La celda vieja (sin profesional cargado o sin franja horaria) es
@@ -80,7 +93,7 @@ function pintar() {
   // Repintar rehace el buscador: se conserva lo escrito para no perder
   // el filtro al recargar.
   const buscado = caja.querySelector('#ga-buscar')?.value ?? '';
-  caja.innerHTML = renderGrilla({ profesionales, sectores, pacientes, celdas, editable, turno });
+  caja.innerHTML = renderGrilla({ profesionales, sectores, pacientes, celdas, editable, turno, casuales });
   const buscador = caja.querySelector('#ga-buscar');
   if (buscador) buscador.value = buscado;
   aplicarFiltro();
@@ -276,9 +289,11 @@ function refrescarBusqueda(tarjeta, profesionalId) {
   if (!tarjeta) return;
   const profesional = profesionales.find(p => String(p.id) === String(profesionalId));
   const sector = tarjeta.querySelector('.ga-tarjeta-h small')?.textContent || '';
-  const pacientesDeHoy = franjasDe(profesional, turno)
-    .map(hora => pacienteDeCelda(celdas[claveCelda(profesionalId, hora)]))
-    .filter(Boolean);
+  const franjas = franjasDe(profesional, turno);
+  const pacientesDeHoy = [
+    ...franjas.map(hora => pacienteDeCelda(celdas[claveCelda(profesionalId, hora)])),
+    ...franjas.map(hora => casuales[claveCelda(profesionalId, hora)]?.paciente_nombre),
+  ].filter(Boolean);
   tarjeta.dataset.buscar = [profesional?.nombre_completo, sector, ...pacientesDeHoy]
     .filter(Boolean).join(' ').toLowerCase();
 }

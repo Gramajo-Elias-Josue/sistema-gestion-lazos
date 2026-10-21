@@ -102,8 +102,11 @@ Vite y Supabase (base de datos, login, archivos y seguridad por rol).*
    se escribe nombre, teléfono y DNI.
 2. Elegir un profesional y una hora en la que tiene un **paciente fijo** en la grilla
    → **bloquea**: "a las 08:00 atiende a … (Grilla de atención)".
-3. Cambiar a una hora libre → se crea.
-4. Marcar el turno **Atendido** → aparece **+ Evaluación / certificado** para ese casual.
+3. Cambiar a una hora libre **de hoy** → se crea.
+4. Volver a **Inicio**: el turno aparece en la grilla, en su franja, marcado
+   **Casual** (no se puede tocar). Mañana desaparece solo: no se guarda en la
+   grilla, se lee de los turnos del día.
+5. Marcar el turno **Atendido** → aparece **+ Evaluación / certificado** para ese casual.
 
 > Qué remarcar: "la agenda de casuales nunca pisa a los pacientes fijos".
 
