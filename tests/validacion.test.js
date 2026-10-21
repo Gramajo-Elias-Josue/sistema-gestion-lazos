@@ -2,7 +2,7 @@
 // reciben los datos y devuelven { ok } o { ok:false, mensaje }.
 import { describe, it, expect } from 'vitest';
 import {
-  normalizarDni, validarPaciente, validarDocumento, validarTurno,
+  normalizarDni, validarPaciente, validarDocumento, validarTurno, conflictoDniCasual,
   validarFichajeProfesional, validarProfesional, validarGasto,
 } from '../src/utils/validacion.js';
 import { hoyISO, sumarDias } from '../src/utils/fechas.js';
@@ -57,21 +57,67 @@ describe('validarDocumento', () => {
 
 describe('validarTurno (paciente casual, sin legajo)', () => {
   const completo = { paciente_nombre: 'Juan Pérez', profesional_id: 'p', fecha: '2026-07-14', hora: '15:00' };
+  const ctx = { hoy: '2026-07-14', ahora: '09:00' };
 
   it('acepta un turno completo', () => {
-    expect(validarTurno(completo).ok).toBe(true);
+    expect(validarTurno(completo, ctx).ok).toBe(true);
   });
 
   it('exige nombre, profesional, fecha y hora (la hora para controlar la grilla)', () => {
     for (const campo of ['paciente_nombre', 'profesional_id', 'fecha', 'hora']) {
-      expect(validarTurno({ ...completo, [campo]: '' }).ok, `falló al faltar "${campo}"`).toBe(false);
+      expect(validarTurno({ ...completo, [campo]: '' }, ctx).ok, `falló al faltar "${campo}"`).toBe(false);
     }
-    expect(validarTurno({ ...completo, paciente_nombre: '   ' }).ok).toBe(false);
+    expect(validarTurno({ ...completo, paciente_nombre: '   ' }, ctx).ok).toBe(false);
   });
 
   it('teléfono y DNI son opcionales, pero el DNI se valida si viene', () => {
-    expect(validarTurno({ ...completo, paciente_dni: '30.111.222' }).ok).toBe(true);
-    expect(validarTurno({ ...completo, paciente_dni: 'abc' }).ok).toBe(false);
+    expect(validarTurno({ ...completo, paciente_dni: '30.111.222' }, ctx).ok).toBe(true);
+    expect(validarTurno({ ...completo, paciente_dni: 'abc' }, ctx).ok).toBe(false);
+  });
+
+  it('[clave] no se da un turno de HOY a una hora que ya pasó (16:50 → no a las 14:30)', () => {
+    const tarde = { hoy: '2026-07-14', ahora: '16:50' };
+    const r = validarTurno({ ...completo, hora: '14:30' }, tarde);
+    expect(r.ok).toBe(false);
+    expect(r.mensaje).toContain('16:50');
+    expect(validarTurno({ ...completo, hora: '17:30' }, tarde).ok).toBe(true);
+    // Otro día, a la misma hora, sí.
+    expect(validarTurno({ ...completo, fecha: '2026-07-15', hora: '14:30' }, tarde).ok).toBe(true);
+  });
+
+  it('no se da un turno en una fecha que ya pasó', () => {
+    expect(validarTurno({ ...completo, fecha: '2026-07-13' }, ctx).ok).toBe(false);
+  });
+});
+
+describe('conflictoDniCasual (que no se repita el DNI)', () => {
+  const base = { nombre: 'Juan Pérez', fecha: '2026-07-20' };
+
+  it('sin coincidencias, está todo bien', () => {
+    expect(conflictoDniCasual(base)).toBe(null);
+  });
+
+  it('[clave] el DNI de un paciente del centro no se puede usar como casual', () => {
+    const r = conflictoDniCasual({ ...base, paciente: { nombre_completo: 'Ana Gómez' } });
+    expect(r).toContain('Ana Gómez');
+    expect(r).toContain('Grilla de atención');
+  });
+
+  it('[clave] el DNI ya usado por OTRA persona casual se rechaza', () => {
+    const turnosDni = [{ paciente_nombre: 'Carlos Vega', fecha: '2026-07-01', estado: 'atendido' }];
+    expect(conflictoDniCasual({ ...base, turnosDni })).toContain('Carlos Vega');
+  });
+
+  it('el mismo casual puede volver otro día (segunda consulta)', () => {
+    const turnosDni = [{ paciente_nombre: 'juan perez', fecha: '2026-07-01', estado: 'atendido' }];
+    expect(conflictoDniCasual({ ...base, turnosDni })).toBe(null); // mismo nombre sin tildes ni mayúsculas
+  });
+
+  it('pero no dos turnos el mismo día (salvo que el otro esté cancelado)', () => {
+    const mismoDia = [{ paciente_nombre: 'Juan Pérez', fecha: '2026-07-20', hora: '10:00:00', estado: 'programado' }];
+    expect(conflictoDniCasual({ ...base, turnosDni: mismoDia })).toContain('10:00');
+    const cancelado = [{ ...mismoDia[0], estado: 'cancelado' }];
+    expect(conflictoDniCasual({ ...base, turnosDni: cancelado })).toBe(null);
   });
 });
 

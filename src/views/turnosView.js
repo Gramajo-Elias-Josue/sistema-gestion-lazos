@@ -10,7 +10,7 @@
 // =====================================================================
 
 import { esc, pill, tonoDe } from '../utils/ui.js';
-import { nombreDia, iniciales } from '../utils/fechas.js';
+import { nombreDia, iniciales, hoyISO } from '../utils/fechas.js';
 
 // Estados posibles de un turno y su pill de color.
 export const ESTADOS_TURNO = {
@@ -120,7 +120,9 @@ export function renderLista(turnos, puedeOperar = true, certificados = {}) {
 
 // Formulario (modal) para crear un turno casual. La persona no tiene
 // legajo: sus datos se escriben acá, no se eligen de una lista.
-export function renderFormTurno(profesionales, fecha) {
+// `fecha` = la del día que se está mirando; si ya pasó, arranca en `hoy`
+// (no se dan turnos en el pasado: el calendario tampoco deja elegirlos).
+export function renderFormTurno(profesionales, fecha, hoy = hoyISO()) {
   const optsProf = profesionales.length
     ? profesionales.map(p => {
         const diasJson = JSON.stringify(p.dias_trabajo || []);
@@ -145,7 +147,7 @@ export function renderFormTurno(profesionales, fecha) {
               <div class="form-field"><label>Teléfono ${opcional}</label><input name="paciente_telefono" type="tel" autocomplete="off"></div>
               <div class="form-field"><label>DNI ${opcional}</label><input name="paciente_dni" inputmode="numeric" autocomplete="off"></div>
               <div class="form-field full"><label>Profesional *</label><select name="profesional_id" required>${optsProf}</select></div>
-              <div class="form-field"><label>Fecha *</label><input type="date" name="fecha" required value="${esc(fecha)}"></div>
+              <div class="form-field"><label>Fecha *</label><input type="date" name="fecha" required min="${esc(hoy)}" value="${esc(fecha < hoy ? hoy : fecha)}"></div>
               <div class="form-field"><label>Hora *</label><input type="time" name="hora" required></div>
               <div class="form-field full"><label>Observaciones</label><textarea name="observaciones" placeholder="Motivo, sala, notas…"></textarea></div>
             </div>

@@ -18,10 +18,11 @@ import * as evaluacionModel from '../models/evaluacionModel.js';
 import { abrirEditorInforme } from './editorInforme.js';
 import { parseEvaluacion, TIPO_CERTIFICADO } from '../utils/evaluacion.js';
 import { renderEstructura, renderLista, renderFormTurno, nombreDelTurno } from '../views/turnosView.js';
-import { hoyISO, sumarDias, nombreDia, horaAMinutos } from '../utils/fechas.js';
+import { hoyISO, sumarDias, nombreDia, horaAMinutos, ahoraHHMM } from '../utils/fechas.js';
 import { turnosDe, atiendeALaHora, rangoTurno } from '../utils/turnosCentro.js';
 import { htmlCargando, htmlError, toast, confirmar } from '../utils/ui.js';
-import { validarTurno, normalizarDni } from '../utils/validacion.js';
+import { validarTurno, normalizarDni, conflictoDniCasual } from '../utils/validacion.js';
+import * as pacienteModel from '../models/pacienteModel.js';
 import { mensajeError } from '../utils/errores.js';
 import { perfilActual } from '../sesion.js';
 import { puedeOperar } from '../permisos.js';
@@ -119,7 +120,9 @@ async function nuevoTurno() {
       observaciones: fd.get('observaciones') || null,
     };
 
-    const v = validarTurno(datos);
+    // No se dan turnos en el pasado: la hora se compara con la de AHORA
+    // (a las 16:50 no se puede sacar un turno de hoy a las 14:30).
+    const v = validarTurno(datos, { hoy: hoyISO(), ahora: ahoraHHMM() });
     if (!v.ok) { toast(v.mensaje, 'bad'); return; }
     if (datos.paciente_dni) datos.paciente_dni = normalizarDni(datos.paciente_dni);
 
@@ -129,6 +132,26 @@ async function nuevoTurno() {
       btn.disabled = false;
       btn.textContent = 'Crear turno';
     };
+
+    // 0) EL DNI NO PUEDE REPETIRSE (ver conflictoDniCasual): ni ser de un
+    //    paciente del centro, ni de otro casual con otro nombre, ni sacar
+    //    dos turnos el mismo día. Si no se puede verificar, no se crea.
+    if (datos.paciente_dni) {
+      let conflicto;
+      try {
+        const [paciente, turnosDni] = await Promise.all([
+          pacienteModel.buscarPorDni(datos.paciente_dni),
+          turnoModel.listarCasualesPorDni(datos.paciente_dni),
+        ]);
+        conflicto = conflictoDniCasual({ nombre: datos.paciente_nombre, fecha: datos.fecha, paciente, turnosDni });
+      } catch (err) {
+        console.error('Error verificando el DNI:', err);
+        toast('No se pudo verificar el DNI. Revisá la conexión.', 'bad');
+        reactivar();
+        return;
+      }
+      if (conflicto) { toast(conflicto, 'bad'); reactivar(); return; }
+    }
 
     // 1) EL HORARIO TIENE QUE ESTAR LIBRE (ventana de 30 min de sesión):
     //    A) Sin pisar a un paciente FIJO del profesional en la grilla, los

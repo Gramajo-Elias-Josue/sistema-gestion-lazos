@@ -466,6 +466,12 @@ describe('turnosView.renderFormTurno (paciente casual)', () => {
     expect(renderFormTurno([prof], '2026-07-16')).toMatch(/name="hora"[^>]*required/);
   });
 
+  it('el calendario no deja elegir fechas pasadas; mirando un día viejo, arranca en hoy', () => {
+    const html = renderFormTurno([prof], '2026-07-10', '2026-07-16');
+    expect(html).toMatch(/name="fecha"[^>]*min="2026-07-16"[^>]*value="2026-07-16"/);
+    expect(renderFormTurno([prof], '2026-07-20', '2026-07-16')).toMatch(/name="fecha"[^>]*value="2026-07-20"/);
+  });
+
   it('las opciones de profesional llevan los días de trabajo que lee el controlador', () => {
     expect(renderFormTurno([prof], '2026-07-16')).toContain('data-dias='); // días de trabajo serializados
   });

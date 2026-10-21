@@ -10,6 +10,7 @@
 // =====================================================================
 
 import { hoyISO, horaAMinutos } from './fechas.js';
+import { normalizar } from './areas.js';
 
 // Deja solo los dígitos de un texto. Ej: "12.345.678" -> "12345678".
 export function normalizarDni(dni) {
@@ -57,7 +58,12 @@ export function validarDocumento(datos) {
 // ---- Turno ----
 // Turno CASUAL (persona sin legajo). La hora es obligatoria: sin ella no
 // se puede controlar que no pise un turno fijo de la grilla.
-export function validarTurno(datos) {
+// `ctx` = { hoy: 'yyyy-mm-dd', ahora: 'HH:MM' }: no se dan turnos en el
+// pasado (ni una fecha que ya pasó, ni hoy a una hora que ya pasó). Se
+// reciben de afuera para que la función siga siendo pura y se pueda
+// probar con cualquier "hoy".
+export function validarTurno(datos, ctx = {}) {
+  const { hoy = hoyISO(), ahora = null } = ctx;
   if (!datos.paciente_nombre || !datos.paciente_nombre.trim()) return error('Escribí el nombre del paciente.');
   if (datos.paciente_dni && !/^\d{6,9}$/.test(normalizarDni(datos.paciente_dni))) {
     return error('Revisá el DNI: van solo números, sin puntos.');
@@ -65,7 +71,34 @@ export function validarTurno(datos) {
   if (!datos.profesional_id) return error('Elegí el profesional del turno.');
   if (!datos.fecha) return error('Elegí la fecha del turno.');
   if (!datos.hora) return error('Elegí la hora del turno.');
+  if (datos.fecha < hoy) return error('Esa fecha ya pasó: no se pueden dar turnos en el pasado.');
+  if (datos.fecha === hoy && ahora && String(datos.hora).slice(0, 5) < ahora) {
+    return error(`Esa hora ya pasó (son las ${ahora}). Elegí un horario más tarde u otro día.`);
+  }
   return ok();
+}
+
+// Choques de DNI de un turno CASUAL. Devuelve el mensaje de error, o null
+// si está todo bien. (Si el casual no trae DNI, no hay nada que comparar.)
+//   nombre, fecha -> los del turno nuevo
+//   paciente      -> paciente CON LEGAJO que tiene ese DNI (o null)
+//   turnosDni     -> turnos casuales anteriores con ese DNI
+// Un casual SÍ puede volver otro día (segunda consulta); lo que no puede
+// es: ser en realidad un paciente del centro, usar el DNI de otra persona,
+// o tener dos turnos el mismo día.
+export function conflictoDniCasual({ nombre, fecha, paciente = null, turnosDni = [] }) {
+  if (paciente) {
+    return `Ese DNI es de ${paciente.nombre_completo}, paciente del centro: se atiende por la Grilla de atención, no como casual.`;
+  }
+  const deOtro = turnosDni.find(t => normalizar(t.paciente_nombre) !== normalizar(nombre));
+  if (deOtro) {
+    return `Ese DNI ya está registrado a nombre de ${deOtro.paciente_nombre}. Revisá el DNI o el nombre.`;
+  }
+  const mismoDia = turnosDni.find(t => t.fecha === fecha && t.estado !== 'cancelado');
+  if (mismoDia) {
+    return `${nombre} ya tiene un turno ese día a las ${String(mismoDia.hora || '').slice(0, 5)}.`;
+  }
+  return null;
 }
 
 // ---- Fichaje (asistencia) de profesional ----

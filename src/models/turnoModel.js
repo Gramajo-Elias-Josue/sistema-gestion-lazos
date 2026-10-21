@@ -69,6 +69,18 @@ export async function listarTurnosProfesionalPorFecha(profesionalId, fecha) {
   return data || [];
 }
 
+// Turnos casuales con un DNI (de cualquier fecha). Sirve para controlar
+// que el DNI no sea de otra persona y que no saque dos turnos el mismo día.
+export async function listarCasualesPorDni(dni) {
+  const { data, error } = await supabase
+    .from(TABLA)
+    .select('id, paciente_nombre, fecha, hora, estado')
+    .is('paciente_id', null)
+    .eq('paciente_dni', dni);
+  if (error) throw error;
+  return data || [];
+}
+
 // Elimina un turno.
 export async function eliminarTurno(id) {
   const { error } = await supabase.from(TABLA).delete().eq('id', id);
