@@ -7,9 +7,6 @@
 -- días a la misma hora). La sección Turnos queda para las consultas
 -- sueltas de personas que NO tienen legajo: no pasan por Admisión, así
 -- que su nombre, teléfono y DNI se anotan en el mismo turno.
---
--- Después de esto, corré supabase-limpiar-turnos-fijos.sql para sacar de
--- la agenda los turnos viejos de pacientes fijos.
 -- =====================================================================
 
 -- El turno casual no apunta a un paciente cargado.

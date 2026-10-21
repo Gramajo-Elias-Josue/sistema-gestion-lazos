@@ -10,7 +10,7 @@ Pasos para dejarlo andando (todo desde el **dashboard**, sin CLI).
 ---
 
 ## 1. SQL (una vez)
-Corré de nuevo `supabase-roles.sql` en el **SQL Editor**. Es idempotente:
+Corré de nuevo `supabase/sql/01-roles-y-perfiles.sql` en el **SQL Editor**. Es idempotente:
 agrega las columnas `secciones` y `email` a `perfiles` y backfillea tu email.
 
 ## 2. Deploy de la Edge Function (sin CLI)

@@ -1,7 +1,7 @@
 -- =====================================================================
 -- REVERTIR la RLS por rol (vuelve a las políticas abiertas)
 -- ---------------------------------------------------------------------
--- Red de seguridad de la Fase C. Si tras aplicar `supabase-rls.sql` algo
+-- Red de seguridad de la Fase C. Si tras aplicar `supabase/sql/04-seguridad-rls.sql` algo
 -- queda bloqueado de más (listas vacías, error 42501 "row-level security
 -- policy"), corré ESTE script en el SQL Editor y todo vuelve a como estaba
 -- antes: acceso abierto para anon y authenticated.
@@ -23,7 +23,7 @@ begin
   loop
     execute format('alter table public.%I enable row level security;', t);
 
-    -- Políticas creadas por supabase-rls.sql
+    -- Políticas creadas por supabase/sql/04-seguridad-rls.sql
     execute format('drop policy if exists "rol_select" on public.%I;', t);
     execute format('drop policy if exists "rol_escritura" on public.%I;', t);
     execute format('drop policy if exists "turnos_select" on public.%I;', t);

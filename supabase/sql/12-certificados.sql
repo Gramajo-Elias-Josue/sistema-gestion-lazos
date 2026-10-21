@@ -2,7 +2,7 @@
 -- Evaluación / certificado (ocasional) — también para pacientes casuales
 -- ---------------------------------------------------------------------
 -- Pegá y ejecutá en: Supabase → SQL Editor. Es idempotente.
--- Requiere antes supabase-migracion-turnos-casuales.sql.
+-- Requiere antes supabase/sql/11-turnos-casuales.sql.
 --
 -- La "Evaluación / certificado" es un documento que se hace cuando
 -- alguien lo pide (no es periódico como el informe mensual). Se guarda en

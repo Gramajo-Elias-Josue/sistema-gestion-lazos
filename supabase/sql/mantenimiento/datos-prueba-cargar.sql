@@ -3,8 +3,8 @@
 -- ---------------------------------------------------------------------
 -- Pegá y ejecutá en: Supabase → SQL Editor. Corre TODO junto en un solo
 -- bloque: si algo falla, no queda nada a medias.
--- Requiere antes supabase-migracion-turnos-profesional.sql (columna
--- `turnos_trabajo`) y supabase-migracion-turnos-casuales.sql (turnos de
+-- Requiere antes supabase/sql/10-turnos-del-profesional.sql (columna
+-- `turnos_trabajo`) y supabase/sql/11-turnos-casuales.sql (turnos de
 -- personas sin legajo).
 --
 -- Carga:
@@ -27,7 +27,7 @@
 -- necesita Storage; se prueba desde la app).
 --
 -- Cómo se reconocen los datos de prueba (para borrarlos después con
--- supabase-datos-prueba-borrar.sql):
+-- supabase/sql/mantenimiento/datos-prueba-borrar.sql):
 --   · pacientes con DNI 90000001 … 90000024
 --   · profesionales con email …@prueba.lazos.test
 --   · convenios con nota "Datos de prueba"
@@ -52,7 +52,7 @@ declare
   v_trn  record;  -- no llamarlo "t": choca con el alias de "from public.turnos t"
 begin
   if exists (select 1 from public.pacientes where dni between '90000001' and '90000024') then
-    raise exception 'Los datos de prueba ya están cargados. Si querés recargarlos, corré primero supabase-datos-prueba-borrar.sql.';
+    raise exception 'Los datos de prueba ya están cargados. Si querés recargarlos, corré primero supabase/sql/mantenimiento/datos-prueba-borrar.sql.';
   end if;
 
   -- Para que cada corrida genere los mismos datos "al azar".

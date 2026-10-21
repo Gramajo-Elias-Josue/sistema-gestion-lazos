@@ -14,7 +14,3 @@ Thumbs.db
 
 # Configuración local de Claude Code (permisos, settings de la máquina)
 .claude/
-
-# Archivos de logo viejos / sueltos que no van al repo
-public/.png
-public/1logo-lazos.png

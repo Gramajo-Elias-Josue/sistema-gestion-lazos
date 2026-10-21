@@ -3,7 +3,7 @@
 -- ---------------------------------------------------------------------
 -- Pegá y ejecutá en: Supabase → SQL Editor.
 --
--- Borra únicamente lo que cargó supabase-datos-prueba.sql (se reconoce
+-- Borra únicamente lo que cargó supabase/sql/mantenimiento/datos-prueba-cargar.sql (se reconoce
 -- por sus marcas: DNI 90000001…90000024, emails @prueba.lazos.test,
 -- convenios "Datos de prueba" y gastos de "Socio N (prueba)"). Lo que
 -- hayas cargado a mano desde la app NO se toca, y los usuarios tampoco.

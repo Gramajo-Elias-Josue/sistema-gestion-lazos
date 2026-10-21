@@ -59,7 +59,7 @@ create table if not exists public.gastos (
 
 -- ---------------------------------------------------------------------
 -- 4) RLS: SOLO director / secretaría (puede_operar), ni lectura para el
---    resto. Requiere que supabase-rls.sql ya haya creado puede_operar().
+--    resto. Requiere que supabase/sql/04-seguridad-rls.sql ya haya creado puede_operar().
 -- ---------------------------------------------------------------------
 do $$
 declare t text;

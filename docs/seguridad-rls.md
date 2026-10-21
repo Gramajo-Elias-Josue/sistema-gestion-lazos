@@ -11,15 +11,15 @@ alguien llame a la API desde la consola del navegador, no pasa.
 ---
 
 ## Antes de empezar
-- [ ] Ya corriste `supabase-roles.sql` (existe `perfiles` y `rol_actual()`).
+- [ ] Ya corriste `supabase/sql/01-roles-y-perfiles.sql` (existe `perfiles` y `rol_actual()`).
 - [ ] **Cada usuario tiene su fila en `perfiles`.** Un usuario sin perfil
       queda sin permisos de escritura.
-- [ ] Tenés a mano `supabase-rls-revertir.sql` (deshace todo en 10 segundos).
+- [ ] Tenés a mano `supabase/sql/mantenimiento/rls-revertir.sql` (deshace todo en 10 segundos).
 
 ## Aplicar
-1. **SQL Editor** → pegá y ejecutá **`supabase-rls.sql`**.
+1. **SQL Editor** → pegá y ejecutá **`supabase/sql/04-seguridad-rls.sql`**.
 2. Probá con cada rol (abajo).
-3. Si algo se bloquea de más → ejecutá **`supabase-rls-revertir.sql`** y avisá
+3. Si algo se bloquea de más → ejecutá **`supabase/sql/mantenimiento/rls-revertir.sql`** y avisá
    qué acción falló.
 
 ---
@@ -84,4 +84,4 @@ Síntomas típicos de RLS bloqueando de más:
 - Un guardado que "no hace nada" y vuelve el botón.
 
 Anotá **qué rol** y **qué acción** falló, revertí con
-`supabase-rls-revertir.sql` y se ajusta la política.
+`supabase/sql/mantenimiento/rls-revertir.sql` y se ajusta la política.

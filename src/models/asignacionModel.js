@@ -4,7 +4,7 @@
 // CAPA MODELO. Acceso a la tabla `asignaciones`: con qué paciente se
 // atiende cada profesional y a qué hora (la celda es el cruce PROFESIONAL
 // × FRANJA HORARIA, no paciente × sector — ver la migración
-// supabase-migracion-grilla-horarios.sql). Los horarios son fijos y se
+// supabase/sql/09-grilla-horarios.sql). Los horarios son fijos y se
 // repiten todos los días, así que una fila vale para todos los días
 // mientras esté vigente.
 //

@@ -15,8 +15,8 @@ sitio puede sacar esa clave del código y **leer o modificar todos los datos
 sin iniciar sesión**. El login no lo impide: la puerta la tiene que cerrar
 la base.
 
-- [ ] Ejecutar **`supabase-rls.sql`** en Supabase → SQL Editor.
-- [ ] Probar con los tres roles siguiendo **`supabase-rls.md`**.
+- [ ] Ejecutar **`supabase/sql/04-seguridad-rls.sql`** en Supabase → SQL Editor.
+- [ ] Probar con los tres roles siguiendo **`docs/seguridad-rls.md`**.
 - [ ] Confirmar que **sin sesión** no se ve ningún dato.
 
 Son historias clínicas de pacientes: hasta para una prueba conviene tenerlo
@@ -51,11 +51,12 @@ on conflict (id) do update set rol = 'director';
 ```
 
 Listo: ese usuario entra y ve **Administración**, desde donde crea al resto
-(secretaría y profesionales) sin tocar más SQL.
+(otros directores/socios, secretaría, profesionales y CM) sin tocar más SQL.
 
-> **Por qué el director se define acá y no desde la app:** es el dueño del
-> sistema. Si se pudiera nombrar director desde la pantalla, cualquiera con
-> ese permiso podría darse acceso total. Se hace una sola vez, en la base.
+> **Por qué el PRIMER director se define acá:** alguien tiene que poder
+> entrar a Administración para crear a los demás. Desde la app solo un
+> director puede crear usuarios, y a un director ya creado no se le puede
+> bajar el rol desde la pantalla: eso se hace a mano en la base.
 
 ### c) Cerrar el registro público
 **Authentication → Providers → Email**: desactivá **"Enable sign-ups"**. Así
@@ -66,11 +67,6 @@ nadie puede crearse una cuenta solo; las cuentas las da la dirección.
 ## 2. Publicar la app
 
 ### Camino rápido (5 minutos, para probar)
-
-0. *(Opcional, una vez)* Limpiá `public/` de archivos sueltos: `.png`,
-   `1logo-lazos.png` y `LEEME-logo.txt` no se usan, pero **se copian al
-   build** y suman ~360 KB al sitio publicado. (No están en el repo, sólo
-   en tu máquina.)
 
 1. En tu máquina, con el `.env` completo:
    ```bash

@@ -78,7 +78,7 @@ export function puedeVer(perfil, seccion) {
 
 // ¿Puede OPERAR (crear/editar/eliminar) lo administrativo? Director y
 // secretaría sí; el profesional no (él sólo consulta y carga informes).
-// Es el espejo en el front de puede_operar() de la base (ver supabase-rls.sql).
+// Es el espejo en el front de puede_operar() de la base (ver supabase/sql/04-seguridad-rls.sql).
 export function puedeOperar(perfil) {
   return perfil?.rol === 'director' || perfil?.rol === 'secretaria';
 }

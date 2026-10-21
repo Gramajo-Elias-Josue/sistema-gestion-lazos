@@ -260,6 +260,6 @@
   create index if not exists fotos_trabajo_creada_idx  on public.fotos_trabajo (created_at);
 
   -- =====================================================================
-  -- Después de esta migración, ejecutá supabase-setup.sql para habilitar
+  -- Después de esta migración, ejecutá supabase/sql/03-storage-y-acceso.sql para habilitar
   -- el acceso anónimo (RLS) sobre las tablas NUEVAS.
   -- =====================================================================

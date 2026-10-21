@@ -87,9 +87,9 @@ select
 -- todo lo que ese usuario tuviera atado (por ejemplo, si era también un
 -- profesional vinculado — no lo es en el flujo normal, pero por las dudas).
 --
-delete from auth.users
-where email <> 'admin@lazos.test';   -- <-- cambiá esto por el email a conservar
+-- delete from auth.users
+-- where email <> 'admin@lazos.test';   -- <-- cambiá esto por el email a conservar
 
 -- Verificación (después de correr el delete de arriba): debería quedar 1.
-select email, rol from public.perfiles;
+-- select email, rol from public.perfiles;
 -- =====================================================================

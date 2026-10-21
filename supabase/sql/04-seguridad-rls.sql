@@ -19,10 +19,10 @@
 --                  no crea turnos ni los marca "Atendido".
 --   anon (sin sesión) -> NADA. Ahora hay que iniciar sesión.
 --
--- ⚠️ Si algo queda bloqueado de más, corré `supabase-rls-revertir.sql`
+-- ⚠️ Si algo queda bloqueado de más, corré `supabase/sql/mantenimiento/rls-revertir.sql`
 --    para volver a las políticas abiertas y avisá qué falló.
 --
--- REQUISITO: haber corrido antes `supabase-roles.sql` (crea `perfiles` y
+-- REQUISITO: haber corrido antes `supabase/sql/01-roles-y-perfiles.sql` (crea `perfiles` y
 -- la función `rol_actual()`), y que cada usuario tenga su fila en
 -- `perfiles`. Un usuario SIN perfil queda sin permisos de escritura.
 -- =====================================================================
@@ -195,5 +195,5 @@ create policy "rol_doc_delete" on storage.objects
 --      carga un informe con su PDF adjunto; NO puede dar de alta
 --      pacientes ni profesionales.
 --
--- Si algo queda bloqueado de más: `supabase-rls-revertir.sql`.
+-- Si algo queda bloqueado de más: `supabase/sql/mantenimiento/rls-revertir.sql`.
 -- =====================================================================
