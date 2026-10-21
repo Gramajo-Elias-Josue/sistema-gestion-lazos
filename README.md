@@ -22,7 +22,7 @@ administrativa (convenios, facturación y gastos), con usuarios y permisos por r
 | **Asistencia** | Planilla diaria de pacientes y fichaje de profesionales, con calendario mensual y PDF. |
 | **Profesionales** | Equipo, profesiones (sectores), días y turnos de trabajo. Al crear un profesional se le crea su usuario. |
 | **Galería** | Fotos del trabajo del mes (material de difusión). Cada profesional sube las suyas. |
-| **Convenios / Facturación / Gastos** | Gestión de la sociedad: obras sociales, estado de facturación por paciente y mes, gastos por socio. |
+| **Facturación / Gastos** | Gestión de la sociedad: estado de facturación por paciente y mes, gastos y rendición por socio. Ambas se **exportan a Excel** (.xlsx). |
 | **Administración** | Usuarios, roles y secciones habilitadas para cada uno. |
 
 **Documentos en PDF** (con el membrete de la clínica): informes (mensual, anual,
@@ -35,7 +35,7 @@ evolución, admisión), evaluación / certificado ocasional y planilla de asiste
 | Rol | Ve por defecto | Puede modificar |
 |---|---|---|
 | **Director** (socio) | Todo | Todo, incluida Administración |
-| **Secretaría** | Inicio, Admisión, Pacientes, Turnos, Asistencia, Profesionales, Convenios, Facturación, Gastos | Todo lo operativo |
+| **Secretaría** | Inicio, Admisión, Pacientes, Turnos, Asistencia, Profesionales, Facturación, Gastos | Todo lo operativo |
 | **Profesional** | Inicio, Pacientes, Turnos (consulta), Galería | Informes, certificados y sus fotos |
 | **CM** (contenido) | Inicio, Galería | Nada clínico |
 
@@ -77,8 +77,8 @@ por un modelo.**
 
 **Por qué JavaScript vainilla y no un framework:** el sistema es chico y la separación
 MVC hecha a mano deja ver cada capa sin magia de por medio. Vite agrega lo que hacía
-falta: módulos, variables de entorno y carga diferida (el generador de PDF, que es
-pesado, se descarga recién cuando alguien genera un documento).
+falta: módulos, variables de entorno y carga diferida: el generador de PDF (jsPDF) y el de Excel
+(SheetJS), que son pesados, se descargan recién cuando alguien los usa.
 
 ---
 

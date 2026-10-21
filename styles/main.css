@@ -601,6 +601,15 @@ tr[class*="tono-"] .pav{background:color-mix(in srgb, var(--tono-fg) 18%, var(--
 .nav-dia:hover{background:var(--teal-50);color:var(--teal-700);border-color:var(--teal-100)}
 /* Barra de acciones: buscador + marcado masivo */
 .asis-toolbar{display:flex;gap:12px;margin-bottom:16px;align-items:center}
+.asis-toolbar .btn{white-space:nowrap;flex-shrink:0}
+/* Gastos: "Exportar a Excel" + "Nuevo gasto" juntos a la derecha; en
+   celular bajan a lo ancho. */
+.acciones-excel{display:flex;gap:10px;margin-left:auto;flex-wrap:wrap}
+.acciones-excel .btn{white-space:nowrap}
+@media(max-width:560px){
+  .acciones-excel{margin-left:0;width:100%}
+  .acciones-excel .btn,.asis-toolbar .btn{flex:1 1 auto;text-align:center}
+}
 .asis-toolbar input{flex:1;font-family:var(--body);font-size:15.5px;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--card);box-shadow:var(--shadow)}
 .asis-toolbar input:focus{outline:none;border-color:var(--teal-500);box-shadow:0 0 0 3px var(--teal-50)}
 /* Corregir: ÚNICA función es reabrir una fila guardada para editarla.

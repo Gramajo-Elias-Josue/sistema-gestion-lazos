@@ -84,6 +84,13 @@ describe('permisos.seccionesEfectivas', () => {
   it('inicio siempre presente', () => {
     expect(seccionesEfectivas(perfil('secretaria', ['pacientes']))).toContain('inicio');
   });
+
+  it('[regresión] Convenios está oculta: no aparece para nadie, aunque un usuario la tenga guardada', () => {
+    expect(SECCIONES.map(s => s.clave)).not.toContain('convenios');
+    expect(puedeVer(perfil('director'), 'convenios')).toBe(false);
+    expect(puedeVer(perfil('secretaria'), 'convenios')).toBe(false);
+    expect(seccionesEfectivas(perfil('secretaria', ['pacientes', 'convenios']))).toEqual(['inicio', 'pacientes']);
+  });
 });
 
 describe('permisos.puedeOperar (gestionar lo administrativo: agenda, altas…)', () => {

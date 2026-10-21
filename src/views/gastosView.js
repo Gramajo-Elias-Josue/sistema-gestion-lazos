@@ -21,7 +21,10 @@ export function renderEstructura(periodo) {
         <button class="nav-dia" id="ga-next" title="Mes siguiente">›</button>
         <button class="btn ghost" id="ga-hoy">Mes actual</button>
       </div>
-      <button class="btn" id="btn-nuevo-gasto" style="margin-left:auto">+ Nuevo gasto</button>
+      <div class="acciones-excel">
+        <button class="btn ghost" id="btn-excel-gastos" title="Descargar los gastos de este mes en Excel">⤓ Exportar a Excel</button>
+        <button class="btn" id="btn-nuevo-gasto">+ Nuevo gasto</button>
+      </div>
     </div>
     <div id="ga-resumen"></div>
     <div class="tablewrap"><div id="ga-lista"></div></div>`;

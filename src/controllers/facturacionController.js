@@ -12,6 +12,7 @@ import { renderEstructura, renderResumen, renderFilas, filaHtml } from '../views
 import { resumenFacturacion } from '../utils/facturacion.js';
 import { periodoMensual, moverPeriodo, etiquetaPeriodo } from '../utils/periodos.js';
 import { htmlCargando, htmlError, toast } from '../utils/ui.js';
+import { hojasFacturacion, descargarExcel } from '../utils/excel.js';
 
 // Estado en memoria de la vista mientras está abierta.
 let pacientes = [];        // pacientes activos cargados
@@ -27,6 +28,7 @@ export async function iniciarFacturacion() {
   document.getElementById('fac-next').addEventListener('click', () => cargarPeriodo(moverPeriodo(periodoActual, 1)));
   document.getElementById('fac-hoy').addEventListener('click', () => cargarPeriodo(periodoMensual()));
   document.getElementById('fac-buscar').addEventListener('input', aplicarFiltro);
+  document.getElementById('btn-excel-fac').addEventListener('click', exportarExcel);
 
   // Delegación de eventos: un solo listener sobrevive a los re-render de filas.
   document.getElementById('fac-body').addEventListener('click', (e) => {
@@ -42,6 +44,7 @@ export async function iniciarFacturacion() {
 // ---------------------------------------------------------------------
 async function cargarPeriodo(periodo) {
   periodoActual = periodo;
+  pacientes = []; // hasta que llegue el mes nuevo, no se exporta el anterior
   document.getElementById('fac-periodo').textContent = etiquetaPeriodo(periodo);
 
   const caja = document.getElementById('fac-body');
@@ -110,4 +113,21 @@ function aplicarFiltro() {
 
 function recalcular() {
   document.getElementById('fac-resumen').innerHTML = renderResumen(resumenFacturacion(pacientes, estadosPorId));
+}
+
+// ---------------------------------------------------------------------
+// EXPORTAR A EXCEL (todos los pacientes del mes visible, sin el filtro
+// del buscador: la planilla es para rendir el mes completo)
+// ---------------------------------------------------------------------
+async function exportarExcel() {
+  if (!pacientes.length) {
+    toast('No hay pacientes para exportar en este mes.', 'bad');
+    return;
+  }
+  try {
+    await descargarExcel(`facturacion-${periodoActual}.xlsx`, hojasFacturacion(pacientes, estadosPorId, periodoActual));
+  } catch (err) {
+    console.error('Error exportando facturación a Excel:', err);
+    toast('No se pudo generar el Excel. Probá de nuevo.', 'bad');
+  }
 }

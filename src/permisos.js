@@ -22,7 +22,10 @@ export const SECCIONES = [
   { clave: 'asistencia',     etiqueta: 'Asistencia' },
   { clave: 'profesionales',  etiqueta: 'Profesionales' },
   { clave: 'galeria',        etiqueta: 'Galería' },
-  { clave: 'convenios',      etiqueta: 'Convenios' },
+  // Convenios está OCULTA por ahora (el código sigue en el proyecto).
+  // Para volver a mostrarla: descomentar esta línea y sumarla a los
+  // defaults de secretaría.
+  // { clave: 'convenios',      etiqueta: 'Convenios' },
   { clave: 'facturacion',    etiqueta: 'Facturación' },
   { clave: 'gastos',         etiqueta: 'Gastos' },
   { clave: 'estadisticas',   etiqueta: 'Estadísticas' },
@@ -34,10 +37,10 @@ const TODAS = SECCIONES.map(s => s.clave);
 // Secciones por defecto de cada rol (al crear el usuario y como fallback).
 const POR_DEFECTO = {
   director:    TODAS,
-  // Convenios/facturación/gastos son gestión de los dueños (info
-  // financiera de la sociedad), pero la secretaría las opera igual que
-  // el resto de lo administrativo.
-  secretaria:  ['inicio', 'admision', 'pacientes', 'agenda', 'asistencia', 'profesionales', 'convenios', 'facturacion', 'gastos'],
+  // Facturación/gastos son gestión de los dueños (info financiera de la
+  // sociedad), pero la secretaría las opera igual que el resto de lo
+  // administrativo.
+  secretaria:  ['inicio', 'admision', 'pacientes', 'agenda', 'asistencia', 'profesionales', 'facturacion', 'gastos'],
   // El profesional entra a Galería porque es donde SUBE la foto de su
   // trabajo del mes (el informe lo carga en la historia clínica).
   profesional: ['inicio', 'pacientes', 'agenda', 'galeria'],
@@ -63,10 +66,12 @@ export function seccionesPorDefecto(rol) {
 //   - director  -> todo.
 //   - resto     -> sus secciones propias, o las del rol si no tiene.
 //   - "inicio" siempre incluido, para que nadie quede sin pantalla.
+//   - Las propias se filtran contra SECCIONES: una sección oculta o
+//     quitada del sistema no reaparece aunque el usuario la tenga guardada.
 export function seccionesEfectivas(perfil) {
   if (perfil?.rol === 'director') return [...TODAS];
   const rol = perfil?.rol || ROL_FALLBACK;
-  const propias = Array.isArray(perfil?.secciones) ? perfil.secciones.filter(Boolean) : [];
+  const propias = Array.isArray(perfil?.secciones) ? perfil.secciones.filter(s => TODAS.includes(s)) : [];
   const base = propias.length ? propias : seccionesPorDefecto(rol);
   return base.includes('inicio') ? base : ['inicio', ...base];
 }

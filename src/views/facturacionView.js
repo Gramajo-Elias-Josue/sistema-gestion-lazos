@@ -24,6 +24,7 @@ export function renderEstructura(periodo) {
     </div>
     <div class="asis-toolbar">
       <input id="fac-buscar" type="search" autocomplete="off" placeholder="🔎 Buscar paciente…">
+      <button class="btn ghost" id="btn-excel-fac" title="Descargar la facturación de este mes en Excel">⤓ Exportar a Excel</button>
     </div>
     <div class="tablewrap"><div id="fac-body"></div></div>`;
 }

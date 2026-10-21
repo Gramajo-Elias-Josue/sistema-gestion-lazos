@@ -13,8 +13,10 @@ import { htmlCargando, htmlError, toast, confirmar } from '../utils/ui.js';
 import { mensajeError } from '../utils/errores.js';
 import { periodoMensual, moverPeriodo, etiquetaPeriodo } from '../utils/periodos.js';
 import { rangoMes } from '../utils/fechas.js';
+import { hojasGastos, descargarExcel } from '../utils/excel.js';
 
 let periodoActual = periodoMensual();
+let gastosCargados = []; // los del mes visible (para exportar sin volver a pedirlos)
 
 export async function iniciarGastos() {
   const contenedor = document.getElementById('v-gastos');
@@ -25,6 +27,7 @@ export async function iniciarGastos() {
   document.getElementById('ga-next').addEventListener('click', () => cargarPeriodo(moverPeriodo(periodoActual, 1)));
   document.getElementById('ga-hoy').addEventListener('click', () => cargarPeriodo(periodoMensual()));
   document.getElementById('btn-nuevo-gasto').addEventListener('click', () => abrirForm());
+  document.getElementById('btn-excel-gastos').addEventListener('click', exportarExcel);
 
   document.getElementById('ga-lista').addEventListener('click', (e) => {
     const btn = e.target.closest('.btn-eliminar-gasto');
@@ -39,6 +42,7 @@ export async function iniciarGastos() {
 // ---------------------------------------------------------------------
 async function cargarPeriodo(periodo) {
   periodoActual = periodo;
+  gastosCargados = []; // hasta que lleguen los del mes nuevo, no se exporta el anterior
   document.getElementById('ga-periodo').textContent = etiquetaPeriodo(periodo);
 
   const cajaResumen = document.getElementById('ga-resumen');
@@ -52,11 +56,28 @@ async function cargarPeriodo(periodo) {
     // datos, se descarta esta respuesta (llegó tarde).
     if (periodo !== periodoActual) return;
 
+    gastosCargados = gastos;
     cajaResumen.innerHTML = renderResumen(gastos);
     cajaLista.innerHTML = renderLista(gastos);
   } catch (err) {
     console.error('Error cargando gastos:', err);
     cajaLista.innerHTML = htmlError('No se pudieron cargar los gastos. Revisá la conexión.');
+  }
+}
+
+// ---------------------------------------------------------------------
+// EXPORTAR A EXCEL (el mes visible: detalle + rendición por socio)
+// ---------------------------------------------------------------------
+async function exportarExcel() {
+  if (!gastosCargados.length) {
+    toast('No hay gastos en este mes para exportar.', 'bad');
+    return;
+  }
+  try {
+    await descargarExcel(`gastos-${periodoActual}.xlsx`, hojasGastos(gastosCargados, periodoActual));
+  } catch (err) {
+    console.error('Error exportando gastos a Excel:', err);
+    toast('No se pudo generar el Excel. Probá de nuevo.', 'bad');
   }
 }
 
