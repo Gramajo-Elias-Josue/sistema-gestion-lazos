@@ -23,10 +23,15 @@ import { validarPaciente, validarDocumento, normalizarDni } from '../utils/valid
 import { parseEvaluacion, autoresElegiblesHoy, autoresCertificado, TIPO_CERTIFICADO } from '../utils/evaluacion.js';
 import { mensajeError } from '../utils/errores.js';
 import { abrirEditorInforme } from './editorInforme.js';
+import { FILTROS_VACIOS, cantidadFiltros, hayQueMostrar, pasaFiltros } from '../utils/filtrosPacientes.js';
 
 // Cuántos pacientes por página en el listado, y en qué página está.
 const PAC_POR_PAGINA = 12;
 let pacPagina = 0;
+// Búsqueda y filtros elegidos. Se guardan acá (no solo en el HTML) para
+// que no se pierdan al volver de un legajo o después de editar a alguien.
+let pacTermino = '';
+let pacFiltros = { ...FILTROS_VACIOS };
 
 // Punto de entrada de la sección Pacientes (lo llama el router).
 export async function iniciarPacientes() {
@@ -45,7 +50,7 @@ async function cargarLista() {
   try {
     // soloActivos:false -> el listado muestra activos e inactivos.
     const pacientes = await pacienteModel.listarPacientes({ soloActivos: false });
-    caja.innerHTML = renderTabla(pacientes);
+    caja.innerHTML = renderTabla(pacientes, { termino: pacTermino, filtros: pacFiltros });
     pacPagina = 0;
 
     // Click en la fila (pero no en un botón) -> abrir el legajo.
@@ -67,9 +72,10 @@ async function cargarLista() {
     // primera página (si no, un resultado corto podría caer fuera de la
     // página en la que estaba y no verse nada).
     const buscador = caja.querySelector('#pac-buscar');
-    buscador?.addEventListener('input', () => { pacPagina = 0; filtrarYPaginar(caja); });
+    buscador?.addEventListener('input', () => { pacTermino = buscador.value; pacPagina = 0; filtrarYPaginar(caja); });
     caja.querySelector('#pac-prev')?.addEventListener('click', () => cambiarPagina(caja, -1));
     caja.querySelector('#pac-next')?.addEventListener('click', () => cambiarPagina(caja, 1));
+    conectarFiltros(caja);
 
     filtrarYPaginar(caja);
   } catch (err) {
@@ -78,12 +84,54 @@ async function cargarLista() {
   }
 }
 
-// Aplica el filtro del buscador y muestra solo la página actual. No
-// consulta la base: solo muestra/esconde filas, así responde al instante.
+// Botón "Filtros" (abre/cierra el panel) y los controles del panel.
+// Elegir un filtro concreto reemplaza a "Ver todos"; "Limpiar" vuelve al
+// estado inicial (lista oculta hasta que se busque algo).
+function conectarFiltros(caja) {
+  const panel = caja.querySelector('#pac-filtros');
+  const boton = caja.querySelector('#pac-btn-filtros');
+  if (!panel || !boton) return;
+
+  boton.addEventListener('click', () => {
+    panel.hidden = !panel.hidden;
+    boton.setAttribute('aria-expanded', String(!panel.hidden));
+  });
+
+  const selects = { estado: '#pf-estado', cud: '#pf-cud', obraSocial: '#pf-os' };
+  Object.entries(selects).forEach(([clave, selector]) => {
+    caja.querySelector(selector).addEventListener('change', (e) => {
+      pacFiltros = { ...pacFiltros, [clave]: e.target.value, verTodos: false };
+      pacPagina = 0;
+      filtrarYPaginar(caja);
+    });
+  });
+
+  caja.querySelector('#pf-ver-todos').addEventListener('click', () => {
+    pacFiltros = { ...pacFiltros, verTodos: true };
+    pacPagina = 0;
+    filtrarYPaginar(caja);
+  });
+
+  caja.querySelector('#pf-limpiar').addEventListener('click', () => {
+    pacFiltros = { ...FILTROS_VACIOS };
+    caja.querySelector('#pf-estado').value = 'todos';
+    caja.querySelector('#pf-cud').value = 'todos';
+    caja.querySelector('#pf-os').value = 'todas';
+    pacPagina = 0;
+    filtrarYPaginar(caja);
+  });
+}
+
+// Aplica la búsqueda y los filtros y muestra solo la página actual. Sin
+// búsqueda ni filtros, la lista queda oculta (ver filtrosPacientes.js).
+// No consulta la base: solo muestra/esconde filas, así responde al instante.
 function filtrarYPaginar(caja) {
-  const termino = (caja.querySelector('#pac-buscar')?.value || '').trim().toLowerCase();
+  const mostrar = hayQueMostrar(pacTermino, pacFiltros);
   const filas = [...caja.querySelectorAll('tbody tr[data-buscar]')];
-  const coinciden = filas.filter(f => !termino || (f.dataset.buscar || '').includes(termino));
+  const coinciden = filas.filter(f => pasaFiltros(
+    { buscar: f.dataset.buscar, estado: f.dataset.estado, cud: f.dataset.cud, obraSocial: f.dataset.os },
+    pacTermino, pacFiltros,
+  ));
 
   const paginas = Math.max(1, Math.ceil(coinciden.length / PAC_POR_PAGINA));
   pacPagina = Math.min(Math.max(pacPagina, 0), paginas - 1);
@@ -92,19 +140,28 @@ function filtrarYPaginar(caja) {
 
   filas.forEach(f => { f.style.display = enPagina.has(f) ? '' : 'none'; });
 
+  const inicial = caja.querySelector('#pac-inicial');
+  if (inicial) inicial.hidden = mostrar;
+  const tabla = caja.querySelector('#pac-lista-wrap');
+  if (tabla) tabla.hidden = !mostrar || coinciden.length === 0;
+
+  const cant = cantidadFiltros(pacFiltros);
+  const badge = caja.querySelector('#pac-filtros-cant');
+  if (badge) { badge.hidden = cant === 0; badge.textContent = cant; }
+
   const contador = caja.querySelector('#pac-contador');
   if (contador) {
-    contador.textContent = termino
+    contador.textContent = mostrar
       ? `${coinciden.length} de ${filas.length} pacientes`
-      : `${filas.length} ${filas.length === 1 ? 'paciente' : 'pacientes'}`;
+      : `${filas.length} ${filas.length === 1 ? 'paciente cargado' : 'pacientes cargados'}`;
   }
 
   const sinResultados = caja.querySelector('#pac-sin-resultados');
-  if (sinResultados) sinResultados.hidden = coinciden.length > 0;
+  if (sinResultados) sinResultados.hidden = !mostrar || coinciden.length > 0;
 
   const pager = caja.querySelector('#pac-pager');
   if (pager) {
-    pager.hidden = paginas <= 1;
+    pager.hidden = !mostrar || paginas <= 1;
     caja.querySelector('#pac-pager-info').textContent = `Página ${pacPagina + 1} de ${paginas}`;
     caja.querySelector('#pac-prev').disabled = pacPagina === 0;
     caja.querySelector('#pac-next').disabled = pacPagina >= paginas - 1;

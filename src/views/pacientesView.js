@@ -9,6 +9,7 @@
 
 import { calcularEdad, formatearFecha, estadoVencimiento, iniciales } from '../utils/fechas.js';
 import { esc, pill, tonoDe } from '../utils/ui.js';
+import { FILTROS_VACIOS, SIN_OBRA_SOCIAL, obrasSociales } from '../utils/filtrosPacientes.js';
 import { TIPOS_INFORME, SECCIONES_INFORME, parseEvaluacion, evaluacionVacia } from '../utils/evaluacion.js';
 import { CLINICA } from '../config/clinica.js';
 
@@ -99,12 +100,19 @@ function estadoCud(paciente) {
 }
 
 // Tabla del listado de pacientes, con acciones por fila. Arriba lleva un
-// buscador y abajo un paginado (los maneja el controlador mostrando /
-// escondiendo filas; acá solo van los controles).
-export function renderTabla(pacientes) {
+// buscador, el botón "Filtros" con su panel, y abajo un paginado (los
+// maneja el controlador mostrando / escondiendo filas; acá solo van los
+// controles). La tabla arranca OCULTA: se muestra recién cuando se busca
+// algo o se elige un filtro (ver utils/filtrosPacientes.js).
+// `termino` y `filtros` = lo que ya estaba elegido (se conserva al volver
+// de un legajo o después de editar).
+export function renderTabla(pacientes, { termino = '', filtros = FILTROS_VACIOS } = {}) {
   if (!pacientes.length) {
     return `<div class="tablewrap"><div class="state">No hay pacientes cargados todavía.</div></div>`;
   }
+  const opcion = (valor, texto, actual) => `<option value="${esc(valor)}" ${valor === actual ? 'selected' : ''}>${esc(texto)}</option>`;
+  const opcionesOS = obrasSociales(pacientes).map(os => opcion(os, os, filtros.obraSocial)).join('');
+  const haySinOS = pacientes.some(p => !(p.obra_social || '').trim());
 
   const filas = pacientes.map(p => {
     const c = estadoCud(p);
@@ -116,8 +124,11 @@ export function renderTabla(pacientes) {
     // Texto por el que filtra el buscador: nombre, DNI y obra social.
     const buscar = `${p.nombre_completo || ''} ${p.dni || ''} ${p.obra_social || ''}`.toLowerCase();
 
+    // Datos que leen los filtros (estado, CUD, obra social).
+    const datosFiltro = `data-estado="${activo ? 'activo' : 'inactivo'}" data-cud="${p.tiene_cud ? 'si' : 'no'}" data-os="${esc((p.obra_social || '').trim() || SIN_OBRA_SOCIAL)}"`;
+
     return `
-      <tr class="tono-${tonoDe(p.id)}" data-id="${p.id}" data-buscar="${esc(buscar)}" style="${activo ? '' : 'opacity:.55'}">
+      <tr class="tono-${tonoDe(p.id)}" data-id="${p.id}" data-buscar="${esc(buscar)}" ${datosFiltro} style="${activo ? '' : 'opacity:.55'}">
         <td class="tc-nombre">
           <div class="pname">
             <div class="pav">${esc(iniciales(p.nombre_completo))}</div>
@@ -140,11 +151,35 @@ export function renderTabla(pacientes) {
   // suma el cursor pointer (la fila abre el legajo).
   return `
     <div class="lista-toolbar">
-      <input id="pac-buscar" type="search" autocomplete="off"
+      <input id="pac-buscar" type="search" autocomplete="off" value="${esc(termino)}"
              placeholder="🔎 Buscar por nombre, DNI u obra social…">
+      <button type="button" class="btn ghost" id="pac-btn-filtros" aria-expanded="false" aria-controls="pac-filtros">
+        Filtros <span class="filtros-cant" id="pac-filtros-cant" hidden></span>
+      </button>
       <span class="lista-contador" id="pac-contador"></span>
     </div>
-    <div class="tablewrap tabla-cards pac-lista">
+    <div class="panel-filtros" id="pac-filtros" hidden>
+      <div class="form-field"><label for="pf-estado">Estado</label>
+        <select id="pf-estado">
+          ${opcion('todos', 'Todos', filtros.estado)}${opcion('activo', 'Activos', filtros.estado)}${opcion('inactivo', 'Inactivos', filtros.estado)}
+        </select></div>
+      <div class="form-field"><label for="pf-cud">CUD</label>
+        <select id="pf-cud">
+          ${opcion('todos', 'Todos', filtros.cud)}${opcion('si', 'Con CUD', filtros.cud)}${opcion('no', 'Sin CUD', filtros.cud)}
+        </select></div>
+      <div class="form-field"><label for="pf-os">Obra social</label>
+        <select id="pf-os">
+          ${opcion('todas', 'Todas', filtros.obraSocial)}${opcionesOS}${haySinOS ? opcion(SIN_OBRA_SOCIAL, 'Sin obra social', filtros.obraSocial) : ''}
+        </select></div>
+      <div class="panel-filtros-acciones">
+        <button type="button" class="btn ghost" id="pf-limpiar">Limpiar</button>
+        <button type="button" class="btn" id="pf-ver-todos">Ver todos</button>
+      </div>
+    </div>
+    <div class="state" id="pac-inicial">
+      Buscá un paciente por nombre, DNI u obra social, o usá <b>Filtros</b> para ver un grupo.
+    </div>
+    <div class="tablewrap tabla-cards pac-lista" id="pac-lista-wrap" hidden>
       <table>
         <thead>
           <tr><th>Paciente</th><th>Edad</th><th>Obra social</th><th>Estado CUD</th><th></th></tr>
@@ -152,7 +187,7 @@ export function renderTabla(pacientes) {
         <tbody>${filas}</tbody>
       </table>
     </div>
-    <div class="state" id="pac-sin-resultados" hidden>Ningún paciente coincide con la búsqueda.</div>
+    <div class="state" id="pac-sin-resultados" hidden>Ningún paciente coincide con la búsqueda o los filtros.</div>
     <div class="pac-pager" id="pac-pager" hidden>
       <button type="button" class="btn ghost" id="pac-prev">‹ Anterior</button>
       <span class="pac-pager-info" id="pac-pager-info"></span>

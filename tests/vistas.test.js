@@ -39,6 +39,27 @@ describe('pacientesView.renderTabla', () => {
     expect(tablaPacientes([])).toContain('No hay pacientes');
   });
 
+  it('[clave] la lista arranca OCULTA, con el aviso de buscar o usar Filtros', () => {
+    const html = tablaPacientes([base]);
+    expect(html).toMatch(/id="pac-lista-wrap"[^>]*hidden/);
+    expect(html).toContain('id="pac-inicial"');
+    expect(html).toContain('id="pac-btn-filtros"');
+    expect(html).toMatch(/id="pac-filtros"[^>]*hidden/);
+  });
+
+  it('cada fila lleva los datos que leen los filtros (estado, CUD, obra social)', () => {
+    const html = tablaPacientes([{ ...base, tiene_cud: true, obra_social: 'OSDE' }]);
+    expect(html).toContain('data-estado="activo"');
+    expect(html).toContain('data-cud="si"');
+    expect(html).toContain('data-os="OSDE"');
+  });
+
+  it('conserva la búsqueda y los filtros elegidos (al volver de un legajo)', () => {
+    const html = tablaPacientes([base], { termino: 'ana', filtros: { estado: 'inactivo', cud: 'todos', obraSocial: 'todas', verTodos: false } });
+    expect(html).toMatch(/id="pac-buscar"[^>]*value="ana"/);
+    expect(html).toMatch(/<option value="inactivo" selected>/);
+  });
+
   it('cada paciente lleva un color fijo (el mismo en cada recarga), nunca el gris', () => {
     const html = tablaPacientes([base]);
     const tono = tonoDe(base.id);
