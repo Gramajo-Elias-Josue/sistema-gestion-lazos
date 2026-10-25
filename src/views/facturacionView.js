@@ -6,7 +6,8 @@
 // pero con navegación por MES en vez de por día.
 // =====================================================================
 
-import { esc } from '../utils/ui.js';
+import { esc, tonoDe } from '../utils/ui.js';
+import { iniciales } from '../utils/fechas.js';
 import { etiquetaPeriodo } from '../utils/periodos.js';
 import { ESTADOS_FACTURACION, ESTADO_POR_DEFECTO } from '../utils/facturacion.js';
 
@@ -26,7 +27,7 @@ export function renderEstructura(periodo) {
       <input id="fac-buscar" type="search" autocomplete="off" placeholder="🔎 Buscar paciente…">
       <button class="btn ghost" id="btn-excel-fac" title="Descargar la facturación de este mes en Excel">⤓ Exportar a Excel</button>
     </div>
-    <div class="tablewrap"><div id="fac-body"></div></div>`;
+    <div class="tablewrap fac-lista"><div id="fac-body"></div></div>`;
 }
 
 // Resumen en vivo: cuántos pacientes hay en cada estado.
@@ -46,15 +47,21 @@ export function renderFilas(pacientes, estadosPorId = {}) {
   return pacientes.map(p => filaHtml(p, estadosPorId[p.id])).join('');
 }
 
-// Una fila (se re-renderiza sola al cambiar su estado).
+// Una fila (se re-renderiza sola al cambiar su estado). En celular el CSS
+// (.fac-lista) la convierte en una tarjeta separada, con el color de la
+// persona (el mismo que en Pacientes), para que se vea bien dónde empieza
+// y termina cada paciente.
 export function filaHtml(p, estado = ESTADO_POR_DEFECTO) {
   const botones = ESTADOS_FACTURACION.map(e =>
     `<button data-paciente="${p.id}" data-estado="${e.valor}" class="${estado === e.valor ? e.on : ''}">${e.label}</button>`
   ).join('');
 
   return `
-    <div class="asis-row" data-fila="${p.id}" data-buscar="${esc(((p.nombre_completo || '') + ' ' + (p.obra_social || '')).toLowerCase())}">
-      <span class="nm"><b>${esc(p.nombre_completo)}</b><br><small>${esc(p.obra_social || 'Sin obra social')}</small></span>
+    <div class="asis-row fac-fila tono-${tonoDe(p.id)}" data-fila="${p.id}" data-buscar="${esc(((p.nombre_completo || '') + ' ' + (p.obra_social || '')).toLowerCase())}">
+      <div class="fac-cab">
+        <span class="pav">${esc(iniciales(p.nombre_completo))}</span>
+        <span class="nm"><b>${esc(p.nombre_completo)}</b><br><small>${esc(p.obra_social || 'Sin obra social')}</small></span>
+      </div>
       <div class="seg">${botones}</div>
     </div>`;
 }

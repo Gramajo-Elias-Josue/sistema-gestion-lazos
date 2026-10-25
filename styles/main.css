@@ -389,7 +389,29 @@ tbody tr:last-child td{border-bottom:none}
 .tono-6{--tono-bg:var(--area-6-bg);--tono-fg:var(--area-6-fg)}
 .tono-7{--tono-bg:var(--area-7-bg);--tono-fg:var(--area-7-fg)}
 /* El avatar con las iniciales toma el tono (también en la tabla de escritorio). */
-tr[class*="tono-"] .pav{background:color-mix(in srgb, var(--tono-fg) 18%, var(--tono-bg));color:var(--tono-fg)}
+[class*="tono-"] .pav{background:color-mix(in srgb, var(--tono-fg) 18%, var(--tono-bg));color:var(--tono-fg)}
+
+/* ---- Facturación: cada paciente es una tarjeta en el celular ----
+   En escritorio sigue siendo una lista con separadores. En celular,
+   tarjetas separadas (borde, sombra, franja de color arriba) para que se
+   distinga dónde empieza y termina cada paciente, y los 3 estados en una
+   sola fila. */
+.fac-cab{display:flex;align-items:center;gap:12px;flex:1;min-width:0}
+@media(max-width:760px){
+  .fac-lista{background:none;border:none;box-shadow:none;border-radius:0;overflow:visible}
+  .fac-lista .fac-fila{background:var(--card);border:1px solid var(--line);border-top:4px solid var(--tono-fg, var(--line));
+    border-radius:14px;box-shadow:var(--shadow);margin-bottom:12px;padding:0;gap:0;overflow:hidden}
+  .fac-lista .fac-fila:last-child{border-bottom:1px solid var(--line)}
+  .fac-lista .fac-fila:hover{background:var(--card)}
+  /* Cabecera de la tarjeta: avatar + nombre, teñida en degradé con el
+     tono de la persona (igual que las tarjetas de Pacientes). */
+  .fac-lista .fac-cab{flex:1 1 100%;padding:12px 14px;
+    background:linear-gradient(120deg, var(--tono-bg) 0%, color-mix(in srgb, var(--tono-bg) 30%, var(--card)) 100%);
+    border-bottom:1px solid color-mix(in srgb, var(--tono-fg) 18%, var(--line-soft))}
+  .fac-lista .fac-fila .seg{flex:1 1 100%;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;
+    padding:12px 14px 14px;margin:0;border:none;border-radius:0;background:none}
+  .fac-lista .fac-fila .seg button{padding:11px 4px;font-size:13.5px;line-height:1.2}
+}
 
 @media(max-width:760px){
   /* Tarjeta: franja de color arriba y encabezado teñido en degradé,
