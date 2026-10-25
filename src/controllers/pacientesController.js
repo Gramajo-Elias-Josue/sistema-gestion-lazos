@@ -92,17 +92,22 @@ function conectarFiltros(caja) {
   const boton = caja.querySelector('#pac-btn-filtros');
   if (!panel || !boton) return;
 
-  boton.addEventListener('click', () => {
-    panel.hidden = !panel.hidden;
-    boton.setAttribute('aria-expanded', String(!panel.hidden));
-  });
+  const mostrarPanel = (abierto) => {
+    panel.hidden = !abierto;
+    boton.setAttribute('aria-expanded', String(abierto));
+  };
+  boton.addEventListener('click', () => mostrarPanel(panel.hidden));
 
+  // Al aplicar un filtro el panel se cierra solo, para que se vean los
+  // resultados (en el celular el panel ocupa toda la pantalla). Se
+  // vuelve a abrir con el botón "Filtros".
   const selects = { estado: '#pf-estado', cud: '#pf-cud', obraSocial: '#pf-os' };
   Object.entries(selects).forEach(([clave, selector]) => {
     caja.querySelector(selector).addEventListener('change', (e) => {
       pacFiltros = { ...pacFiltros, [clave]: e.target.value, verTodos: false };
       pacPagina = 0;
       filtrarYPaginar(caja);
+      mostrarPanel(false);
     });
   });
 
@@ -110,6 +115,7 @@ function conectarFiltros(caja) {
     pacFiltros = { ...pacFiltros, verTodos: true };
     pacPagina = 0;
     filtrarYPaginar(caja);
+    mostrarPanel(false);
   });
 
   caja.querySelector('#pf-limpiar').addEventListener('click', () => {
