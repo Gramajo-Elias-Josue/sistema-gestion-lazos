@@ -646,12 +646,39 @@ tbody tr:last-child td{border-bottom:none}
 .asis-toolbar{display:flex;gap:12px;margin-bottom:16px;align-items:center}
 .asis-toolbar .btn{white-space:nowrap;flex-shrink:0}
 /* Gastos: "Exportar a Excel" + "Nuevo gasto" juntos a la derecha; en
-   celular bajan a lo ancho. */
+   celular, lado a lado a lo ancho. */
 .acciones-excel{display:flex;gap:10px;margin-left:auto;flex-wrap:wrap}
 .acciones-excel .btn{white-space:nowrap}
 @media(max-width:560px){
-  .acciones-excel{margin-left:0;width:100%}
-  .acciones-excel .btn,.asis-toolbar .btn{flex:1 1 auto;text-align:center}
+  .acciones-excel{margin-left:0;width:100%;flex-wrap:nowrap}
+  .acciones-excel .btn{flex:1 1 0;text-align:center;padding:10px 8px;font-size:14.5px}
+  .asis-toolbar .btn{flex:1 1 auto;text-align:center}
+}
+
+/* ---- Gastos ----
+   Totales: el color de cada socio es el mismo que el de sus gastos en la
+   lista; el total del mes va resaltado. */
+.ga-kpis{margin-bottom:18px}
+.ga-kpis .kpi .num{font-size:27px}
+.kpi[class*="tono-"] .lab .dot{background:var(--tono-fg)}
+.ga-total{border-color:color-mix(in srgb, var(--orange-500) 45%, var(--line))}
+.ga-monto{text-align:right;font-weight:600;white-space:nowrap}
+.ga-monto-cel{display:none}
+@media(max-width:760px){
+  /* Cabecera de la tarjeta: concepto a la izquierda, monto a la derecha.
+     La fila "Monto" sobra (ya está arriba). */
+  .tabla-cards .ga-concepto{display:flex;justify-content:space-between;align-items:center;gap:12px}
+  .tabla-cards .ga-concepto b{min-width:0}
+  .ga-monto-cel{display:inline;font-weight:700;font-size:16px;white-space:nowrap}
+  .tabla-cards td.ga-monto{display:none}
+}
+@media(max-width:560px){
+  /* Totales: uno por renglón, compactos (nombre a la izquierda, monto a
+     la derecha) en vez de tarjetas grandes que se cortaban. */
+  .ga-kpis{grid-template-columns:1fr;gap:10px}
+  .ga-kpis .kpi{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:12px;padding:13px 16px}
+  .ga-kpis .kpi .num{grid-column:2;grid-row:1 / span 2;margin:0;font-size:21px;letter-spacing:-.4px}
+  .ga-kpis .kpi .sub{grid-column:1;margin-top:2px}
 }
 .asis-toolbar input{flex:1;font-family:var(--body);font-size:15.5px;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--card);box-shadow:var(--shadow)}
 .asis-toolbar input:focus{outline:none;border-color:var(--teal-500);box-shadow:0 0 0 3px var(--teal-50)}

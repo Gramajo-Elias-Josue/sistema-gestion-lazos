@@ -6,7 +6,7 @@
 // entre ellos. Navegación por mes, como Facturación.
 // =====================================================================
 
-import { esc } from '../utils/ui.js';
+import { esc, tonoDe } from '../utils/ui.js';
 import { formatearFecha, hoyISO } from '../utils/fechas.js';
 import { etiquetaPeriodo } from '../utils/periodos.js';
 import { formatearMonto, resumenPorSocio, totalGastos } from '../utils/gastos.js';
@@ -27,52 +27,58 @@ export function renderEstructura(periodo) {
       </div>
     </div>
     <div id="ga-resumen"></div>
-    <div class="tablewrap"><div id="ga-lista"></div></div>`;
+    <div class="tablewrap tabla-cards"><div id="ga-lista"></div></div>`;
 }
 
 // Rendición de cuentas del mes: cuánto pagó cada socio + el total.
 export function renderResumen(gastos) {
   if (!gastos.length) return '';
 
+  // Cada socio lleva su color (el mismo que sus gastos en la lista).
   const porSocio = resumenPorSocio(gastos);
   const tarjetas = porSocio.map(s => `
-    <div class="kpi">
+    <div class="kpi tono-${tonoDe(s.socio)}">
       <div class="lab"><span class="dot"></span>${esc(s.socio)}</div>
-      <div class="num" style="font-size:27px">${formatearMonto(s.total)}</div>
+      <div class="num">${formatearMonto(s.total)}</div>
       <div class="sub">pagado este mes</div>
     </div>`).join('');
 
   return `
-    <div class="kpis" style="margin-bottom:18px">
+    <div class="kpis ga-kpis">
       ${tarjetas}
-      <div class="kpi">
+      <div class="kpi ga-total">
         <div class="lab"><span class="dot"></span>Total del mes</div>
-        <div class="num" style="font-size:27px">${formatearMonto(totalGastos(gastos))}</div>
+        <div class="num">${formatearMonto(totalGastos(gastos))}</div>
         <div class="sub">entre todos los socios</div>
       </div>
     </div>`;
 }
 
-// Tabla de gastos del mes.
+// Tabla de gastos del mes. En escritorio es una tabla; en celular el CSS
+// (.tabla-cards) la convierte en tarjetas: el concepto (con el monto) es
+// la cabecera, y la tarjeta lleva el color del socio que pagó.
 export function renderLista(gastos) {
   if (!gastos.length) {
     return `<div class="state">No hay gastos cargados este mes. Usá “+ Nuevo gasto”.</div>`;
   }
   const filas = gastos.map(g => `
-    <tr>
-      <td>${formatearFecha(g.fecha)}</td>
-      <td>${esc(g.concepto)}</td>
-      <td>${esc(g.categoria || '—')}</td>
-      <td>${esc(g.socio)}</td>
-      <td style="text-align:right">${formatearMonto(g.monto)}</td>
-      <td style="white-space:nowrap;text-align:right">
-        <button class="btn ghost btn-eliminar-gasto" data-id="${g.id}" style="padding:6px 12px;color:var(--red-600)">Eliminar</button>
+    <tr class="tono-${tonoDe(g.socio)}" style="cursor:default">
+      <td class="tc-nombre ga-concepto">
+        <b>${esc(g.concepto)}</b>
+        <span class="ga-monto-cel">${formatearMonto(g.monto)}</span>
+      </td>
+      <td data-t="Fecha">${formatearFecha(g.fecha)}</td>
+      <td data-t="Categoría">${esc(g.categoria || '—')}</td>
+      <td data-t="Socio">${esc(g.socio)}</td>
+      <td data-t="Monto" class="ga-monto">${formatearMonto(g.monto)}</td>
+      <td class="tc-acciones" style="white-space:nowrap;text-align:right">
+        <button class="btn ghost btn-eliminar-gasto peligro" data-id="${g.id}" style="padding:6px 12px;color:var(--red-600)">Eliminar</button>
       </td>
     </tr>`).join('');
 
   return `
     <table>
-      <thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th>Socio</th><th style="text-align:right">Monto</th><th></th></tr></thead>
+      <thead><tr><th>Concepto</th><th>Fecha</th><th>Categoría</th><th>Socio</th><th style="text-align:right">Monto</th><th></th></tr></thead>
       <tbody>${filas}</tbody>
     </table>`;
 }
