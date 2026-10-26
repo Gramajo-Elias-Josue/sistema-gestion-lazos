@@ -100,6 +100,7 @@ function pintar() {
   document.getElementById('gal-pane-fotos').innerHTML = renderFotos({
     fotos, periodo,
     puedeSubir: !!miProfesionalId,
+    miProfesionalId,
     miNombre: perfil?.nombre || '',
   });
 }

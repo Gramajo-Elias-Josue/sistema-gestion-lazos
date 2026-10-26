@@ -18,6 +18,8 @@ alguien llame a la API desde la consola del navegador, no pasa.
 
 ## Aplicar
 1. **SQL Editor** → pegá y ejecutá **`supabase/sql/04-seguridad-rls.sql`**.
+   La última consulta del script lista las políticas que dejan entrar sin
+   sesión: **tiene que dar 0 filas**.
 2. Probá con cada rol (abajo).
 3. Si algo se bloquea de más → ejecutá **`supabase/sql/mantenimiento/rls-revertir.sql`** y avisá
    qué acción falló.
@@ -85,3 +87,10 @@ Síntomas típicos de RLS bloqueando de más:
 
 Anotá **qué rol** y **qué acción** falló, revertí con
 `supabase/sql/mantenimiento/rls-revertir.sql` y se ajusta la política.
+El revertir deja todo libre **solo para usuarios logueados** (sin sesión
+sigue sin verse nada). Al terminar, correr de nuevo el 04.
+
+> **Ojo con los scripts viejos:** en Postgres las políticas se **suman**
+> (alcanza con que una permita). Una sola política abierta que quede
+> —por ejemplo creada desde el panel— anula todas las de rol. Por eso el 04
+> termina con una "red de seguridad" que borra cualquier política abierta.

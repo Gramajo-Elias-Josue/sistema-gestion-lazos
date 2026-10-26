@@ -124,17 +124,16 @@ falta: módulos, variables de entorno y carga diferida: el generador de PDF (jsP
 
 ## 🗃️ Base de datos
 
-Las tablas originales (`pacientes`, `profesionales`, `documentos`, `asistencias`,
-`contactos_emergencia`, `asignaciones`) se crearon desde el panel de Supabase; los scripts
-de `supabase/sql/` las **extienden** y crean el resto. Se corren en el **SQL Editor**, en
+Los scripts de `supabase/sql/` arman la base completa. Se corren en el **SQL Editor**, en
 orden, y son re-ejecutables:
 
 | Script | Qué hace |
 |---|---|
+| `00-tablas-base.sql` | Las 6 tablas originales (`pacientes`, `profesionales`, `documentos`, `asistencias`, `contactos_emergencia`, `asignaciones`), que al principio se crearon desde el panel |
 | `01-roles-y-perfiles.sql` | Tabla `perfiles` (rol y secciones de cada usuario) + función `rol_actual()` |
 | `02-esquema-principal.sql` | Admisión, turnos, fichaje, evaluaciones, grilla, sectores, galería |
-| `03-storage-y-acceso.sql` | Bucket `documentos` y políticas iniciales |
-| `04-seguridad-rls.sql` | **Seguridad por rol** (reemplaza las políticas abiertas) |
+| `03-storage-y-acceso.sql` | Bucket privado `documentos` y activa la seguridad por fila |
+| `04-seguridad-rls.sql` | **Seguridad por rol**: permisos de cada tabla y del Storage; sin sesión no se accede a nada |
 | `05-avatar.sql` | Foto / avatar del perfil (bucket `avatares`) |
 | `06-convenios-facturacion-gastos.sql` | Tablas de gestión (solo director y secretaría) |
 | `07` a `12` | Cumpleaños, sector del profesional, grilla por horario, turnos del profesional, turnos casuales y certificados |

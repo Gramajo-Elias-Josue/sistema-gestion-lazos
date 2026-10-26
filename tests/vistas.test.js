@@ -312,6 +312,19 @@ describe('galeriaView (solo fotos)', () => {
     expect(html).not.toContain('gal-form-foto');
     expect(html).not.toContain('gal-borrar');
   });
+
+  it('el profesional ve la × para borrar solo en sus propias fotos', () => {
+    const html = galeriaFotos({
+      fotos: [
+        { id: 'mia', profesional_id: 'p1', storage_path: 'a', url: '', profesionales: { nombre_completo: 'Flores Ingrid' } },
+        { id: 'otra', profesional_id: 'p2', storage_path: 'b', url: '', profesionales: { nombre_completo: 'Villafañe Mirka' } },
+      ],
+      periodo: '2026-08', puedeSubir: true, miProfesionalId: 'p1',
+    });
+    expect(html.match(/gal-borrar/g)).toHaveLength(1);
+    const otra = html.slice(html.indexOf('data-foto="otra"'));
+    expect(otra).not.toContain('gal-borrar');
+  });
 });
 
 describe('inicioView.renderEntregas (lo que debe cada profesional)', () => {

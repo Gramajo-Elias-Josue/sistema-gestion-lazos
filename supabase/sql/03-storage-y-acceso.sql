@@ -1,18 +1,20 @@
 -- =====================================================================
--- CET Aguilares — Configuración de acceso en Supabase
+-- Storage y activación de la seguridad (RLS)
 -- ---------------------------------------------------------------------
--- Pegá y ejecutá este script en: Supabase → SQL Editor.
+-- Pegá y ejecutá en: Supabase → SQL Editor. Es re-ejecutable.
 --
--- El frontend usa la clave pública (rol "anon"), por lo que estas
--- políticas habilitan ese acceso. Cuando se incorpore autenticación,
--- se reemplazan por políticas RLS atadas al rol de cada usuario.
+-- Crea el bucket privado "documentos" y ACTIVA la seguridad por fila en
+-- las tablas. NO crea políticas: las que deciden quién puede qué están
+-- todas en 04-seguridad-rls.sql (por rol, solo usuarios logueados).
+--
+-- Antes este script creaba políticas abiertas ("acceso_anon": cualquiera,
+-- con o sin sesión, leía y escribía todo), de la época en que el sistema
+-- no tenía login. Se sacaron: si se lo volvía a correr después del 04,
+-- reabría toda la base, porque en Postgres las políticas se SUMAN.
 -- =====================================================================
 
-
--- ---------------------------------------------------------------------
--- 1) TABLAS — habilitar RLS y permitir el acceso al rol anónimo
--- ---------------------------------------------------------------------
-
+-- 1) TABLAS: seguridad por fila activada. Sin políticas, nadie accede por
+--    la API hasta que el 04 cree las de cada rol.
 do $$
 declare t text;
 begin
@@ -23,60 +25,18 @@ begin
     'admision_documentos','turnos','asistencias_profesionales','evaluaciones'
   ]
   loop
-    execute format('alter table public.%I enable row level security;', t);
-    -- Borra las políticas si ya existían (permite re-ejecutar el script).
-    execute format('drop policy if exists "etapa1_anon_all" on public.%I;', t);
-    execute format('drop policy if exists "acceso_anon" on public.%I;', t);
-    -- Política abierta: lectura y escritura para anon y authenticated.
-    execute format($f$
-      create policy "acceso_anon" on public.%I
-        for all
-        to anon, authenticated
-        using (true)
-        with check (true);
-    $f$, t);
+    if to_regclass('public.' || t) is not null then
+      execute format('alter table public.%I enable row level security;', t);
+    end if;
   end loop;
 end $$;
 
-
--- ---------------------------------------------------------------------
--- 2) STORAGE — bucket "documentos"
--- ---------------------------------------------------------------------
--- Crea el bucket si no existe (privado). También se puede crear a mano
--- desde Storage → New bucket, con el nombre exacto "documentos".
+-- 2) STORAGE: bucket "documentos" (privado). Ahí van los archivos de la
+--    historia clínica, los PDF de los informes y las fotos de la galería.
+--    Los archivos se ven con enlaces firmados que vencen.
 insert into storage.buckets (id, name, public)
 values ('documentos', 'documentos', false)
 on conflict (id) do nothing;
 
--- Políticas del bucket para el rol anónimo (subir, ver, borrar).
--- Se borran también los nombres viejos, por si quedaron de una
--- ejecución anterior del script.
-drop policy if exists "etapa1_doc_select" on storage.objects;
-drop policy if exists "etapa1_doc_insert" on storage.objects;
-drop policy if exists "etapa1_doc_delete" on storage.objects;
-drop policy if exists "acceso_doc_select" on storage.objects;
-drop policy if exists "acceso_doc_insert" on storage.objects;
-drop policy if exists "acceso_doc_delete" on storage.objects;
-
-create policy "acceso_doc_select" on storage.objects
-  for select to anon, authenticated
-  using (bucket_id = 'documentos');
-
-create policy "acceso_doc_insert" on storage.objects
-  for insert to anon, authenticated
-  with check (bucket_id = 'documentos');
-
-create policy "acceso_doc_delete" on storage.objects
-  for delete to anon, authenticated
-  using (bucket_id = 'documentos');
-
--- =====================================================================
--- Listo. Con esto el frontend puede leer y escribir datos, y subir o
--- consultar documentos del bucket.
--- =====================================================================
-
--- ---------------------------------------------------------------------
--- 3) MIGRACIONES EXTRA (Evolución de base de datos)
--- ---------------------------------------------------------------------
--- Agrega los días de trabajo del profesional (Etapa 1.5).
-ALTER TABLE public.profesionales ADD COLUMN IF NOT EXISTS dias_trabajo text[] DEFAULT ARRAY[]::text[];
+-- 3) Días de trabajo del profesional (columna agregada después).
+alter table public.profesionales add column if not exists dias_trabajo text[] default array[]::text[];

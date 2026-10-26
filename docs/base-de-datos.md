@@ -146,8 +146,9 @@ logueado:
 ## Detalles que conviene conocer
 
 - Las tablas originales (`pacientes`, `profesionales`, `documentos`, `asistencias`,
-  `contactos_emergencia`, `asignaciones`) se crearon desde el panel de Supabase; los
-  scripts de `supabase/sql/` las **extienden** y crean el resto.
+  `contactos_emergencia`, `asignaciones`) se crearon al principio desde el panel de
+  Supabase. Para poder instalar el sistema de cero, `00-tablas-base.sql` las recrea tal
+  cual están en la base real; los scripts siguientes las **extienden** y crean el resto.
 - Hay columnas **heredadas que ya no se usan** y se dejaron para no perder datos:
   `pacientes.turno`, `profesionales.horario_entrada` / `horario_salida` (reemplazadas por
   `turnos_trabajo`), `asignaciones.profesional_nombre` y `duracion_min` (de la grilla

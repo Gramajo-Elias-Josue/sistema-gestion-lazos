@@ -56,8 +56,9 @@ export function renderPendientes({ periodo, fotos = [] } = {}) {
 // Formulario de carga + grilla de fotos del mes.
 // fotos: [{ id, descripcion, nombre_archivo, created_at, url, profesionales:{…} }]
 // Solo sube foto el propio profesional logueado (queda identificado por
-// su usuario, no hay para elegir a nombre de quién se sube).
-export function renderFotos({ fotos = [], puedeSubir = true, miNombre = '', periodo }) {
+// su usuario, no hay para elegir a nombre de quién se sube). Y cada uno
+// borra solo SUS fotos: la × aparece únicamente en las propias.
+export function renderFotos({ fotos = [], puedeSubir = true, miNombre = '', miProfesionalId = null, periodo }) {
   const formulario = puedeSubir ? `
     <form class="panel gal-form" id="gal-form-foto" style="margin-bottom:18px">
       <div class="panel-h">
@@ -93,7 +94,7 @@ export function renderFotos({ fotos = [], puedeSubir = true, miNombre = '', peri
         <span>${esc(f.descripcion || f.nombre_archivo || '')}</span>
         <small>${esc(formatearFecha(String(f.created_at || '').slice(0, 10)))}</small>
       </figcaption>
-      ${puedeSubir ? `<button type="button" class="gal-borrar" title="Eliminar la foto">×</button>` : ''}
+      ${puedeSubir && f.profesional_id === miProfesionalId ? `<button type="button" class="gal-borrar" title="Eliminar la foto">×</button>` : ''}
     </figure>`).join('');
 
   return formulario + `<div class="gal-grid">${tarjetas}</div>`;
