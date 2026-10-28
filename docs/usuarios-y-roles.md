@@ -51,7 +51,10 @@ Entrá como **director** (admin@lazos.test).
 
 - [ ] Aparece **Administración** en el menú (solo el director la ve).
 - [ ] Se lista tu usuario director con "Acceso total" (sin checkboxes).
-- [ ] **+ Nuevo usuario**: cargá email + contraseña (≥6) + rol → "Usuario creado".
+- [ ] **+ Nuevo usuario**: cargá nombre + email + rol → "Usuario creado" y a esa
+      dirección le llega el **mail de bienvenida** (plantilla *Invite user*).
+- [ ] Desde el mail, "Crear mi contraseña" abre la app en "¡Bienvenido/a a Lazos!";
+      la persona elige su contraseña y entra.
 - [ ] El usuario nuevo aparece en la lista con las secciones por defecto de su rol.
 - [ ] Destildá/tildá secciones y **Guardar** → "Permisos actualizados".
 - [ ] Cerrá sesión y entrá con el usuario nuevo: el menú aparece recortado
@@ -59,8 +62,13 @@ Entrá como **director** (admin@lazos.test).
 - [ ] Un usuario que NO es director no ve la sección Administración.
 
 ## Notas
-- El alta **no permite crear otro director** desde la pantalla (a propósito;
-  el director se define por SQL). Se pueden crear secretaría y profesional.
+- El **primer** director se crea a mano (ver `docs/despliegue.md`). Desde ahí,
+  ese director crea a los demás socios con rol Director, a la secretaría, a los
+  profesionales y al CM. A un director ya creado no se le puede bajar el rol
+  desde la pantalla (eso se hace en la base).
+- Nadie carga contraseñas ajenas: la función invita por mail
+  (`inviteUserByEmail`) y la persona elige la suya. Requiere el SMTP propio y las
+  plantillas de `supabase/plantillas-mail/` cargadas en Supabase.
 - Al **director no se le pueden recortar** secciones (acceso total fijo).
-- La seguridad definitiva la agrega la **Fase C** (RLS por rol en todas las
-  tablas). Hasta entonces, el gating del front es de comodidad/UX.
+- La seguridad la aplica la base (RLS por rol, ver `docs/seguridad-rls.md`);
+  ocultar secciones en el menú es solo comodidad.

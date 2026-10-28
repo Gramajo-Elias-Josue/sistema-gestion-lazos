@@ -119,12 +119,13 @@ Vite y Supabase (base de datos, login, archivos y seguridad por rol).*
 1. **Profesionales**: tarjetas con el color de su profesión; editar uno → turno
    **mañana / tarde** (casillas) y días de trabajo.
 2. **+ Nuevo profesional**: al guardarlo **se le crea el usuario** automáticamente y le
-   llega un mail para elegir su contraseña.
+   llega un **mail de bienvenida** para elegir su contraseña (nadie más la conoce).
+   El link del mail es de un solo uso y no se gasta si un antivirus lo abre antes.
 3. **Administración**: lista de usuarios, rol de cada uno y **secciones habilitadas**
    (se tildan por usuario).
 
 **Estadísticas** (1 min): asistencia del mes y su tendencia, pacientes con más
-faltas, ocupación de la grilla, quién debe el informe mensual, turnos casuales,
+faltas, pacientes por profesión, quién debe el informe mensual, turnos casuales,
 facturación y gastos. Todo sale de los datos que el sistema ya guarda: no hay tablas
 nuevas.
 

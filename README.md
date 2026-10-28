@@ -90,7 +90,11 @@ falta: módulos, variables de entorno y carga diferida: el generador de PDF (jsP
   ningún dato.
 - **Alta de usuarios** con una **Edge Function** (`supabase/functions/crear-usuario`): crear
   cuentas necesita la *service key*, que vive solo en el servidor. La función verifica que
-  quien la llama sea director.
+  quien la llama sea director (o secretaría, solo para profesionales) y **le manda a la persona
+  un mail de bienvenida** para que elija su contraseña: nadie más la conoce. Las plantillas de
+  los mails están en `supabase/plantillas-mail/`.
+- El usuario de **contenido (CM)** solo accede a la galería: la base no le devuelve datos
+  clínicos. Cada **profesional** crea y corrige solo sus propios informes, y solo los del día.
 - El front usa **solo la clave pública** (*publishable key*); el `.env` no se sube al repo.
 - **Baja lógica**: pacientes y profesionales no se borran, se desactivan, para no perder
   la historia clínica ni la autoría de los informes.
@@ -117,7 +121,8 @@ falta: módulos, variables de entorno y carga diferida: el generador de PDF (jsP
 ├── supabase/
 │   ├── sql/                   # scripts de la base, numerados en orden
 │   │   └── mantenimiento/     # datos de prueba, vaciar la base, revertir RLS
-│   └── functions/crear-usuario/   # Edge Function de alta de usuarios
+│   ├── functions/crear-usuario/   # Edge Function de alta de usuarios (invita por mail)
+│   └── plantillas-mail/       # HTML de los mails de bienvenida y de recuperar contraseña
 └── docs/                      # despliegue, seguridad, usuarios, guion de la demo
 ```
 
@@ -138,6 +143,9 @@ orden, y son re-ejecutables:
 | `05-avatar.sql` | Foto / avatar del perfil (bucket `avatares`) |
 | `06-convenios-facturacion-gastos.sql` | Tablas de gestión (solo director y secretaría) |
 | `07` a `12` | Cumpleaños, sector del profesional, grilla por horario, turnos del profesional, turnos casuales y certificados |
+| `13-cm-sin-datos-clinicos.sql` | El usuario de contenido (CM) no lee datos clínicos (solo la galería) |
+| `14-escritura-informes-y-documentos.sql` | El profesional crea y edita solo sus informes del día; el CM no escribe informes ni documentos |
+| `15-documentacion-y-categorias.sql` | Documentación de admisión y categorías de la historia clínica, editables desde la app |
 
 Tablas principales:
 

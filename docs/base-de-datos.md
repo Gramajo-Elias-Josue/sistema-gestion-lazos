@@ -4,7 +4,7 @@
 navegador habla con la base a través de la API de Supabase, y lo que cada usuario puede
 leer o escribir lo decide la **propia base** (Row Level Security por rol).
 
-- **16 tablas** propias en el esquema `public`, en 5 grupos.
+- **18 tablas** propias en el esquema `public`, en 5 grupos.
 - Las **cuentas de login** viven aparte, en `auth.users` (las maneja Supabase Auth).
 - Los **archivos** (PDF, fotos) van al **Storage**, no a las tablas: la tabla guarda solo
   la ruta del archivo.
@@ -20,7 +20,9 @@ erDiagram
     PERFILES }o--o| PROFESIONALES : "si es profesional"
 
     PACIENTES ||--o{ ADMISION_DOCUMENTOS : checklist
+    REQUISITOS_ADMISION ||--o{ ADMISION_DOCUMENTOS : "qué se pide"
     PACIENTES ||--o{ DOCUMENTOS : "historia clínica"
+    CATEGORIAS_DOCUMENTO ||--o{ DOCUMENTOS : "categoría"
     PACIENTES ||--o{ CONTACTOS_EMERGENCIA : contactos
     PACIENTES ||--o{ ASISTENCIAS : "presente/ausente por día"
     PACIENTES ||--o{ FACTURACION : "estado por mes"
@@ -58,8 +60,10 @@ nuestra y agrega el rol y los permisos.
 | Tabla | Qué guarda | Claves y reglas |
 |---|---|---|
 | **pacientes** | Legajo: nombre, **DNI**, nacimiento, domicilio, escuela, referente, diagnóstico, CUD (sí/no), obra social y afiliado, fecha de ingreso. | **DNI único.** `estado` = activo / inactivo (**baja lógica**). `estado_admision` = en_admision / admitido / rechazado. |
-| **admision_documentos** | Checklist de admisión: qué requisito presentó cada paciente. | Único por (paciente, requisito). |
-| **documentos** | Historia clínica: tipo (CUD, DNI, estudios, informe…), número, emisión, vencimiento, notas y la **ruta del archivo** en el Storage. | `tipo` restringido a una lista fija. Los vencimientos alimentan las alertas de Inicio. |
+| **requisitos_admision** | La documentación que se pide al admitir (DNI, CUD, certificado médico…). Se edita desde Admisión → Documentación. | `clave` única. Quitar uno lo deja `activo = false` (no se borra): lo marcado en admisiones anteriores se conserva. |
+| **admision_documentos** | Checklist de admisión: qué requisito presentó cada paciente. | Único por (paciente, requisito). `requisito` guarda la `clave` del requisito. |
+| **categorias_documento** | Las categorías de la historia clínica (CUD, DNI, Estudios, Historial médico…), con título e ícono. Se editan desde Pacientes → Categorías. | `clave` única. Un disparador impide borrar `cud` e `historial`, que usa el sistema. |
+| **documentos** | Historia clínica: categoría, número, emisión, vencimiento, notas y la **ruta del archivo** en el Storage. | `tipo` = clave de su categoría (**clave foránea** a `categorias_documento`: una categoría con documentos no se puede borrar). Los vencimientos alimentan las alertas de Inicio. |
 | **contactos_emergencia** | Nombre, vínculo y teléfono. | → paciente. |
 
 ---

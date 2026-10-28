@@ -28,18 +28,29 @@ alguien llame a la API desde la consola del navegador, no pasa.
 
 ## Matriz que queda vigente
 
-| | Director | Secretaría | Profesional |
-|---|:---:|:---:|:---:|
-| Leer todo | ✅ | ✅ | ✅ |
-| Pacientes / admisión / asistencia (escribir) | ✅ | ✅ | ❌ |
-| Profesionales (alta/baja del equipo) | ✅ | ✅ | ❌ |
-| Ver la agenda de turnos | ✅ | ✅ | ✅ (solo consulta) |
-| Crear / eliminar turnos | ✅ | ✅ | ❌ |
-| Marcar turno "Atendido" | ✅ | ✅ | ❌ |
-| Cargar / editar informes | ✅ | ✅ | ✅ |
-| Adjuntar documentos | ✅ | ✅ | ✅ |
-| Editar / borrar documentos | ✅ | ✅ | ❌ |
-| Sin sesión (anon) | — | — | ❌ nada |
+| | Director | Secretaría | Profesional | Contenido (CM) |
+|---|:---:|:---:|:---:|:---:|
+| Leer datos clínicos (pacientes, informes, asistencia, documentos, grilla, turnos) | ✅ | ✅ | ✅ | ❌ |
+| Leer profesionales, profesiones y fotos de la galería | ✅ | ✅ | ✅ | ✅ |
+| Pacientes / admisión / asistencia (escribir) | ✅ | ✅ | ❌ | ❌ |
+| Profesionales (alta/baja del equipo) | ✅ | ✅ | ❌ | ❌ |
+| Documentación de admisión y categorías de la historia clínica (editar) | ✅ | ✅ | ❌ | ❌ |
+| Ver la agenda de turnos | ✅ | ✅ | ✅ (solo consulta) | ❌ |
+| Crear / eliminar turnos | ✅ | ✅ | ❌ | ❌ |
+| Marcar turno "Atendido" | ✅ | ✅ | ❌ | ❌ |
+| Cargar / editar informes | ✅ (de cualquiera) | ✅ (de cualquiera) | solo **los suyos** y **del día** | ❌ |
+| Adjuntar documentos | ✅ | ✅ | ✅ | ❌ |
+| Editar / borrar documentos | ✅ | ✅ | ❌ | ❌ |
+| Archivos del Storage `documentos` | ✅ | ✅ | ✅ | solo `galeria/` |
+| Facturación y gastos | ✅ | ✅ | ❌ | ❌ |
+| Sin sesión (anon) | — | — | — | ❌ nada |
+
+Las reglas del CM y de los informes las agregan los scripts
+**`13-cm-sin-datos-clinicos.sql`** (función `ve_datos_clinicos()`) y
+**`14-escritura-informes-y-documentos.sql`** (función `puede_escribir_informe()`,
+que usa la fecha de Argentina con `hoy_local()`). El script **`15`** suma las
+tablas `requisitos_admision` y `categorias_documento` con la misma regla:
+leen los que ven datos clínicos, editan dirección y secretaría.
 
 **La agenda es de la secretaría.** El profesional la ve en modo consulta (sin
 el selector de estado ni el botón de eliminar). El circuito queda así:
@@ -73,6 +84,13 @@ informe, el PDF se adjunta como fila en `documentos` + archivo en Storage.
       **informe** y el PDF **se adjunta** a la historia.
 - [ ] **NO** puede dar de alta un paciente ni un profesional (si el front lo
       permitiera, la base lo rechaza).
+- [ ] Al cargar un informe solo puede elegirse **a sí mismo** como autor; la
+      base rechaza un informe a nombre de otro o de otro día.
+
+### 4. Contenido (CM)
+- [ ] Entra directo a **Galería** y es la única sección del menú.
+- [ ] Con su sesión, pedir `pacientes`, `evaluaciones` o `documentos` a la API
+      devuelve **0 filas**, y en el Storage solo ve la carpeta `galeria/`.
 
 ### 4. Sin sesión
 - [ ] Cerrá sesión: aparece el login y no se ve ningún dato.
