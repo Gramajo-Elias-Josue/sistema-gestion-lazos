@@ -6,7 +6,9 @@
 //   - Cada perfil puede tener sus PROPIAS secciones (las que el director
 //     le tildó en la pantalla "Usuarios"); si no tiene, usa las del rol.
 //   - El DIRECTOR siempre ve TODO (no se le puede recortar).
-//   - "inicio" siempre está disponible (para que nadie quede sin pantalla).
+//   - "inicio" siempre está disponible (para que nadie quede sin pantalla),
+//     salvo para el CM: Inicio es el panel de la dirección (grilla con
+//     pacientes, alertas), y el CM entra directo a Galería.
 //
 // La seguridad REAL la pone la RLS por rol en la base (Fase C); esto es la
 // capa de UX del front.
@@ -45,9 +47,13 @@ const POR_DEFECTO = {
   // trabajo del mes (el informe lo carga en la historia clínica).
   profesional: ['inicio', 'pacientes', 'agenda', 'galeria'],
   // CM (contenido / difusión): ve SOLO la galería. No tiene por qué
-  // entrar a pacientes ni a nada clínico.
-  cm:          ['inicio', 'galeria'],
+  // entrar a pacientes ni a nada clínico (tampoco a Inicio, que muestra
+  // la grilla con los pacientes).
+  cm:          ['galeria'],
 };
+
+// Roles que NO reciben Inicio de regalo (ver seccionesEfectivas).
+const SIN_INICIO = ['cm'];
 
 // Rol por defecto si el perfil no se pudo cargar (nunca da acceso de director).
 const ROL_FALLBACK = 'secretaria';
@@ -65,7 +71,8 @@ export function seccionesPorDefecto(rol) {
 // Secciones EFECTIVAS de un perfil (lo que realmente puede ver):
 //   - director  -> todo.
 //   - resto     -> sus secciones propias, o las del rol si no tiene.
-//   - "inicio" siempre incluido, para que nadie quede sin pantalla.
+//   - "inicio" siempre incluido, para que nadie quede sin pantalla
+//     (menos el CM, que no lo tiene: ver SIN_INICIO).
 //   - Las propias se filtran contra SECCIONES: una sección oculta o
 //     quitada del sistema no reaparece aunque el usuario la tenga guardada.
 export function seccionesEfectivas(perfil) {
@@ -73,7 +80,15 @@ export function seccionesEfectivas(perfil) {
   const rol = perfil?.rol || ROL_FALLBACK;
   const propias = Array.isArray(perfil?.secciones) ? perfil.secciones.filter(s => TODAS.includes(s)) : [];
   const base = propias.length ? propias : seccionesPorDefecto(rol);
-  return base.includes('inicio') ? base : ['inicio', ...base];
+  if (base.includes('inicio') || SIN_INICIO.includes(rol)) return base;
+  return ['inicio', ...base];
+}
+
+// Sección a la que se entra al iniciar sesión (o a la que se vuelve si
+// pide una que no puede ver): Inicio, o la primera que tenga si no lo ve.
+export function seccionInicial(perfil) {
+  const permitidas = seccionesEfectivas(perfil);
+  return permitidas.includes('inicio') ? 'inicio' : permitidas[0];
 }
 
 // ¿El perfil puede ver/navegar esa sección?

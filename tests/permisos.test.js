@@ -2,7 +2,7 @@
 // da un set por defecto, cada perfil puede tener secciones propias, y el
 // director siempre ve todo. La seguridad real la pone la RLS (Fase C).
 import { describe, it, expect } from 'vitest';
-import { seccionesPorDefecto, seccionesEfectivas, puedeVer, puedeOperar, etiquetaRol, SECCIONES } from '../src/permisos.js';
+import { seccionesPorDefecto, seccionesEfectivas, seccionInicial, puedeVer, puedeOperar, etiquetaRol, SECCIONES } from '../src/permisos.js';
 
 // Helper: perfil de prueba.
 const perfil = (rol, secciones) => ({ rol, secciones });
@@ -72,14 +72,22 @@ describe('permisos.seccionesPorDefecto', () => {
     expect(seccionesPorDefecto('secretaria')).not.toContain('galeria');
   });
 
-  it('el CM no ve nada clínico: solo inicio y galería', () => {
-    expect(seccionesPorDefecto('cm')).toEqual(['inicio', 'galeria']);
+  it('el CM no ve nada clínico: solo galería (ni Inicio, que muestra la grilla con pacientes)', () => {
+    expect(seccionesPorDefecto('cm')).toEqual(['galeria']);
+    expect(seccionesEfectivas(perfil('cm', null))).toEqual(['galeria']);
+    expect(puedeVer(perfil('cm', null), 'inicio')).toBe(false);
     expect(seccionesPorDefecto('cm')).not.toContain('pacientes');
     expect(seccionesPorDefecto('cm')).not.toContain('administracion');
   });
 });
 
 describe('permisos.seccionesEfectivas', () => {
+  it('sección de entrada: Inicio para todos, Galería para el CM', () => {
+    expect(seccionInicial(perfil('secretaria', null))).toBe('inicio');
+    expect(seccionInicial(perfil('director', null))).toBe('inicio');
+    expect(seccionInicial(perfil('cm', null))).toBe('galeria');
+  });
+
   it('inicio siempre presente', () => {
     expect(seccionesEfectivas(perfil('secretaria', ['pacientes']))).toContain('inicio');
   });

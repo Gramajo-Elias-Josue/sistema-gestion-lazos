@@ -9,7 +9,7 @@
 
 import { fechaLarga } from './utils/fechas.js';
 import { perfilActual } from './sesion.js';
-import { puedeVer } from './permisos.js';
+import { puedeVer, seccionInicial } from './permisos.js';
 
 // Metadatos de cada sección. `iniciar` se completa con registrarControlador().
 const SECCIONES = {
@@ -35,10 +35,10 @@ export function registrarControlador(nombre, fn) {
 
 // Muestra una sección y dispara su controlador.
 async function mostrar(nombre) {
-  if (!SECCIONES[nombre]) nombre = 'inicio'; // fallback ante un hash inválido
-  // Guard por rol: si el usuario no puede ver esa sección (aunque haya
-  // forzado el hash), se lo manda a Inicio.
-  if (!puedeVer(perfilActual(), nombre)) nombre = 'inicio';
+  // Hash inválido, o una sección que el usuario no puede ver (aunque haya
+  // forzado el hash): se lo manda a su sección inicial (Inicio, o Galería
+  // para el CM, que no tiene Inicio).
+  if (!SECCIONES[nombre] || !puedeVer(perfilActual(), nombre)) nombre = seccionInicial(perfilActual());
 
   // Resalta el botón activo en la barra lateral.
   document.querySelectorAll('#nav button[data-v]').forEach(b =>
@@ -75,6 +75,6 @@ export function iniciarRouter() {
   // Cambio de hash -> muestra la sección correspondiente.
   window.addEventListener('hashchange', () => mostrar(location.hash.slice(1)));
 
-  // Sección inicial (según el hash actual o 'inicio' por defecto).
-  mostrar(location.hash.slice(1) || 'inicio');
+  // Sección inicial (según el hash actual o la de entrada del usuario).
+  mostrar(location.hash.slice(1) || seccionInicial(perfilActual()));
 }

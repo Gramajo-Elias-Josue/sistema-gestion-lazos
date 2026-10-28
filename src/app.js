@@ -17,7 +17,7 @@ import { iniciarTema } from './tema.js';
 import { obtenerSesion, cerrarSesion, alCambiarSesion, debeElegirContrasena } from './auth.js';
 import { obtenerPerfil } from './perfil.js';
 import { setPerfil, perfilActual, rolActual } from './sesion.js';
-import { seccionesEfectivas, etiquetaRol } from './permisos.js';
+import { seccionesEfectivas, seccionInicial, etiquetaRol } from './permisos.js';
 import { montarLogin, montarNuevaContrasena, montarLinkDelMail } from './controllers/loginController.js';
 import { leerLinkDelMail } from './utils/linkMail.js';
 import { abrirPerfil, pintarAvatar } from './controllers/perfilController.js';
@@ -182,7 +182,7 @@ function aplicarPermisos(perfil) {
     b.style.display = permitidas.includes(b.dataset.v) ? '' : 'none';
   });
   const actual = location.hash.slice(1);
-  if (actual && !permitidas.includes(actual)) location.hash = 'inicio';
+  if (actual && !permitidas.includes(actual)) location.hash = seccionInicial(perfil);
 }
 
 // Muestra el rol del usuario en el encabezado (debajo del email).
