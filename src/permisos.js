@@ -39,8 +39,8 @@ const POR_DEFECTO = {
   director:    TODAS,
   // Facturación/gastos son gestión de los dueños (info financiera de la
   // sociedad), pero la secretaría las opera igual que el resto de lo
-  // administrativo.
-  secretaria:  ['inicio', 'admision', 'pacientes', 'agenda', 'asistencia', 'profesionales', 'facturacion', 'gastos'],
+  // administrativo; y ve las estadísticas, que resumen todo eso.
+  secretaria:  ['inicio', 'admision', 'pacientes', 'agenda', 'asistencia', 'profesionales', 'facturacion', 'gastos', 'estadisticas'],
   // El profesional entra a Galería porque es donde SUBE la foto de su
   // trabajo del mes (el informe lo carga en la historia clínica).
   profesional: ['inicio', 'pacientes', 'agenda', 'galeria'],

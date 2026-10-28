@@ -123,6 +123,11 @@ Vite y Supabase (base de datos, login, archivos y seguridad por rol).*
 3. **Administración**: lista de usuarios, rol de cada uno y **secciones habilitadas**
    (se tildan por usuario).
 
+**Estadísticas** (1 min): asistencia del mes y su tendencia, pacientes con más
+faltas, ocupación de la grilla, quién debe el informe mensual, turnos casuales,
+facturación y gastos. Todo sale de los datos que el sistema ya guarda: no hay tablas
+nuevas.
+
 ---
 
 ## 8. Seguridad por rol (2 min) — *el momento fuerte*
@@ -152,7 +157,7 @@ de a un profesional, los formularios se apilan.
    - `tests/turnosCentro.test.js` — sus tests, incluido que con doble turno el
      mediodía queda afuera.
    - Dónde se usa: la grilla, la agenda (bloqueo) y el fichaje.
-3. Correr **`npm test`** en vivo: ~300 tests en verde.
+3. Correr **`npm test`** en vivo: más de 360 tests en verde.
 
 ---
 
@@ -160,7 +165,7 @@ de a un profesional, los formularios se apilan.
 
 > "El sistema cubre el circuito completo del centro: admisión, atención diaria,
 > informes y gestión, con usuarios y permisos que la base hace cumplir. Lo que sigue:
-> estadísticas mensuales y tests de los controladores."
+> avisos a las familias y tests de los controladores."
 
 ---
 
@@ -203,7 +208,7 @@ Son datos sensibles (Ley 25.326): acceso solo con login, permisos por rol en la 
 archivos en un bucket privado con enlaces temporales, y nada se borra sin dejar rastro.
 
 **¿Qué mejorarías?**
-Estadísticas mensuales y tests de los controladores con un navegador simulado.
+Recordatorios a las familias por WhatsApp o correo, y tests de los controladores con un navegador simulado.
 
 **¿Qué pasa con la grilla si un paciente o un profesional se va?**
 Al desactivarlo se liberan solos sus horarios: las celdas no se borran, se cierran con

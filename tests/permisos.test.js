@@ -14,11 +14,10 @@ describe('permisos.puedeVer (por defecto según rol)', () => {
     }
   });
 
-  it('secretaría: operativo completo, SIN estadísticas ni administración', () => {
-    for (const s of ['inicio', 'admision', 'pacientes', 'agenda', 'asistencia', 'profesionales']) {
+  it('secretaría: operativo completo y estadísticas, SIN administración', () => {
+    for (const s of ['inicio', 'admision', 'pacientes', 'agenda', 'asistencia', 'profesionales', 'estadisticas']) {
       expect(puedeVer(perfil('secretaria'), s)).toBe(true);
     }
-    expect(puedeVer(perfil('secretaria'), 'estadisticas')).toBe(false);
     expect(puedeVer(perfil('secretaria'), 'administracion')).toBe(false);
   });
 

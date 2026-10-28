@@ -680,6 +680,60 @@ tbody tr:last-child td{border-bottom:none}
   .ga-kpis .kpi .num{grid-column:2;grid-row:1 / span 2;margin:0;font-size:21px;letter-spacing:-.4px}
   .ga-kpis .kpi .sub{grid-column:1;margin-top:2px}
 }
+
+/* ---- Estadísticas ----
+   Gráficos hechos con HTML y CSS: columnas por mes (con partes apiladas)
+   y barras horizontales. Usan los mismos colores del tema, así que se
+   ven bien en modo claro y oscuro. */
+.es-ayuda{color:var(--ink-faint);font-size:14px;margin:0}
+.es-bloque{margin-bottom:30px}
+.es-titulo{font-family:var(--display);font-size:22px;font-weight:600;margin:4px 0 14px}
+.es-kpis{margin-bottom:16px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.es-kpis .kpi .num{font-size:32px}
+.es-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+.es-card .panel-b{padding:14px 18px 16px}
+.es-vacio{color:var(--ink-faint);font-size:14px;padding:18px 4px;text-align:center}
+.es-cols{display:flex;align-items:flex-end;gap:10px;height:190px;padding-top:4px}
+.es-col{flex:1;min-width:0;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:5px}
+.es-barra{width:100%;max-width:46px;min-height:3px;display:flex;flex-direction:column-reverse;border-radius:7px 7px 3px 3px;overflow:hidden;background:var(--card-2)}
+.es-val{font-size:12.5px;font-weight:600;color:var(--ink-soft);white-space:nowrap}
+.es-mes{font-size:12px;color:var(--ink-faint);white-space:nowrap}
+.es-parte{display:block;min-height:2px}
+.es-ok{background:var(--teal-700)}
+.es-mal{background:var(--red-600)}
+.es-aviso{background:var(--amber-600)}
+.es-enf{background:var(--area-0-fg)}
+.es-prog{background:var(--teal-600)}
+.es-gris{background:var(--ink-faint)}
+.es-gasto{background:var(--orange-500)}
+.es-leyenda{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;font-size:12.5px;color:var(--ink-soft)}
+.es-leyenda span{display:inline-flex;align-items:center;gap:6px}
+.es-leyenda i{display:inline-block;width:11px;height:11px;border-radius:3px}
+.es-filas{display:flex;flex-direction:column;gap:9px;padding:2px 0}
+.es-fila{display:grid;grid-template-columns:minmax(110px,36%) 1fr auto;align-items:center;gap:12px;font-size:14px}
+.es-etq{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.es-track{height:11px;border-radius:6px;background:var(--card-2);border:1px solid var(--line-soft);overflow:hidden}
+.es-fill{display:block;height:100%;border-radius:6px;background:var(--teal-700)}
+.es-fila[class*="tono-"] .es-fill{background:var(--tono-fg)}
+.es-fila.es-completo .es-fill{background:var(--area-3-fg)}
+.es-num{font-size:13px;font-weight:600;color:var(--ink-soft);white-space:nowrap}
+.es-tabla{width:100%;border-collapse:collapse;font-size:14px}
+.es-tabla th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-faint);font-weight:600;padding:8px 10px;border-bottom:1px solid var(--line)}
+.es-tabla td{padding:9px 10px;border-bottom:1px solid var(--line-soft)}
+.es-tabla th:not(:first-child),.es-tabla td:not(:first-child){text-align:center;width:90px}
+@media(max-width:1080px){.es-grid{grid-template-columns:1fr}}
+@media(max-width:560px){
+  .es-kpis{grid-template-columns:1fr 1fr;gap:10px}
+  .es-kpis .kpi{padding:13px 14px}
+  .es-kpis .kpi .num{font-size:24px}
+  .es-kpis .kpi:only-child{grid-column:1 / -1}
+  .es-cols{gap:5px;height:160px}
+  .es-val{font-size:10.5px}
+  .es-mes{font-size:10.5px}
+  .es-fila{grid-template-columns:1fr auto;gap:4px 10px}
+  .es-track{grid-column:1 / -1;grid-row:2}
+  .es-tabla th:not(:first-child),.es-tabla td:not(:first-child){width:auto}
+}
 .asis-toolbar input{flex:1;font-family:var(--body);font-size:15.5px;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--card);box-shadow:var(--shadow)}
 .asis-toolbar input:focus{outline:none;border-color:var(--teal-500);box-shadow:0 0 0 3px var(--teal-50)}
 /* Corregir: ÚNICA función es reabrir una fila guardada para editarla.

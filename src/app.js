@@ -31,6 +31,7 @@ import { iniciarGaleria } from './controllers/galeriaController.js';
 import { iniciarConvenios } from './controllers/conveniosController.js';
 import { iniciarFacturacion } from './controllers/facturacionController.js';
 import { iniciarGastos } from './controllers/gastosController.js';
+import { iniciarEstadisticas } from './controllers/estadisticasController.js';
 import { iniciarAdministracion } from './controllers/administracionController.js';
 
 // El tema (claro/oscuro) es independiente de la sesión: se aplica siempre.
@@ -67,6 +68,7 @@ function registrarControladores() {
   registrarControlador('convenios', iniciarConvenios);
   registrarControlador('facturacion', iniciarFacturacion);
   registrarControlador('gastos', iniciarGastos);
+  registrarControlador('estadisticas', iniciarEstadisticas);
   registrarControlador('administracion', iniciarAdministracion);
 }
 

@@ -23,6 +23,7 @@ administrativa (convenios, facturación y gastos), con usuarios y permisos por r
 | **Profesionales** | Equipo, profesiones (sectores), días y turnos de trabajo. Al crear un profesional se le crea su usuario. |
 | **Galería** | Fotos del trabajo del mes (material de difusión). Cada profesional sube las suyas. |
 | **Facturación / Gastos** | Gestión de la sociedad: estado de facturación por paciente y mes, gastos y rendición por socio. Ambas se **exportan a Excel** (.xlsx). |
+| **Estadísticas** | Asistencia, atención y grilla, informes y turnos, facturación y gastos: el mes elegido y la tendencia de los últimos 6 meses, con gráficos. |
 | **Administración** | Usuarios, roles y secciones habilitadas para cada uno. |
 
 **Documentos en PDF** (con el membrete de la clínica): informes (mensual, anual,
@@ -35,7 +36,7 @@ evolución, admisión), evaluación / certificado ocasional y planilla de asiste
 | Rol | Ve por defecto | Puede modificar |
 |---|---|---|
 | **Director** (socio) | Todo | Todo, incluida Administración |
-| **Secretaría** | Inicio, Admisión, Pacientes, Turnos, Asistencia, Profesionales, Facturación, Gastos | Todo lo operativo |
+| **Secretaría** | Inicio, Admisión, Pacientes, Turnos, Asistencia, Profesionales, Facturación, Gastos, Estadísticas | Todo lo operativo |
 | **Profesional** | Inicio, Pacientes, Turnos (consulta), Galería | Informes, certificados y sus fotos |
 | **CM** (contenido) | Inicio, Galería | Nada clínico |
 

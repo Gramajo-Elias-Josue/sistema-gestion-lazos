@@ -23,6 +23,7 @@ const SECCIONES = {
   convenios:     { titulo: 'Convenios',           sub: () => 'Obras sociales',                iniciar: null },
   facturacion:   { titulo: 'Facturación',         sub: () => 'Control de facturación y cobros', iniciar: null },
   gastos:        { titulo: 'Gastos',              sub: () => 'Rendición de cuentas',          iniciar: null },
+  estadisticas:  { titulo: 'Estadísticas',        sub: () => 'Indicadores del centro',        iniciar: null },
   administracion:{ titulo: 'Administración',       sub: () => 'Usuarios y permisos',           iniciar: null },
 };
 
