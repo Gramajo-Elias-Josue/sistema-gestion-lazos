@@ -134,9 +134,10 @@ function montarPedirRecuperacion(contenedor, onExito) {
 // Se llama desde app.js cuando Supabase avisa 'PASSWORD_RECOVERY' (el
 // usuario tocó el link del mail y ya tiene una sesión temporal para
 // poder cambiar su contraseña). `onListo()` = app.js sigue como si
-// hubiera iniciado sesión normal.
-export function montarNuevaContrasena(contenedor, onListo) {
-  contenedor.innerHTML = renderNuevaContrasena();
+// hubiera iniciado sesión normal. `bienvenida` = es un usuario nuevo que
+// llegó por el mail de bienvenida (cambia solo los textos).
+export function montarNuevaContrasena(contenedor, onListo, { bienvenida = false } = {}) {
+  contenedor.innerHTML = renderNuevaContrasena({ bienvenida });
   conectarToggleTema(document.getElementById('login-theme'));
 
   const form = document.getElementById('form-nueva-pass');

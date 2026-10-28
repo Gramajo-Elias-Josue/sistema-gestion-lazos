@@ -42,13 +42,15 @@ export async function actualizarPermisos(id, { rol, secciones }) {
   return data;
 }
 
-// Crea un usuario nuevo (cuenta + perfil) vía la Edge Function `crear-usuario`.
+// Crea un usuario nuevo (cuenta + perfil) vía la Edge Function `crear-usuario`,
+// que le manda el mail de bienvenida para que elija su contraseña.
 // `profesionalId` es opcional: vincula perfiles.profesional_id de una (lo
-// usa el alta rápida desde Profesionales). Devuelve { ok } o lanza un
-// error con el mensaje del servidor.
-export async function crearUsuario({ email, password, nombre, rol, secciones, profesionalId }) {
+// usa el alta rápida desde Profesionales). El link del mail vuelve a esta
+// misma app (redirectTo). Devuelve { ok } o lanza un error con el mensaje
+// del servidor.
+export async function crearUsuario({ email, nombre, rol, secciones, profesionalId }) {
   const { data, error } = await supabase.functions.invoke('crear-usuario', {
-    body: { email, password, nombre, rol, secciones, profesionalId },
+    body: { email, nombre, rol, secciones, profesionalId, redirectTo: window.location.origin },
   });
   // La invocación puede fallar por red (error) o por lógica (data.error).
   if (error) {

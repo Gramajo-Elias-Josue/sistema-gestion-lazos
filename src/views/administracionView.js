@@ -168,12 +168,11 @@ export function renderFormUsuario() {
             <div class="form-grid">
               <div class="form-field full"><label>Nombre</label><input name="nombre" placeholder="Ej: Ana Gómez"></div>
               <div class="form-field full"><label>Email *</label><input type="email" name="email" required placeholder="usuario@correo.com"></div>
-              <div class="form-field full"><label>Contraseña *</label><input type="text" name="password" required minlength="6" placeholder="mínimo 6 caracteres"></div>
               <div class="form-field full"><label>Rol *</label>
                 <select name="rol">${opcionesRol}</select>
               </div>
               <div class="form-field full">
-                <small style="color:var(--ink-faint)">Al crearlo se abre el panel de permisos para ajustar sus secciones.</small>
+                <small style="color:var(--ink-faint)">Le llega un mail de bienvenida a ese email para que elija su propia contraseña. Al crearlo se abre el panel de permisos para ajustar sus secciones.</small>
               </div>
             </div>
           </div>

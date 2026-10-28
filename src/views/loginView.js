@@ -119,7 +119,13 @@ export function renderPedirRecuperacion({ enviado = false, email = '' } = {}) {
 // Pantalla "elegir contraseña nueva": a la que vuelve el link del mail.
 // Se llega acá con la sesión temporal de recuperación (evento
 // 'PASSWORD_RECOVERY'), no hace falta pedir la contraseña vieja.
-export function renderNuevaContrasena() {
+// `bienvenida` = usuario nuevo que llegó por el mail de bienvenida: es el
+// mismo formulario, con los textos de primer ingreso.
+export function renderNuevaContrasena({ bienvenida = false } = {}) {
+  const titulo = bienvenida ? '¡Bienvenido/a a Lazos!' : 'Elegí una contraseña nueva';
+  const bajada = bienvenida
+    ? 'Para terminar de crear tu cuenta, elegí la contraseña con la que vas a entrar al sistema.'
+    : 'Es la última vez que la vas a tener que pedir por mail: guardala bien.';
   return `
     <div class="login-wrap">
       <div class="login-split">
@@ -135,11 +141,11 @@ export function renderNuevaContrasena() {
           <button class="theme-toggle login-theme" id="login-theme" type="button"
                   title="Cambiar a modo oscuro" aria-label="Cambiar a modo oscuro">${ICONOS_TEMA}</button>
           <form class="login-form" id="form-nueva-pass" autocomplete="off">
-            <h1 class="login-title">Elegí una contraseña nueva</h1>
-            <p class="login-sub">Es la última vez que la vas a tener que pedir por mail: guardala bien.</p>
+            <h1 class="login-title">${titulo}</h1>
+            <p class="login-sub">${bajada}</p>
 
             <label class="login-field">
-              <span>Contraseña nueva</span>
+              <span>${bienvenida ? 'Contraseña' : 'Contraseña nueva'}</span>
               <input type="password" name="password" id="nueva-pass" required minlength="6"
                      autocomplete="new-password" placeholder="mínimo 6 caracteres" autofocus>
             </label>

@@ -1,0 +1,41 @@
+<!--
+  PLANTILLA DE MAIL: Recuperar contraseña
+  Dónde va: Supabase → Authentication → Emails → "Reset password".
+  Asunto:   Recuperar tu contraseña — Lazos
+  La pide la pantalla "¿Olvidaste tu contraseña?" del login.
+  {{ .ConfirmationURL }} lo reemplaza Supabase por el link real: no tocar.
+  (Copia de la que está cargada en el panel, para no perderla.)
+-->
+<div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e6e2d8;font-family:Arial,Helvetica,sans-serif">
+
+  <!-- Franja de marca -->
+  <div style="background:linear-gradient(135deg,#7bcbf0 0%,#f3915a 66%,#ee7623 100%);padding:28px 24px;text-align:center">
+    <img src="https://ouudrawqecpeqpkyafdc.supabase.co/storage/v1/object/public/Logo%20Email/logo-lazos.png" alt="Lazos" width="72" style="display:block;margin:0 auto;border-radius:50%;box-shadow:0 2px 8px rgba(0,0,0,.15)">
+  </div>
+
+  <!-- Cuerpo -->
+  <div style="padding:32px 28px">
+    <p style="color:#888;font-size:12px;letter-spacing:.5px;text-transform:uppercase;margin:0 0 4px">Lazos Centro de Rehabilitación Integral</p>
+    <h2 style="color:#15294a;font-size:21px;margin:0 0 14px">Recuperar tu contraseña</h2>
+    <p style="color:#444;font-size:15px;line-height:1.6;margin:0 0 26px">
+      Pediste restablecer tu contraseña del Sistema de Gestión Lazos. Tocá el botón para elegir una nueva:
+    </p>
+
+    <div style="text-align:center;margin-bottom:26px">
+      <a href="{{ .ConfirmationURL }}"
+         style="background:#1488c2;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:14px 32px;border-radius:10px;display:inline-block">
+        Elegir contraseña nueva
+      </a>
+    </div>
+
+    <p style="color:#999;font-size:13px;line-height:1.6;margin:0">
+      Si no pediste este cambio, ignorá este mail: tu contraseña actual sigue funcionando igual.
+      Este link vence en un rato por seguridad.
+    </p>
+  </div>
+
+  <!-- Pie -->
+  <div style="background:#f5f3ef;padding:14px;text-align:center;border-top:1px solid #e6e2d8">
+    <p style="color:#aaa;font-size:11px;margin:0">Lazos · Aguilares, Tucumán</p>
+  </div>
+</div>

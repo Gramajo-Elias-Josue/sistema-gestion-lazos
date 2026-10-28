@@ -62,6 +62,20 @@ export async function pedirRecuperacion(email) {
   return supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
 }
 
+// Además apaga la marca `elegir_contrasena` del usuario invitado (ver
+// debeElegirContrasena): con la contraseña puesta ya entra normal.
 export async function establecerContrasena(password) {
-  return supabase.auth.updateUser({ password });
+  return supabase.auth.updateUser({ password, data: { elegir_contrasena: false } });
+}
+
+// ---------------------------------------------------------------------
+// BIENVENIDA (usuario nuevo)
+// ---------------------------------------------------------------------
+// Al crear un usuario, la Edge Function `crear-usuario` le manda un mail
+// de bienvenida y lo marca con `elegir_contrasena: true`. Al tocar el
+// link entra con una sesión pero SIN contraseña propia: mientras tenga la
+// marca, app.js le muestra "Elegí tu contraseña" en vez de la app. Se lee
+// de la sesión (no del link), así sirve aunque recargue la página.
+export function debeElegirContrasena(sesion) {
+  return sesion?.user?.user_metadata?.elegir_contrasena === true;
 }

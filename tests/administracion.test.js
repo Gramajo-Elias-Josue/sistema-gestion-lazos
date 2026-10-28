@@ -78,12 +78,13 @@ describe('administracionView.renderModalPermisos', () => {
 });
 
 describe('administracionView.renderFormUsuario', () => {
-  it('tiene los campos email, contraseña y rol', () => {
+  it('tiene los campos email y rol, y NO pide contraseña (la elige la persona por el mail de bienvenida)', () => {
     const html = renderFormUsuario();
     expect(html).toContain('name="email"');
-    expect(html).toContain('name="password"');
+    expect(html).not.toContain('name="password"');
     expect(html).toContain('name="rol"');
     expect(html).toContain('id="form-usuario"');
+    expect(html).toContain('mail de bienvenida');
   });
 
   it('el alta SÍ permite crear un director (es una sociedad, puede haber varios)', () => {

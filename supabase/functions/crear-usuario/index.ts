@@ -1,12 +1,16 @@
 // =====================================================================
 // EDGE FUNCTION: crear-usuario (Etapa 2 · Fase B — alta de usuarios)
 // ---------------------------------------------------------------------
-// Crea la CUENTA (email + contraseña) de un usuario nuevo y su fila en
-// `perfiles`. Corre en el servidor de Supabase, así que puede usar la
-// SERVICE ROLE KEY (llave de admin) sin exponerla al navegador.
+// Crea la CUENTA de un usuario nuevo y su fila en `perfiles`, y le manda
+// el MAIL DE BIENVENIDA (plantilla "Invite user" de Supabase, copia en
+// supabase/plantillas-mail/bienvenida.html). Nadie le inventa la
+// contraseña: la elige la persona al tocar el link del mail. Corre en el
+// servidor de Supabase, así que puede usar la SERVICE ROLE KEY (llave de
+// admin) sin exponerla al navegador.
 //
-// SEGURIDAD: sólo el DIRECTOR puede crear usuarios. La función lo verifica
-// leyendo el perfil de quien llama (con su propio JWT) antes de crear nada.
+// SEGURIDAD: solo el DIRECTOR (cualquier rol) y la SECRETARÍA (solo
+// profesionales) pueden crear usuarios. La función lo verifica leyendo el
+// perfil de quien llama (con su propio JWT) antes de crear nada.
 //
 // Deploy (sin CLI): Supabase → Edge Functions → "Deploy a new function",
 // nombre exacto `crear-usuario`, pegá este archivo y Deploy. Las variables
@@ -69,9 +73,11 @@ Deno.serve(async (req) => {
     // 2) Datos del nuevo usuario. profesionalId es OPCIONAL: se manda cuando
     //    el usuario se crea junto con un profesional (desde la sección
     //    Profesionales), para vincular perfiles.profesional_id de una.
-    const { email, password, nombre, rol, secciones, profesionalId } = await req.json();
-    if (!email || !password || !rol) {
-      return json({ error: 'Faltan email, contraseña o rol.' }, 400);
+    //    redirectTo = la dirección de la app, a donde vuelve el link del
+    //    mail (Supabase solo la acepta si está en Redirect URLs).
+    const { email, nombre, rol, secciones, profesionalId, redirectTo } = await req.json();
+    if (!email || !rol) {
+      return json({ error: 'Faltan el email o el rol.' }, 400);
     }
     // 'cm' = community manager: solo entra a la galería del trabajo.
     if (!['director', 'secretaria', 'profesional', 'cm'].includes(rol)) {
@@ -84,15 +90,21 @@ Deno.serve(async (req) => {
       return json({ error: 'La secretaría solo puede crear cuentas de profesional.' }, 403);
     }
 
-    // 3) Crear la cuenta con la service key (admin), ya confirmada.
+    // 3) Crear la cuenta e invitarla por mail, con la service key (admin).
+    //    `elegir_contrasena` marca que todavía no tiene contraseña propia:
+    //    la app, al verla, le muestra la pantalla de bienvenida en vez de
+    //    entrar directo (ver app.js). Se apaga cuando la elige.
     const admin = createClient(url, service);
-    const { data: creado, error: errCrear } = await admin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
+    const { data: creado, error: errCrear } = await admin.auth.admin.inviteUserByEmail(email, {
+      redirectTo: redirectTo || undefined,
+      data: { elegir_contrasena: true },
     });
     if (errCrear || !creado?.user) {
-      return json({ error: errCrear?.message ?? 'No se pudo crear la cuenta.' }, 400);
+      const msg = errCrear?.message ?? '';
+      if (/already (been )?registered|already exists/i.test(msg)) {
+        return json({ error: 'Ya existe una cuenta con ese email.' }, 400);
+      }
+      return json({ error: msg || 'No se pudo crear la cuenta.' }, 400);
     }
 
     // 4) Insertar el perfil. Si falla, se borra la cuenta para no dejarla huérfana.

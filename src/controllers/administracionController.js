@@ -111,11 +111,10 @@ function abrirFormUsuario() {
     const datos = {
       nombre: (fd.get('nombre') || '').trim() || null,
       email: (fd.get('email') || '').trim(),
-      password: fd.get('password') || '',
       rol: fd.get('rol'),
     };
-    if (!datos.email || datos.password.length < 6) {
-      toast('Completá el email y una contraseña de 6 caracteres o más.', 'bad');
+    if (!datos.email) {
+      toast('Completá el email.', 'bad');
       return;
     }
 
@@ -124,7 +123,7 @@ function abrirFormUsuario() {
     btn.textContent = 'Creando…';
     try {
       const creado = await usuarioModel.crearUsuario(datos);
-      toast('Usuario creado.');
+      toast(`Usuario creado. Le mandamos a ${datos.email} un mail de bienvenida para que elija su contraseña.`);
       cerrar();
       await cargarUsuarios();
       // Recién creado: se abre el panel para ajustar sus permisos, salvo

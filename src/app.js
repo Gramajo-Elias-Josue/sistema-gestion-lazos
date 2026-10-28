@@ -14,7 +14,7 @@
 import { iniciarRouter, registrarControlador } from './router.js';
 import { iniciarSidebar } from './sidebar.js';
 import { iniciarTema } from './tema.js';
-import { obtenerSesion, cerrarSesion, alCambiarSesion } from './auth.js';
+import { obtenerSesion, cerrarSesion, alCambiarSesion, debeElegirContrasena } from './auth.js';
 import { obtenerPerfil } from './perfil.js';
 import { setPerfil, perfilActual, rolActual } from './sesion.js';
 import { seccionesEfectivas, etiquetaRol } from './permisos.js';
@@ -72,8 +72,10 @@ function registrarControladores() {
   registrarControlador('administracion', iniciarAdministracion);
 }
 
-// Muestra la app y arranca la navegación (idempotente).
+// Muestra la app y arranca la navegación (idempotente). Un usuario recién
+// invitado que todavía no eligió su contraseña ve antes la bienvenida.
 async function arrancarApp(sesion) {
+  if (debeElegirContrasena(sesion)) return mostrarBienvenida(sesion);
   sesionActual = sesion;
   loginRoot.innerHTML = '';
   appEl.classList.remove('hidden');
@@ -125,10 +127,24 @@ function mostrarLogin() {
 // recuperación) en vez de arrancar la app directo, aunque ya haya una
 // sesión (temporal): no tendría sentido guardar la contraseña vieja de
 // nuevo sin cambiarla primero.
+// Al terminar se pide la sesión de nuevo: la de antes todavía tiene la
+// marca de "elegir contraseña" que establecerContrasena acaba de apagar.
 function mostrarRecuperacion(sesion) {
   setPerfil(null);
   appEl.classList.add('hidden');
-  montarNuevaContrasena(loginRoot, () => arrancarApp(sesion));
+  montarNuevaContrasena(loginRoot, async () => arrancarApp(await obtenerSesion() || sesion));
+}
+
+// Bienvenida de un usuario nuevo: llegó por el link del mail de
+// bienvenida y todavía no tiene contraseña propia. Es la misma pantalla
+// de "elegir contraseña", con el texto de primer ingreso. Si ya está
+// abierta no se vuelve a pintar (Supabase avisa varias veces de la
+// sesión y se borraría lo que la persona está escribiendo).
+function mostrarBienvenida(sesion) {
+  if (document.getElementById('form-nueva-pass')) return;
+  setPerfil(null);
+  appEl.classList.add('hidden');
+  montarNuevaContrasena(loginRoot, async () => arrancarApp(await obtenerSesion() || sesion), { bienvenida: true });
 }
 
 // Aplica los permisos del rol: oculta del menú las secciones que no puede

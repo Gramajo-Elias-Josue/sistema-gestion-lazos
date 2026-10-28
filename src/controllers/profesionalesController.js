@@ -17,7 +17,6 @@ import { validarProfesional } from '../utils/validacion.js';
 import { mensajeError } from '../utils/errores.js';
 import { perfilActual } from '../sesion.js';
 import { puedeOperar } from '../permisos.js';
-import { pedirRecuperacion } from '../auth.js';
 import { normalizar } from '../utils/areas.js';
 
 // Profesiones/sectores cargados (pestaña "Profesiones"): se usan acá y
@@ -285,24 +284,20 @@ function abrirForm(prof = {}, opciones = {}) {
   });
 }
 
-// Crea la cuenta de acceso del profesional recién creado, con una
-// contraseña al azar que NADIE llega a ver: enseguida se le manda el
-// mismo mail de "elegí tu contraseña" que usa recuperar contraseña, así
-// el profesional entra por primera vez poniendo la suya. Si esto falla
-// (por ejemplo, el email ya tiene una cuenta), el profesional ya quedó
-// guardado igual: no se revierte, solo se avisa que faltó el usuario.
+// Crea la cuenta de acceso del profesional recién creado. La Edge
+// Function le manda el mail de bienvenida, así el profesional entra por
+// primera vez eligiendo su propia contraseña. Si esto falla (por ejemplo,
+// el email ya tiene una cuenta), el profesional ya quedó guardado igual:
+// no se revierte, solo se avisa que faltó el usuario.
 async function crearUsuarioDelProfesional(profesional) {
   try {
-    const passwordAlAzar = crypto.randomUUID();
     await usuarioModel.crearUsuario({
       email: profesional.email,
-      password: passwordAlAzar,
       nombre: profesional.nombre_completo,
       rol: 'profesional',
       profesionalId: profesional.id,
     });
-    await pedirRecuperacion(profesional.email);
-    toast(`Le mandamos un mail a ${profesional.email} para que elija su contraseña.`);
+    toast(`Le mandamos a ${profesional.email} un mail de bienvenida para que elija su contraseña.`);
   } catch (err) {
     console.error('Error creando el usuario del profesional:', err);
     toast(mensajeError(err, 'El profesional se guardó, pero no se pudo crear su usuario de acceso. Podés crearlo a mano desde Administración.'), 'bad');

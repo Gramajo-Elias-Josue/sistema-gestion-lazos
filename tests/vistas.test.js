@@ -745,4 +745,12 @@ describe('loginView.renderNuevaContrasena (recuperar contraseña, paso 2)', () =
     expect(html).toContain('id="nueva-pass2"');
     expect(html).toContain('type="password"');
   });
+
+  it('por defecto es la de recuperar; con bienvenida, el mismo form con textos de primer ingreso', () => {
+    expect(renderNuevaContrasena()).toContain('Elegí una contraseña nueva');
+    const html = renderNuevaContrasena({ bienvenida: true });
+    expect(html).toContain('Bienvenido/a');
+    expect(html).not.toContain('contraseña nueva');
+    expect(html).toContain('id="form-nueva-pass"');
+  });
 });
