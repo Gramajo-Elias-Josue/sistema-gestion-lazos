@@ -128,17 +128,13 @@ export function renderAsistencia({ periodo, porMes = [], ausentismo = [], fichaj
     ${tarjeta('Fichaje de profesionales (días)', `<div class="tablewrap">${fichajes}</div>`, etiquetaPeriodo(periodo))}`;
 }
 
-export function renderAtencion({ resumen, ingresos = [], porProfesion = [], ocupacion = [] }) {
+export function renderAtencion({ resumen, ingresos = [], porProfesion = [] }) {
   const graficoIngresos = columnasPorMes(
     ingresos.map(m => ({ periodo: m.periodo, partes: [{ valor: m.valor, clase: 'es-ok', titulo: 'Ingresos' }] })),
   );
   const profesiones = barrasHorizontales(
     porProfesion.map(s => ({ etiqueta: s.etiqueta, valor: s.valor, texto: `${s.valor} pac.`, tono: tonoDe(s.clave) })),
     'No hay profesiones cargadas.',
-  );
-  const grilla = barrasHorizontales(
-    ocupacion.map(o => ({ etiqueta: o.nombre, valor: o.ocupadas, max: o.total, texto: `${o.ocupadas}/${o.total} · ${o.pct}%`, tono: tonoDe(o.sector || o.id) })),
-    'No hay profesionales con turnos cargados.',
   );
   return `${titulo('Atención y grilla')}
     <div class="kpis es-kpis">
@@ -149,8 +145,7 @@ export function renderAtencion({ resumen, ingresos = [], porProfesion = [], ocup
     <div class="es-grid">
       ${tarjeta('Ingresos por mes', graficoIngresos, 'pacientes admitidos')}
       ${tarjeta('Pacientes por profesión', profesiones, 'grilla vigente')}
-    </div>
-    ${tarjeta('Ocupación de la grilla por profesional', grilla, 'franjas con paciente')}`;
+    </div>`;
 }
 
 export function renderInformes({ periodo, documentos = [], entregas = [], casuales = [] }) {

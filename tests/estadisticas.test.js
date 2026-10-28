@@ -79,14 +79,14 @@ describe('estadisticas: atención y grilla', () => {
   });
 
   const profs = [
-    { id: 'p1', nombre_completo: 'Lic. Uno', sector: 'psicologia', turnos_trabajo: ['manana'] },
-    { id: 'p2', nombre_completo: 'Lic. Dos', sector: 'fono', turnos_trabajo: ['manana', 'tarde'] },
-    { id: 'p3', nombre_completo: 'Lic. Tres', sector: null, turnos_trabajo: [] },
+    { id: 'p1', nombre_completo: 'Lic. Uno', sector: 'psicologia' },
+    { id: 'p2', nombre_completo: 'Lic. Dos', sector: 'fono' },
+    { id: 'p3', nombre_completo: 'Lic. Tres', sector: null },
   ];
   const asig = [
     { profesional_id: 'p1', paciente_id: 1, hora: '08:00:00' },
     { profesional_id: 'p1', paciente_id: 2, hora: '08:30:00' },
-    { profesional_id: 'p1', paciente_id: 1, hora: '15:00:00' }, // fuera de su turno: no cuenta
+    { profesional_id: 'p1', paciente_id: 1, hora: '15:00:00' }, // mismo paciente: cuenta una vez
     { profesional_id: 'p2', paciente_id: 1, hora: '14:00:00' },
     { profesional_id: 'p3', paciente_id: 9, hora: '09:00:00' },
   ];
@@ -97,18 +97,6 @@ describe('estadisticas: atención y grilla', () => {
       { clave: 'psicologia', etiqueta: 'Psicología', valor: 2 },
       { clave: 'fono', etiqueta: 'Fonoaudiología', valor: 1 },
       { clave: '', etiqueta: 'Sin profesión', valor: 1 },
-    ]);
-  });
-
-  it('franjas por día: 8 por turno, 16 con doble turno, 0 sin turnos', () => {
-    expect(profs.map(E.franjasDe)).toEqual([8, 16, 0]);
-  });
-
-  it('ocupación: franjas con paciente dentro de sus turnos sobre el total; sin turnos no aparece', () => {
-    const r = E.ocupacionGrilla(asig, profs);
-    expect(r).toEqual([
-      expect.objectContaining({ nombre: 'Lic. Uno', ocupadas: 2, total: 8, pct: 25 }),
-      expect.objectContaining({ nombre: 'Lic. Dos', ocupadas: 1, total: 16, pct: 6 }),
     ]);
   });
 });

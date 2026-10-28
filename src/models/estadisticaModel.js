@@ -39,7 +39,7 @@ export async function datosDelRango({ desde, hasta, meses }) {
     traerTodo(() => supabase.from('pacientes')
       .select('id, nombre_completo, estado, estado_admision, tiene_cud, fecha_ingreso, created_at').order('id')),
     traerTodo(() => supabase.from('profesionales')
-      .select('id, nombre_completo, sector, estado, turnos_trabajo').order('id')),
+      .select('id, nombre_completo, sector, estado').order('id')),
     traerTodo(() => supabase.from('sectores').select('clave, etiqueta, orden').eq('activo', true).order('orden')),
     traerTodo(() => supabase.from('asignaciones')
       .select('profesional_id, paciente_id, hora').is('vigente_hasta', null).order('id')),

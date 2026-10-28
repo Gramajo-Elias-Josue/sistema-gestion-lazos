@@ -11,11 +11,9 @@
 // =====================================================================
 
 import { moverPeriodo, periodoMensual } from './periodos.js';
-import { rangoMes, horaAMinutos } from './fechas.js';
-import { turnosDe, atiendeALaHora } from './turnosCentro.js';
+import { rangoMes } from './fechas.js';
 
 export const MESES_TENDENCIA = 6;
-const FRANJA_MIN = 30; // la grilla va en franjas de 30 minutos
 
 // Porcentaje entero (0 si no hay base para calcularlo).
 export const porcentaje = (parte, total) => (total ? Math.round((parte * 100) / total) : 0);
@@ -141,30 +139,6 @@ export function pacientesPorProfesion(asignaciones = [], profesionales = [], sec
     .map(s => ({ clave: s.clave, etiqueta: s.etiqueta, valor: pacientes[s.clave]?.size || 0 }));
   if (pacientes['']?.size) filas.push({ clave: '', etiqueta: 'Sin profesión', valor: pacientes[''].size });
   return filas;
-}
-
-// Franjas de 30 minutos que tiene un profesional por día, según sus
-// turnos (mañana 8 a 12 = 8 franjas; los dos turnos = 16).
-export function franjasDe(profesional) {
-  return turnosDe(profesional)
-    .reduce((acc, t) => acc + (horaAMinutos(t.hasta) - horaAMinutos(t.desde)) / FRANJA_MIN, 0);
-}
-
-// Ocupación de la grilla de cada profesional activo: franjas con
-// paciente sobre sus franjas totales. De más ocupado a menos.
-export function ocupacionGrilla(asignaciones = [], profesionales = []) {
-  return profesionales
-    .filter(p => p.estado !== 'inactivo' && franjasDe(p) > 0)
-    .map(p => {
-      const total = franjasDe(p);
-      const ocupadas = new Set(
-        asignaciones
-          .filter(a => String(a.profesional_id) === String(p.id) && a.paciente_id && a.hora && atiendeALaHora(p, a.hora))
-          .map(a => String(a.hora).slice(0, 5))
-      ).size;
-      return { id: p.id, nombre: p.nombre_completo, sector: p.sector, ocupadas, total, pct: porcentaje(ocupadas, total) };
-    })
-    .sort((a, b) => b.pct - a.pct || a.nombre.localeCompare(b.nombre));
 }
 
 // ---------------------------------------------------------------------

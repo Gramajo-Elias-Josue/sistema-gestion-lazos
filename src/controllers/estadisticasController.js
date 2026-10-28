@@ -58,7 +58,6 @@ async function cargarPeriodo(periodo) {
       resumen: E.resumenPacientes(d.pacientes),
       ingresos: E.ingresosPorMes(d.pacientes, meses),
       porProfesion: E.pacientesPorProfesion(d.asignaciones, d.profesionales, d.sectores),
-      ocupacion: E.ocupacionGrilla(d.asignaciones, d.profesionales),
     });
     document.getElementById('es-informes').innerHTML = renderInformes({
       periodo,

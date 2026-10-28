@@ -681,6 +681,10 @@ tbody tr:last-child td{border-bottom:none}
   .ga-kpis .kpi .sub{grid-column:1;margin-top:2px}
 }
 
+/* Turnos: certificado de un casual todavía no habilitado (turno sin atender). */
+.btn-cert-turno.cert-pendiente{opacity:.55}
+.btn-cert-turno.cert-pendiente:hover{opacity:.8}
+
 /* ---- Estadísticas ----
    Gráficos hechos con HTML y CSS: columnas por mes (con partes apiladas)
    y barras horizontales. Usan los mismos colores del tema, así que se

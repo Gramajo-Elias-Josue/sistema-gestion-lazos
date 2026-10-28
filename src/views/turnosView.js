@@ -80,10 +80,13 @@ export function renderLista(turnos, puedeOperar = true, certificados = {}) {
       .map(([v, info]) => `<option value="${v}" ${v === t.estado ? 'selected' : ''}>${info.etiqueta}</option>`)
       .join('');
     // Solo casuales (los turnos viejos de pacientes con legajo lo hacen
-    // desde su historia clínica) y solo con la asistencia confirmada.
+    // desde su historia clínica). Se habilita con el turno "Atendido"; en
+    // un turno programado el botón ya se ve (apagado) para que se sepa que
+    // existe, y al tocarlo explica qué falta. Ausentes y cancelados, no.
     const tieneCert = !!certificados[t.id];
-    const btnCert = (!t.paciente_id && t.estado === 'atendido') ? `
-          <button class="btn ghost btn-cert-turno destacado" data-id="${t.id}" style="padding:6px 11px">${tieneCert ? '📄 Ver certificado' : '+ Evaluación / certificado'}</button>` : '';
+    const atendido = t.estado === 'atendido';
+    const btnCert = (!t.paciente_id && (atendido || t.estado === 'programado')) ? `
+          <button class="btn ghost btn-cert-turno${atendido ? ' destacado' : ' cert-pendiente'}" data-id="${t.id}" style="padding:6px 11px"${atendido ? '' : ' title="Se habilita cuando el turno está Atendido"'}>${tieneCert ? '📄 Ver certificado' : '+ Evaluación / certificado'}</button>` : '';
     const acciones = (puedeOperar ? `
           <select class="turno-estado" data-id="${t.id}" aria-label="Estado del turno" style="font-family:var(--body);font-size:14px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:var(--card-2);color:var(--ink)">${opciones}</select>` : '')
       + btnCert

@@ -366,7 +366,7 @@ function abrirCertificadoCasual(turnoId) {
   const turno = turnosCargados.find(t => String(t.id) === String(turnoId));
   if (!turno) return;
   if (turno.estado !== 'atendido') {
-    toast('Primero marcá el turno como Atendido: así queda confirmado que la persona vino.', 'bad');
+    toast('Primero marcá el turno como Atendido (el profesional tiene que figurar presente en Asistencia): así queda confirmado que la persona vino.', 'bad');
     return;
   }
 

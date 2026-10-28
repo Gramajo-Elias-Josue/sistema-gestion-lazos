@@ -449,8 +449,14 @@ describe('turnosView.renderLista', () => {
     expect(html).toContain('Programado');             // (la pill de estado sigue visible)
   });
 
-  it('[clave] evaluación / certificado: solo en turnos casuales ATENDIDOS (asistencia confirmada)', () => {
-    expect(listaTurnos([turno])).not.toContain('btn-cert-turno');                           // programado
+  it('[clave] evaluación / certificado: habilitado en turnos casuales ATENDIDOS (asistencia confirmada)', () => {
+    // Programado: el botón se ve apagado (para que se sepa que existe) y explica qué falta.
+    expect(listaTurnos([turno])).toContain('cert-pendiente');
+    expect(listaTurnos([turno])).toContain('Se habilita cuando el turno está Atendido');
+    expect(listaTurnos([{ ...turno, estado: 'atendido' }])).not.toContain('cert-pendiente');
+    // Ausente o cancelado: no corresponde.
+    expect(listaTurnos([{ ...turno, estado: 'ausente' }])).not.toContain('btn-cert-turno');
+    expect(listaTurnos([{ ...turno, estado: 'cancelado' }])).not.toContain('btn-cert-turno');
     expect(listaTurnos([{ ...turno, estado: 'atendido' }])).toContain('+ Evaluación / certificado');
     expect(listaTurnos([{ ...turno, estado: 'atendido' }], false)).toContain('btn-cert-turno'); // el profesional también
     expect(listaTurnos([{ ...turno, estado: 'atendido' }], true, { 9: { id: 'c1' } })).toContain('Ver certificado');
