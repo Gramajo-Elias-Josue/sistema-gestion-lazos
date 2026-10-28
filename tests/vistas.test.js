@@ -16,7 +16,7 @@ import { renderLista as listaTurnos, renderFormTurno, renderEstructura } from '.
 import { renderLista as listaAdmision, renderAdmision } from '../src/views/admisionView.js';
 import { renderFilas as filasAsistencia, filaHtml as filaAsistencia } from '../src/views/asistenciaView.js';
 import { filaHtml as filaFichaje, renderFilas as filasFichaje } from '../src/views/asistenciaProfView.js';
-import { renderLogin, renderPedirRecuperacion, renderNuevaContrasena } from '../src/views/loginView.js';
+import { renderLogin, renderPedirRecuperacion, renderNuevaContrasena, renderLinkDelMail } from '../src/views/loginView.js';
 import { renderCalendario, renderModalCalendario } from '../src/views/calendarioAsistenciaView.js';
 import {
   renderEstructura as galeriaEstructura,
@@ -734,6 +734,23 @@ describe('loginView.renderPedirRecuperacion (recuperar contraseña, paso 1)', ()
     const html = renderPedirRecuperacion({ enviado: true, email: '<script>x</script>' });
     expect(html).not.toContain('<script>x</script>');
     expect(html).toContain('&lt;script&gt;');
+  });
+});
+
+describe('loginView.renderLinkDelMail (botón de un mail)', () => {
+  it('bienvenida y recuperar: un botón para usar el link (el código no se gasta solo)', () => {
+    const bienvenida = renderLinkDelMail({ tipo: 'invite' });
+    expect(bienvenida).toContain('Bienvenido/a');
+    expect(bienvenida).toContain('id="btn-usar-link"');
+    expect(bienvenida).toContain('Crear mi contraseña');
+    expect(renderLinkDelMail({ tipo: 'recovery' })).toContain('Elegir contraseña nueva');
+  });
+
+  it('link vencido o usado: lo explica y ofrece pedir uno nuevo', () => {
+    const html = renderLinkDelMail({ error: 'otp_expired' });
+    expect(html).toContain('Este link ya no sirve');
+    expect(html).toContain('id="btn-link-nuevo"');
+    expect(html).not.toContain('id="btn-usar-link"');
   });
 });
 

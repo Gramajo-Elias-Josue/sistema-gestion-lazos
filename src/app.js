@@ -18,7 +18,8 @@ import { obtenerSesion, cerrarSesion, alCambiarSesion, debeElegirContrasena } fr
 import { obtenerPerfil } from './perfil.js';
 import { setPerfil, perfilActual, rolActual } from './sesion.js';
 import { seccionesEfectivas, etiquetaRol } from './permisos.js';
-import { montarLogin, montarNuevaContrasena } from './controllers/loginController.js';
+import { montarLogin, montarNuevaContrasena, montarLinkDelMail } from './controllers/loginController.js';
+import { leerLinkDelMail } from './utils/linkMail.js';
 import { abrirPerfil, pintarAvatar } from './controllers/perfilController.js';
 import { conectarNotificaciones, cargarNotificaciones } from './controllers/notificacionesController.js';
 import { iniciarInicio } from './controllers/inicioController.js';
@@ -135,6 +136,29 @@ function mostrarRecuperacion(sesion) {
   montarNuevaContrasena(loginRoot, async () => arrancarApp(await obtenerSesion() || sesion));
 }
 
+// Pantalla del botón de un mail (ver utils/linkMail.js). Cuando el link
+// sirve, sigue como si Supabase hubiera avisado la sesión: recuperar →
+// contraseña nueva; bienvenida → arrancarApp, que muestra la bienvenida.
+function mostrarLinkDelMail(link) {
+  setPerfil(null);
+  appEl.classList.add('hidden');
+  const salir = async () => {
+    esperandoLink = false;
+    const sesion = await obtenerSesion();
+    if (sesion) arrancarApp(sesion);
+    else mostrarLogin();
+  };
+  montarLinkDelMail(loginRoot, link, {
+    onListo: (sesion, tipo) => {
+      esperandoLink = false;
+      if (tipo === 'recovery') mostrarRecuperacion(sesion);
+      else arrancarApp(sesion);
+    },
+    onVolver: salir,
+    onExito: (sesion) => { esperandoLink = false; arrancarApp(sesion); },
+  });
+}
+
 // Bienvenida de un usuario nuevo: llegó por el link del mail de
 // bienvenida y todavía no tiene contraseña propia. Es la misma pantalla
 // de "elegir contraseña", con el texto de primer ingreso. Si ya está
@@ -185,16 +209,30 @@ function conectarLogout() {
 }
 
 // --- Guard: al cargar, decidir login o app según la sesión ---
-obtenerSesion().then((sesion) => {
-  if (sesion) arrancarApp(sesion);
-  else mostrarLogin();
-});
+// Si la página se abrió desde el botón de un mail (bienvenida o recuperar
+// contraseña), primero va la pantalla de ese link, aunque ya hubiera otra
+// sesión abierta en este navegador. Mientras esté, `esperandoLink` hace
+// que los avisos de sesión de abajo no la tapen.
+const linkDelMail = leerLinkDelMail(window.location.search, window.location.hash);
+let esperandoLink = !!linkDelMail;
+if (linkDelMail) {
+  // Se saca el código (o el error) de la dirección: no queda en el
+  // historial y el router no lo confunde con una sección.
+  history.replaceState(null, '', window.location.pathname);
+  mostrarLinkDelMail(linkDelMail);
+} else {
+  obtenerSesion().then((sesion) => {
+    if (sesion) arrancarApp(sesion);
+    else mostrarLogin();
+  });
+}
 
 // Mantener la UI en sincronía con la sesión: si se cierra (o expira),
 // volver al login; si se inicia, entrar a la app. 'PASSWORD_RECOVERY' es
 // el caso especial: el usuario tocó el link del mail de recuperación, así
 // que en vez de entrar directo se le pide elegir la contraseña nueva.
 alCambiarSesion((sesion, evento) => {
+  if (esperandoLink) return;
   if (evento === 'PASSWORD_RECOVERY') mostrarRecuperacion(sesion);
   else if (sesion) arrancarApp(sesion);
   else mostrarLogin();

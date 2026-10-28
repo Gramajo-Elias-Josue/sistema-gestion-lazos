@@ -7,8 +7,8 @@
 // ocultar el login y arrancar la app).
 // =====================================================================
 
-import { renderLogin, renderPedirRecuperacion, renderNuevaContrasena } from '../views/loginView.js';
-import { iniciarSesion, pedirRecuperacion, establecerContrasena } from '../auth.js';
+import { renderLogin, renderPedirRecuperacion, renderNuevaContrasena, renderLinkDelMail } from '../views/loginView.js';
+import { iniciarSesion, pedirRecuperacion, establecerContrasena, usarLinkDelMail } from '../auth.js';
 import { conectarToggleTema } from '../tema.js';
 
 // Traduce los errores típicos de Supabase Auth (vienen en inglés) a un
@@ -80,7 +80,7 @@ export function montarLogin(contenedor, onExito) {
 // ---------------------------------------------------------------------
 // RECUPERAR CONTRASEÑA (paso 1): pide el email y manda el link
 // ---------------------------------------------------------------------
-function montarPedirRecuperacion(contenedor, onExito) {
+export function montarPedirRecuperacion(contenedor, onExito) {
   contenedor.innerHTML = renderPedirRecuperacion();
   conectarToggleTema(document.getElementById('login-theme'));
 
@@ -179,6 +179,51 @@ export function montarNuevaContrasena(contenedor, onListo, { bienvenida = false 
       cajaError.hidden = false;
       btn.disabled = false;
       btn.textContent = 'Guardar contraseña';
+    }
+  });
+}
+
+// ---------------------------------------------------------------------
+// LINK DE UN MAIL (bienvenida o recuperar)
+// ---------------------------------------------------------------------
+// Se llama desde app.js cuando la página se abrió desde el botón de un
+// mail (ver utils/linkMail.js). `link` = lo que devolvió leerLinkDelMail.
+// El código se usa recién al tocar el botón. Si sirve, `onListo(sesion,
+// tipo)` sigue (app.js muestra la bienvenida o la contraseña nueva). Si
+// Supabase lo rechaza, se explica y se ofrece pedir uno nuevo.
+// `onVolver()` = salir al login; `onExito` = como en montarLogin.
+export function montarLinkDelMail(contenedor, link, { onListo, onVolver, onExito }) {
+  contenedor.innerHTML = renderLinkDelMail(link);
+  conectarToggleTema(document.getElementById('login-theme'));
+
+  if (link.error) {
+    document.getElementById('btn-link-nuevo').addEventListener('click', () => montarPedirRecuperacion(contenedor, onExito));
+    document.getElementById('link-volver').addEventListener('click', onVolver);
+    return;
+  }
+
+  const btn = document.getElementById('btn-usar-link');
+  const textoBtn = btn.textContent;
+  btn.addEventListener('click', async () => {
+    const cajaError = document.getElementById('link-mail-error');
+    cajaError.hidden = true;
+    btn.disabled = true;
+    btn.textContent = 'Un momento…';
+    try {
+      const { data, error } = await usarLinkDelMail(link);
+      // Error de Supabase = el link venció o ya se usó.
+      if (error || !data?.session) {
+        montarLinkDelMail(contenedor, { error: error?.code || 'link_invalido' }, { onListo, onVolver, onExito });
+        return;
+      }
+      onListo(data.session, link.tipo);
+    } catch (err) {
+      // Error de conexión: el link puede seguir sirviendo, se reintenta.
+      console.error('Error usando el link del mail:', err);
+      cajaError.textContent = mensajeAuth(err);
+      cajaError.hidden = false;
+      btn.disabled = false;
+      btn.textContent = textoBtn;
     }
   });
 }

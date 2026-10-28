@@ -116,6 +116,50 @@ export function renderPedirRecuperacion({ enviado = false, email = '' } = {}) {
     </div>`;
 }
 
+// Pantalla a la que llega el botón de un mail (bienvenida o recuperar).
+// Solo muestra un botón: el código del link se usa recién al tocarlo, así
+// un antivirus que abra el link antes no lo gasta (ver utils/linkMail.js).
+// `error` = Supabase rechazó el link (vencido o ya usado): se explica qué
+// hacer en vez de dejar a la persona con un error en la dirección.
+export function renderLinkDelMail({ tipo = 'invite', error = null } = {}) {
+  let cuerpo;
+  if (error) {
+    cuerpo = `
+      <h1 class="login-title">Este link ya no sirve</h1>
+      <p class="login-sub">Los links de los mails se pueden usar una sola vez y vencen al rato. Pedí uno nuevo con tu email: te llega enseguida.</p>
+      <button type="button" class="btn login-btn" id="btn-link-nuevo">Pedir un link nuevo</button>
+      <button type="button" class="login-link" id="link-volver">Volver a iniciar sesión</button>`;
+  } else {
+    const bienvenida = tipo === 'invite';
+    cuerpo = `
+      <h1 class="login-title">${bienvenida ? '¡Bienvenido/a a Lazos!' : 'Recuperar tu contraseña'}</h1>
+      <p class="login-sub">${bienvenida
+        ? 'Tocá el botón para crear tu contraseña y entrar al sistema por primera vez.'
+        : 'Tocá el botón para elegir una contraseña nueva.'}</p>
+      <p class="login-error" id="link-mail-error" role="alert" hidden></p>
+      <button type="button" class="btn login-btn" id="btn-usar-link">${bienvenida ? 'Crear mi contraseña' : 'Elegir contraseña nueva'}</button>`;
+  }
+
+  return `
+    <div class="login-wrap">
+      <div class="login-split">
+        <aside class="login-side">
+          <div class="login-logo">
+            <img src="${esc(CLINICA.logo)}" alt="${esc(CLINICA.nombre)}"
+                 onerror="this.replaceWith(document.createTextNode('Lz'))">
+          </div>
+          <h2 class="login-side-name">${esc(CLINICA.nombre)}</h2>
+          <p class="login-side-sub">${esc(CLINICA.subtitulo)}</p>
+        </aside>
+        <div class="login-main">
+          <button class="theme-toggle login-theme" id="login-theme" type="button"
+                  title="Cambiar a modo oscuro" aria-label="Cambiar a modo oscuro">${ICONOS_TEMA}</button>
+          <div class="login-form">${cuerpo}</div>
+        </div>
+      </div>
+    </div>`;
+}
+
 // Pantalla "elegir contraseña nueva": a la que vuelve el link del mail.
 // Se llega acá con la sesión temporal de recuperación (evento
 // 'PASSWORD_RECOVERY'), no hace falta pedir la contraseña vieja.

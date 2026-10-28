@@ -68,6 +68,14 @@ export async function establecerContrasena(password) {
   return supabase.auth.updateUser({ password, data: { elegir_contrasena: false } });
 }
 
+// Usa el código de un link de mail (bienvenida o recuperar, ver
+// utils/linkMail.js). Si es válido, Supabase abre la sesión y avisa por
+// alCambiarSesion: 'SIGNED_IN' (bienvenida) o 'PASSWORD_RECOVERY'
+// (recuperar), y desde ahí sigue el flujo de siempre. Devuelve { error }.
+export async function usarLinkDelMail({ tipo, tokenHash }) {
+  return supabase.auth.verifyOtp({ type: tipo, token_hash: tokenHash });
+}
+
 // ---------------------------------------------------------------------
 // BIENVENIDA (usuario nuevo)
 // ---------------------------------------------------------------------

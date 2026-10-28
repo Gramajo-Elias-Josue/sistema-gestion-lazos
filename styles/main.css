@@ -1088,11 +1088,12 @@ tbody tr:last-child td{border-bottom:none}
 .login-field input:focus{outline:none;border-color:var(--teal-700);box-shadow:0 0 0 3px var(--teal-100)}
 .login-error{background:var(--red-50);color:var(--red-600);border:1px solid var(--red-100);border-radius:10px;padding:10px 12px;font-size:14px;margin:0}
 /* Botón "Entrar": degradé navy->celeste de la marca, con elevación y
-   hover. Se estila por id para ganarle al override de .btn del tema claro. */
-#btn-login{margin-top:8px;display:flex;align-items:center;justify-content:center;text-align:center;padding:13px;font-size:16px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--teal-800),var(--teal-700));border-radius:11px;box-shadow:0 8px 20px -8px rgba(20,136,194,.55);letter-spacing:.3px}
-#btn-login:hover{background:linear-gradient(135deg,var(--teal-900),var(--teal-800));transform:translateY(-1px);box-shadow:0 12px 26px -8px rgba(20,136,194,.7)}
-#btn-login:active{transform:translateY(0);box-shadow:0 6px 16px -8px rgba(20,136,194,.6)}
-#btn-login[disabled]{opacity:.7;transform:none;box-shadow:none;cursor:default}
+   hover. Se estila por id para ganarle al override de .btn del tema claro
+   (y lo mismo para los botones de las otras pantallas del login). */
+#btn-login,#login-root .login-btn{margin-top:8px;display:flex;align-items:center;justify-content:center;text-align:center;padding:13px;font-size:16px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--teal-800),var(--teal-700));border-radius:11px;box-shadow:0 8px 20px -8px rgba(20,136,194,.55);letter-spacing:.3px}
+#btn-login:hover,#login-root .login-btn:hover{background:linear-gradient(135deg,var(--teal-900),var(--teal-800));transform:translateY(-1px);box-shadow:0 12px 26px -8px rgba(20,136,194,.7)}
+#btn-login:active,#login-root .login-btn:active{transform:translateY(0);box-shadow:0 6px 16px -8px rgba(20,136,194,.6)}
+#btn-login[disabled],#login-root .login-btn[disabled]{opacity:.7;transform:none;box-shadow:none;cursor:default}
 /* Enlace secundario del login: "¿Olvidaste tu contraseña?" / "Volver a
    iniciar sesión". Texto simple, sin competir con el botón principal. */
 .login-link{all:unset;cursor:pointer;text-align:center;font-size:14px;color:var(--teal-700);font-weight:600;padding:4px}

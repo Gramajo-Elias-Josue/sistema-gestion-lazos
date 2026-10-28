@@ -3,7 +3,11 @@
   Dónde va: Supabase → Authentication → Emails → "Invite user".
   Asunto:   Bienvenido/a al Sistema de Gestión Lazos
   La manda la Edge Function crear-usuario al dar de alta un usuario.
-  {{ .ConfirmationURL }} lo reemplaza Supabase por el link real: no tocar.
+  El botón lleva a la app con el código ({{ .TokenHash }}), NO al link de
+  Supabase ({{ .ConfirmationURL }}): ese se gasta apenas alguien lo abre, y
+  algunos antivirus/filtros de correo lo abren antes que la persona. La app
+  usa el código recién cuando se toca su botón (ver src/utils/linkMail.js).
+  {{ .RedirectTo }} y {{ .TokenHash }} los completa Supabase: no tocar.
 -->
 <div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:14px;overflow:hidden;border:1px solid #e6e2d8;font-family:Arial,Helvetica,sans-serif">
 
@@ -21,7 +25,7 @@
     </p>
 
     <div style="text-align:center;margin-bottom:26px">
-      <a href="{{ .ConfirmationURL }}"
+      <a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=invite"
          style="background:#1488c2;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:14px 32px;border-radius:10px;display:inline-block">
         Crear mi contraseña
       </a>
