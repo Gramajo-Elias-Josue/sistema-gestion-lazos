@@ -14,3 +14,6 @@ Thumbs.db
 
 # Configuración local de Claude Code (permisos, settings de la máquina)
 .claude/
+
+# Documentación de la PPS (Word, capturas): se entrega aparte
+documentacion-pps/
