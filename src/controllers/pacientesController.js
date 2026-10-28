@@ -13,17 +13,26 @@ import * as evaluacionModel from '../models/evaluacionModel.js';
 import * as asignacionModel from '../models/asignacionModel.js';
 import * as asistenciaModel from '../models/asistenciaModel.js';
 import * as asistenciaProfModel from '../models/asistenciaProfesionalModel.js';
+import * as categoriaModel from '../models/categoriaModel.js';
 import {
   renderEstructura, renderTabla, renderFicha, renderHistoria, renderCategorias,
   renderFormPaciente, renderFormDocumento, renderVistaEvaluacion,
+  renderListaCategorias, renderModalCategoria,
 } from '../views/pacientesView.js';
 import { htmlCargando, htmlError, toast, confirmar } from '../utils/ui.js';
 import { hoyISO } from '../utils/fechas.js';
 import { validarPaciente, validarDocumento, normalizarDni } from '../utils/validacion.js';
-import { parseEvaluacion, autoresElegiblesHoy, autoresCertificado, TIPO_CERTIFICADO } from '../utils/evaluacion.js';
+import { parseEvaluacion, autoresElegiblesHoy, autoresCertificado, autoresDelUsuario, TIPO_CERTIFICADO } from '../utils/evaluacion.js';
 import { mensajeError } from '../utils/errores.js';
 import { abrirEditorInforme } from './editorInforme.js';
 import { FILTROS_VACIOS, cantidadFiltros, hayQueMostrar, pasaFiltros } from '../utils/filtrosPacientes.js';
+import { CATEGORIA_CUD, CATEGORIA_INFORMES, claveDesdeNombre, siguienteOrden, nombreRepetido } from '../utils/catalogos.js';
+import { perfilActual } from '../sesion.js';
+import { puedeOperar } from '../permisos.js';
+
+// Categorías de la historia clínica (pestaña "Categorías"). Se vuelven a
+// pedir al abrir cada historia, por si cambiaron.
+let categoriasCargadas = [];
 
 // Cuántos pacientes por página en el listado, y en qué página está.
 const PAC_POR_PAGINA = 12;
@@ -36,8 +45,31 @@ let pacFiltros = { ...FILTROS_VACIOS };
 // Punto de entrada de la sección Pacientes (lo llama el router).
 export async function iniciarPacientes() {
   const contenedor = document.getElementById('v-pacientes');
-  contenedor.innerHTML = renderEstructura();
-  await cargarLista();
+  // La pestaña "Categorías" es solo de dirección / secretaría (la base
+  // tampoco deja que otro rol las cambie).
+  const gestiona = puedeOperar(perfilActual());
+  contenedor.innerHTML = renderEstructura({ gestiona });
+  if (gestiona) {
+    document.getElementById('pac-tabs').addEventListener('click', (e) => {
+      const b = e.target.closest('.tab');
+      if (b) cambiarTab(b.dataset.tab);
+    });
+    document.getElementById('btn-nueva-categoria').addEventListener('click', () => abrirFormCategoria());
+    document.getElementById('categorias-tabla').addEventListener('click', (e) => {
+      const editar = e.target.closest('.btn-editar-categoria');
+      if (editar) abrirFormCategoria(categoriasCargadas.find(c => String(c.id) === editar.dataset.id));
+      const eliminar = e.target.closest('.btn-eliminar-categoria');
+      if (eliminar) eliminarCategoria(eliminar.dataset);
+    });
+  }
+  await Promise.all([cargarLista(), gestiona ? cargarCategorias() : null]);
+}
+
+// Pestañas Pacientes / Categorías (mismo patrón que Profesionales).
+function cambiarTab(tab) {
+  document.querySelectorAll('#pac-tabs .tab').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  document.getElementById('pac-pane-pacientes').classList.toggle('hidden', tab !== 'pacientes');
+  document.getElementById('pac-pane-categorias').classList.toggle('hidden', tab !== 'categorias');
 }
 
 // ---------------------------------------------------------------------
@@ -189,13 +221,17 @@ function cambiarPagina(caja, pasos) {
 }
 
 // Muestra el listado y oculta el detalle (legajo / historia).
+// Con un legajo o una historia abiertos se esconden las pestañas: se
+// vuelve a la lista con "‹ Volver".
 function mostrarLista() {
+  document.getElementById('pac-tabs')?.classList.remove('hidden');
   document.getElementById('lista-pac').classList.remove('hidden');
   document.getElementById('ficha-pac').classList.add('hidden');
 }
 
 // Prepara el contenedor de detalle (legajo o historia) y lo muestra.
 function abrirDetalle() {
+  document.getElementById('pac-tabs')?.classList.add('hidden');
   document.getElementById('lista-pac').classList.add('hidden');
   const ficha = document.getElementById('ficha-pac');
   ficha.classList.remove('hidden');
@@ -229,12 +265,14 @@ async function abrirHistoria(id) {
   try {
     // En paralelo: datos del paciente (con documentos) + sus evaluaciones
     // profesionales, que van en su propio apartado de la historia clínica.
-    const [paciente, evaluaciones] = await Promise.all([
+    const [paciente, evaluaciones, categorias] = await Promise.all([
       pacienteModel.obtenerPaciente(id),
       evaluacionModel.listarPorPaciente(id).catch(() => []),
+      categoriaModel.listarCategorias(),
     ]);
+    categoriasCargadas = categorias;
     const docs = paciente.documentos || [];
-    ficha.innerHTML = renderHistoria(paciente, evaluaciones);
+    ficha.innerHTML = renderHistoria(paciente, evaluaciones, categorias);
     document.getElementById('btn-volver').addEventListener('click', cargarLista);
     document.getElementById('btn-ver-legajo').addEventListener('click', () => abrirFicha(id));
 
@@ -268,7 +306,7 @@ async function abrirHistoria(id) {
 
     // Buscador: re-renderiza solo las tarjetas según el término escrito.
     document.getElementById('hist-buscar').addEventListener('input', (e) => {
-      cats.innerHTML = renderCategorias(docs, e.target.value);
+      cats.innerHTML = renderCategorias(docs, e.target.value, categorias);
       conectar();
     });
   } catch (err) {
@@ -438,8 +476,8 @@ export function abrirFormPaciente(paciente = {}, opts = {}) {
 // ---------------------------------------------------------------------
 // FORMULARIO AGREGAR DOCUMENTO A LA HISTORIA CLÍNICA
 // ---------------------------------------------------------------------
-function abrirFormDocumento(pacienteId, tipoDefault = 'cud') {
-  document.body.insertAdjacentHTML('beforeend', renderFormDocumento(tipoDefault));
+function abrirFormDocumento(pacienteId, tipoDefault = CATEGORIA_CUD) {
+  document.body.insertAdjacentHTML('beforeend', renderFormDocumento(tipoDefault, categoriasCargadas));
   const overlay = document.getElementById('overlay-doc');
   const form = document.getElementById('form-doc');
   const cerrar = () => overlay.remove();
@@ -520,7 +558,7 @@ async function abrirFormEvaluacion(paciente, evalsPaciente = []) {
       fichajesHoy.filter(f => f.estado === 'presente').map(f => String(f.profesional_id))
     );
 
-    turnos = autoresElegiblesHoy({ asignaciones, pacientePresente, idsProfPresentes });
+    turnos = autoresDelUsuario(autoresElegiblesHoy({ asignaciones, pacientePresente, idsProfPresentes }), perfilActual());
   } catch (err) {
     console.error('Error buscando la atención de hoy:', err);
     toast('No se pudo consultar la atención de hoy. Revisá la conexión.', 'bad');
@@ -556,7 +594,7 @@ async function abrirFormCertificado(paciente, evalsPaciente = []) {
       asistenciaModel.listarPorPacienteRango(pacienteId, '2000-01-01', hoy),
     ]);
     const fechasPresente = asistencias.filter(a => a.estado === 'presente').map(a => a.fecha);
-    autores = autoresCertificado({ asignaciones, fechasPresente });
+    autores = autoresDelUsuario(autoresCertificado({ asignaciones, fechasPresente }), perfilActual());
   } catch (err) {
     console.error('Error buscando la asistencia del paciente:', err);
     toast('No se pudo consultar la asistencia del paciente. Revisá la conexión.', 'bad');
@@ -612,7 +650,7 @@ async function guardarYAdjuntar(paciente, { datos, contenido, autor, turnoId }) 
     });
     const archivo = new File([blob], filename, { type: 'application/pdf' });
     await documentoModel.guardarDocumento({
-      pacienteId: paciente.id, tipo: 'informe', archivo, fechaEmision: hoy,
+      pacienteId: paciente.id, tipo: CATEGORIA_INFORMES, archivo, fechaEmision: hoy,
       observaciones: `${datos.titulo} — ${autor.profesionales?.nombre_completo || ''}`.trim(),
     });
     toast('Guardado y adjuntado a la historia clínica.');
@@ -679,5 +717,95 @@ async function verDocumento(storagePath) {
   } catch (err) {
     console.error('Error abriendo documento:', err);
     toast('No se pudo abrir el archivo. Probá de nuevo.', 'bad');
+  }
+}
+
+// ---------------------------------------------------------------------
+// CATEGORÍAS DE LA HISTORIA CLÍNICA (pestaña "Categorías")
+// ---------------------------------------------------------------------
+async function cargarCategorias() {
+  const caja = document.getElementById('categorias-tabla');
+  caja.innerHTML = htmlCargando('Cargando categorías…');
+  try {
+    categoriasCargadas = await categoriaModel.listarCategorias();
+    caja.innerHTML = renderListaCategorias(categoriasCargadas);
+  } catch (err) {
+    console.error('Error listando las categorías:', err);
+    caja.innerHTML = htmlError('No se pudieron cargar las categorías. Revisá la conexión.');
+  }
+}
+
+// Alta (sin `categoria`) o edición de nombre e ícono (con `categoria`).
+function abrirFormCategoria(categoria = {}) {
+  document.body.insertAdjacentHTML('beforeend', renderModalCategoria(categoria));
+  const overlay = document.getElementById('overlay-categoria');
+  const form = document.getElementById('form-categoria');
+  const cerrar = () => overlay.remove();
+
+  overlay.querySelectorAll('[data-cerrar]').forEach(b => b.addEventListener('click', cerrar));
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) cerrar(); });
+  form.querySelector('input')?.focus();
+
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const titulo = fd.get('titulo').trim();
+    const icono = fd.get('icono');
+    if (!titulo) return;
+    if (nombreRepetido(categoriasCargadas, titulo, categoria.id)) {
+      toast('Ya hay una categoría con ese nombre.', 'bad');
+      return;
+    }
+
+    try {
+      if (categoria.id) {
+        await categoriaModel.editarCategoria(categoria.id, { titulo, icono });
+      } else {
+        await categoriaModel.crearCategoria({
+          titulo, icono, clave: claveDesdeNombre(titulo), orden: siguienteOrden(categoriasCargadas),
+        });
+      }
+      cerrar();
+      await cargarCategorias();
+      toast(categoria.id ? 'Categoría actualizada.' : `"${titulo}" agregada a la historia clínica.`);
+    } catch (err) {
+      console.error('Error guardando la categoría:', err);
+      toast(mensajeError(err, 'No se pudo guardar. Probá de nuevo.'), 'bad');
+    }
+  });
+}
+
+// Elimina una categoría VACÍA. Si tiene documentos no se borra (se
+// esconderían papeles de los legajos): se avisa cuántos hay.
+async function eliminarCategoria({ id, clave, titulo }) {
+  let cantidad = 0;
+  try {
+    cantidad = await categoriaModel.contarDocumentos(clave);
+  } catch (err) {
+    console.error('No se pudieron contar los documentos de la categoría:', err);
+    toast('No se pudo revisar la categoría. Revisá la conexión.', 'bad');
+    return;
+  }
+  if (cantidad) {
+    toast(`"${titulo}" tiene ${cantidad === 1 ? '1 documento' : `${cantidad} documentos`} en las historias clínicas: no se puede eliminar.`, 'bad');
+    return;
+  }
+
+  const seguro = await confirmar({
+    titulo: `¿Eliminar "${titulo}"?`,
+    mensaje: 'Está vacía: deja de aparecer en las historias clínicas y al agregar un documento.',
+    textoOk: 'Sí, eliminar',
+    textoCancelar: 'No, dejarla',
+    peligro: true,
+  });
+  if (!seguro) return;
+
+  try {
+    await categoriaModel.eliminarCategoria(id);
+    await cargarCategorias();
+    toast(`"${titulo}" eliminada.`);
+  } catch (err) {
+    console.error('Error eliminando la categoría:', err);
+    toast(mensajeError(err, 'No se pudo eliminar. Probá de nuevo.'), 'bad');
   }
 }

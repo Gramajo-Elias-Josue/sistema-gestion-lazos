@@ -12,37 +12,16 @@ import { esc, pill, tonoDe } from '../utils/ui.js';
 import { FILTROS_VACIOS, SIN_OBRA_SOCIAL, obrasSociales } from '../utils/filtrosPacientes.js';
 import { TIPOS_INFORME, SECCIONES_INFORME, parseEvaluacion, evaluacionVacia } from '../utils/evaluacion.js';
 import { CLINICA } from '../config/clinica.js';
+import { CATEGORIA_CUD, CATEGORIAS_FIJAS, ICONOS_CATEGORIA } from '../utils/catalogos.js';
 
-// Tipos de documento de la historia clínica: código (lo que se guarda)
-// y etiqueta legible (lo que se muestra).
-export const TIPOS_DOCUMENTO = {
-  cud:                'CUD',
-  dni:                'DNI',
-  certificado_medico: 'Certificado médico',
-  autorizacion_os:    'Autorización obra social',
-  informe_escolar:    'Informe escolar',
-  evaluacion:         'Evaluación / Diagnóstico',
-  informe:            'Informe de evolución',
-  estudios:           'Estudios',
-  consentimiento:     'Consentimiento informado',
-  otro:               'Otro',
-};
+// Las CATEGORÍAS en las que se organiza la historia clínica (CUD, DNI,
+// Estudios…) están en la base (categorias_documento) y se editan en la
+// pestaña "Categorías". Cada documento guarda la clave de la suya en
+// documentos.tipo. Las funciones de abajo las reciben por parámetro.
 
-// Categorías en las que se ORGANIZA la historia clínica. Cada tarjeta
-// agrupa uno o varios tipos de documento. Es la "estantería" del legajo.
-export const CATEGORIAS_HISTORIA = [
-  { titulo: 'CUD',                    icono: '🪪', tipos: ['cud'] },
-  { titulo: 'DNI / Identificación',   icono: '🆔', tipos: ['dni'] },
-  { titulo: 'Estudios y evaluaciones', icono: '🔬', tipos: ['estudios', 'evaluacion'] },
-  { titulo: 'Historial médico',       icono: '🩺', tipos: ['certificado_medico', 'informe'] },
-  { titulo: 'Obra social',            icono: '📋', tipos: ['autorizacion_os'] },
-  { titulo: 'Escolar',                icono: '🏫', tipos: ['informe_escolar'] },
-  { titulo: 'Otros',                  icono: '▤', tipos: ['consentimiento', 'otro'] },
-];
-
-// Devuelve la etiqueta legible de un tipo (o el código si no está mapeado).
-function etiquetaTipo(tipo) {
-  return TIPOS_DOCUMENTO[tipo] || tipo;
+// Título de la categoría de un documento (o la clave, si no se encuentra).
+function tituloCategoria(clave, categorias) {
+  return categorias.find(c => c.clave === clave)?.titulo || clave;
 }
 
 // Ordena documentos del más nuevo al más viejo por fecha de emisión.
@@ -79,15 +58,99 @@ function docRowHtml(d) {
 
 // Estructura base: contenedor del listado + contenedor de detalle
 // (que muestra el legajo o la historia clínica, según corresponda).
-export function renderEstructura() {
-  return `
-    <div id="lista-pac">
-      <div style="margin-bottom:18px">
-        <p style="color:var(--ink-soft);font-size:15px">Pacientes admitidos. Tocá un paciente para abrir su legajo; usá los botones para su historia clínica, editar o dar de baja. Los ingresos nuevos se cargan desde <b>Admisión</b>.</p>
+// `gestiona` (dirección / secretaría) suma la pestaña "Categorías", para
+// editar las categorías de la historia clínica.
+export function renderEstructura({ gestiona = false } = {}) {
+  const pestanas = gestiona ? `
+    <div class="tabs" id="pac-tabs">
+      <button class="tab active" data-tab="pacientes">Pacientes</button>
+      <button class="tab" data-tab="categorias">Categorías</button>
+    </div>` : '';
+  const categorias = gestiona ? `
+    <div id="pac-pane-categorias" class="hidden">
+      <div class="seccion-intro">
+        <p>Categorías en las que se ordena la historia clínica de cada paciente. Al agregar un documento se elige una de estas.</p>
+        <button class="btn" id="btn-nueva-categoria">+ Nueva categoría</button>
       </div>
-      <div id="pac-tabla"></div>
-    </div>
-    <div id="ficha-pac" class="hidden"></div>`;
+      <div id="categorias-tabla"></div>
+    </div>` : '';
+
+  return `${pestanas}
+    <div id="pac-pane-pacientes">
+      <div id="lista-pac">
+        <div style="margin-bottom:18px">
+          <p style="color:var(--ink-soft);font-size:15px">Pacientes admitidos. Tocá un paciente para abrir su legajo; usá los botones para su historia clínica, editar o dar de baja. Los ingresos nuevos se cargan desde <b>Admisión</b>.</p>
+        </div>
+        <div id="pac-tabla"></div>
+      </div>
+      <div id="ficha-pac" class="hidden"></div>
+    </div>${categorias}`;
+}
+
+// Tabla de categorías (pestaña "Categorías"). CUD e Historial médico las
+// usa el sistema: se pueden renombrar, no eliminar.
+export function renderListaCategorias(categorias) {
+  if (!categorias.length) {
+    return `<div class="tablewrap"><div class="state">No hay categorías. Usá "+ Nueva categoría".</div></div>`;
+  }
+  const filas = categorias.map(c => {
+    const fija = CATEGORIAS_FIJAS.includes(c.clave);
+    const eliminar = fija
+      ? `<small style="color:var(--ink-faint)" title="La usa el sistema (${c.clave === CATEGORIA_CUD ? 'aviso de vencimiento del CUD' : 'ahí se adjunta el PDF de cada informe'})">Fija</small>`
+      : `<button class="btn ghost btn-eliminar-categoria" data-id="${esc(c.id)}" data-clave="${esc(c.clave)}" data-titulo="${esc(c.titulo)}" style="padding:6px 12px;color:var(--red-600)">Eliminar</button>`;
+    return `
+    <tr>
+      <td><b>${esc(c.icono)} ${esc(c.titulo)}</b></td>
+      <td class="catalogo-acciones">
+        <button class="btn ghost btn-editar-categoria" data-id="${esc(c.id)}" style="padding:6px 12px">Editar</button>
+        ${eliminar}
+      </td>
+    </tr>`;
+  }).join('');
+
+  return `
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Categoría</th><th></th></tr></thead>
+        <tbody>${filas}</tbody>
+      </table>
+    </div>`;
+}
+
+// Modal para crear una categoría o editarla (`categoria` con id): nombre
+// e ícono.
+export function renderModalCategoria(categoria = {}) {
+  const edicion = !!categoria.id;
+  const actual = categoria.icono || ICONOS_CATEGORIA[0];
+  const iconos = ICONOS_CATEGORIA.includes(actual) ? ICONOS_CATEGORIA : [actual, ...ICONOS_CATEGORIA];
+  const opciones = iconos.map(i => `<option value="${esc(i)}" ${i === actual ? 'selected' : ''}>${esc(i)}</option>`).join('');
+  return `
+    <div class="overlay" id="overlay-categoria">
+      <div class="modal" style="max-width:420px">
+        <div class="modal-h">
+          <h2>${edicion ? 'Editar categoría' : 'Nueva categoría'}</h2>
+          <button class="x" data-cerrar aria-label="Cerrar">×</button>
+        </div>
+        <form id="form-categoria">
+          <div class="modal-b">
+            <div class="form-grid">
+              <div class="form-field full">
+                <label>Nombre *</label>
+                <input name="titulo" required placeholder="Ej: Medicación" autocomplete="off" value="${esc(categoria.titulo || '')}">
+              </div>
+              <div class="form-field full">
+                <label>Ícono</label>
+                <select name="icono" style="font-size:20px">${opciones}</select>
+              </div>
+            </div>
+          </div>
+          <div class="modal-f">
+            <button type="button" class="btn ghost" data-cerrar>Cancelar</button>
+            <button type="submit" class="btn">${edicion ? 'Guardar' : 'Agregar'}</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
 }
 
 // Estado del CUD según el dato del paciente (tiene / no tiene CUD).
@@ -197,7 +260,7 @@ export function renderTabla(pacientes, { termino = '', filtros = FILTROS_VACIOS 
 
 // Legajo: datos personales + contactos + acceso a la historia clínica.
 export function renderFicha(paciente) {
-  const cudDoc = (paciente.documentos || []).find(d => d.tipo === 'cud');
+  const cudDoc = (paciente.documentos || []).find(d => d.tipo === CATEGORIA_CUD);
   const cudInfo = cudDoc ? estadoVencimiento(cudDoc.fecha_vencimiento) : null;
   const totalDocs = (paciente.documentos || []).length;
 
@@ -249,11 +312,11 @@ export function renderFicha(paciente) {
     </div>`;
 }
 
-// ¿El documento coincide con el término de búsqueda? Busca en el tipo,
-// el número, el nombre del archivo, las observaciones y las fechas.
-function docCoincide(d, term) {
+// ¿El documento coincide con el término de búsqueda? Busca en la
+// categoría, el número, el nombre del archivo, las observaciones y las fechas.
+function docCoincide(d, term, categorias) {
   const campos = [
-    etiquetaTipo(d.tipo), d.numero, d.nombre_archivo,
+    tituloCategoria(d.tipo, categorias), d.numero, d.nombre_archivo,
     d.observaciones, d.fecha_emision, d.fecha_vencimiento,
   ];
   return campos.some(c => c && String(c).toLowerCase().includes(term));
@@ -261,12 +324,13 @@ function docCoincide(d, term) {
 
 // Tarjetas de categorías de la historia clínica, opcionalmente filtradas.
 // Se exporta aparte para poder re-renderizar solo esta parte al buscar.
-export function renderCategorias(docs, filtro = '') {
+// `categorias` = las de la base (pestaña "Categorías"), en orden.
+export function renderCategorias(docs, filtro = '', categorias = []) {
   const term = filtro.trim().toLowerCase();
 
-  const tarjetas = CATEGORIAS_HISTORIA.map(cat => {
-    let propios = ordenarPorEmision(docs.filter(d => cat.tipos.includes(d.tipo)));
-    if (term) propios = propios.filter(d => docCoincide(d, term));
+  const tarjetas = categorias.map(cat => {
+    let propios = ordenarPorEmision(docs.filter(d => d.tipo === cat.clave));
+    if (term) propios = propios.filter(d => docCoincide(d, term, categorias));
 
     // Con búsqueda activa, se ocultan las categorías sin coincidencias.
     if (term && !propios.length) return '';
@@ -278,13 +342,13 @@ export function renderCategorias(docs, filtro = '') {
     // El botón "+ Agregar" solo aparece sin búsqueda (al explorar).
     const agregar = term ? '' : `
           <div style="padding:12px 8px 4px">
-            <button class="btn ghost btn-agregar-doc" data-tipo="${cat.tipos[0]}" style="width:100%;text-align:center">+ Agregar a ${esc(cat.titulo)}</button>
+            <button class="btn ghost btn-agregar-doc" data-tipo="${esc(cat.clave)}" style="width:100%;text-align:center">+ Agregar a ${esc(cat.titulo)}</button>
           </div>`;
 
     return `
       <div class="panel">
         <div class="panel-h">
-          <h2>${cat.icono} ${cat.titulo}</h2>
+          <h2>${esc(cat.icono)} ${esc(cat.titulo)}</h2>
           <span class="cnt">${propios.length}</span>
         </div>
         <div class="panel-b">${cuerpo}${agregar}</div>
@@ -473,7 +537,7 @@ export function renderVistaEvaluacion(paciente = {}, ev = {}, inf = {}, editable
 }
 
 // Historia clínica: buscador + evaluaciones profesionales + documentos.
-export function renderHistoria(paciente, evaluaciones = []) {
+export function renderHistoria(paciente, evaluaciones = [], categorias = []) {
   const docs = paciente.documentos || [];
 
   return `
@@ -489,7 +553,7 @@ export function renderHistoria(paciente, evaluaciones = []) {
 
     <div style="margin-bottom:18px">
       <input id="hist-buscar" type="search" autocomplete="off"
-        placeholder="🔎 Buscar en la historia clínica… (tipo, número, fecha, nota)"
+        placeholder="🔎 Buscar en la historia clínica… (categoría, número, fecha, nota)"
         style="width:100%;font-family:var(--body);font-size:15.5px;padding:12px 14px;border:1px solid var(--line);border-radius:11px;background:var(--card);box-shadow:var(--shadow)">
     </div>
 
@@ -497,7 +561,7 @@ export function renderHistoria(paciente, evaluaciones = []) {
     ${renderEvaluacionesHistoria(evaluaciones)}
 
     <!-- Documentos por categoría (se re-renderiza al buscar) -->
-    <div class="legajo-grid" id="hist-cats">${renderCategorias(docs)}</div>`;
+    <div class="legajo-grid" id="hist-cats">${renderCategorias(docs, '', categorias)}</div>`;
 }
 
 // Formulario (modal) de alta/edición de paciente.
@@ -552,11 +616,11 @@ export function renderFormPaciente(paciente = {}) {
 }
 
 // Formulario (modal) para agregar un documento a la historia clínica.
-// tipoDefault: tipo preseleccionado (lo manda la tarjeta de categoría).
-export function renderFormDocumento(tipoDefault = 'cud') {
-  const opciones = Object.entries(TIPOS_DOCUMENTO)
-    .map(([valor, etiqueta]) =>
-      `<option value="${valor}" ${valor === tipoDefault ? 'selected' : ''}>${etiqueta}</option>`)
+// tipoDefault: categoría preseleccionada (la manda la tarjeta en la que
+// se tocó "+ Agregar"). `categorias` = las de la base.
+export function renderFormDocumento(tipoDefault = CATEGORIA_CUD, categorias = []) {
+  const opciones = categorias
+    .map(c => `<option value="${esc(c.clave)}" ${c.clave === tipoDefault ? 'selected' : ''}>${esc(c.icono)} ${esc(c.titulo)}</option>`)
     .join('');
   return `
     <div class="overlay" id="overlay-doc">
@@ -565,7 +629,7 @@ export function renderFormDocumento(tipoDefault = 'cud') {
         <form id="form-doc">
           <div class="modal-b">
             <div class="form-grid">
-              <div class="form-field full"><label>Tipo de documento *</label>
+              <div class="form-field full"><label>Categoría *</label>
                 <select name="tipo" required>${opciones}</select>
               </div>
               <div class="form-field full"><label>Número (si corresponde)</label><input name="numero" placeholder="N° de CUD, certificado…"></div>

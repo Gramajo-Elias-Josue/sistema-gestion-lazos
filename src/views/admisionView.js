@@ -4,34 +4,88 @@
 // CAPA VISTA. Pantalla del proceso de admisión: lista de pacientes en
 // trámite y, por paciente, el checklist de documentación presentada con
 // el botón para APROBAR la admisión (recién ahí pasa a ser paciente).
+// La pestaña "Documentación" edita QUÉ se pide (requisitos_admision).
 // =====================================================================
 
 import { esc, pill, tonoDe } from '../utils/ui.js';
 import { iniciales, formatearFecha, calcularEdad } from '../utils/fechas.js';
 
-// Requisitos estándar de documentación que se controlan en la admisión.
-// `clave` se guarda en admision_documentos.requisito; `etiqueta` se muestra.
-export const REQUISITOS_ADMISION = [
-  { clave: 'dni',                etiqueta: 'DNI (copia)' },
-  { clave: 'cud',               etiqueta: 'CUD (si tiene)' },
-  { clave: 'certificado_medico', etiqueta: 'Certificado médico' },
-  { clave: 'estudios',          etiqueta: 'Estudios / evaluaciones previas' },
-  { clave: 'carnet_obra_social', etiqueta: 'Carnet de obra social' },
-  { clave: 'informe_escolar',   etiqueta: 'Informe escolar' },
-  { clave: 'consentimiento',    etiqueta: 'Consentimiento informado firmado' },
-];
-
-// Estructura base: contenedor de la lista + contenedor del detalle.
+// Estructura base: pestañas En trámite / Documentación. "En trámite"
+// tiene la lista y, al abrir un paciente, su detalle.
 export function renderEstructura() {
   return `
-    <div id="lista-adm">
-      <div class="seccion-intro">
-        <p>Pacientes en proceso de admisión. Controlá la documentación presentada y aprobá la admisión para que pasen a ser pacientes.</p>
-        <button class="btn" id="btn-nuevo-ingreso">+ Nuevo ingreso</button>
-      </div>
-      <div id="adm-tabla"></div>
+    <div class="tabs" id="adm-tabs">
+      <button class="tab active" data-tab="tramite">En trámite</button>
+      <button class="tab" data-tab="documentacion">Documentación</button>
     </div>
-    <div id="ficha-adm" class="hidden"></div>`;
+    <div id="adm-pane-tramite">
+      <div id="lista-adm">
+        <div class="seccion-intro">
+          <p>Pacientes en proceso de admisión. Controlá la documentación presentada y aprobá la admisión para que pasen a ser pacientes.</p>
+          <button class="btn" id="btn-nuevo-ingreso">+ Nuevo ingreso</button>
+        </div>
+        <div id="adm-tabla"></div>
+      </div>
+      <div id="ficha-adm" class="hidden"></div>
+    </div>
+    <div id="adm-pane-documentacion" class="hidden">
+      <div class="seccion-intro">
+        <p>Documentación que se pide al admitir un paciente. Es la lista que aparece para tildar en cada admisión.</p>
+        <button class="btn" id="btn-nuevo-requisito">+ Nuevo documento</button>
+      </div>
+      <div id="requisitos-tabla"></div>
+    </div>`;
+}
+
+// Tabla de la documentación que se pide (pestaña "Documentación").
+export function renderListaRequisitos(requisitos) {
+  if (!requisitos.length) {
+    return `<div class="tablewrap"><div class="state">No se pide ningún documento. Usá "+ Nuevo documento".</div></div>`;
+  }
+  const filas = requisitos.map(r => `
+    <tr>
+      <td><b>${esc(r.etiqueta)}</b></td>
+      <td class="catalogo-acciones">
+        <button class="btn ghost btn-editar-requisito" data-id="${esc(r.id)}" style="padding:6px 12px">Editar</button>
+        <button class="btn ghost btn-quitar-requisito" data-id="${esc(r.id)}" data-etiqueta="${esc(r.etiqueta)}" style="padding:6px 12px;color:var(--red-600)">Quitar</button>
+      </td>
+    </tr>`).join('');
+
+  return `
+    <div class="tablewrap">
+      <table>
+        <thead><tr><th>Documento</th><th></th></tr></thead>
+        <tbody>${filas}</tbody>
+      </table>
+    </div>`;
+}
+
+// Modal para agregar un documento a pedir, o renombrarlo (`requisito`
+// con id = edición).
+export function renderModalRequisito(requisito = {}) {
+  const edicion = !!requisito.id;
+  return `
+    <div class="overlay" id="overlay-requisito">
+      <div class="modal" style="max-width:420px">
+        <div class="modal-h">
+          <h2>${edicion ? 'Editar documento' : 'Nuevo documento'}</h2>
+          <button class="x" data-cerrar aria-label="Cerrar">×</button>
+        </div>
+        <form id="form-requisito">
+          <div class="modal-b">
+            <div class="form-field full">
+              <label>Nombre *</label>
+              <input name="etiqueta" required placeholder="Ej: Certificado de vacunas" autocomplete="off" value="${esc(requisito.etiqueta || '')}">
+              <small style="color:var(--ink-faint)">Aparece para tildar en la admisión de cada paciente.</small>
+            </div>
+          </div>
+          <div class="modal-f">
+            <button type="button" class="btn ghost" data-cerrar>Cancelar</button>
+            <button type="submit" class="btn">${edicion ? 'Guardar' : 'Agregar'}</button>
+          </div>
+        </form>
+      </div>
+    </div>`;
 }
 
 // Tabla de pacientes en admisión. En escritorio es una tabla; en
@@ -69,28 +123,29 @@ export function renderLista(pacientes) {
 }
 
 // Detalle de admisión: datos básicos + checklist + acciones.
-// `checklist` son las filas guardadas (admision_documentos) del paciente.
-export function renderAdmision(paciente, checklist = []) {
+// `checklist` son las filas guardadas (admision_documentos) del paciente;
+// `requisitos`, la documentación que se pide hoy (pestaña Documentación).
+export function renderAdmision(paciente, checklist = [], requisitos = []) {
   // Mapa requisito -> fila guardada, para saber qué está presentado.
   const porReq = {};
   checklist.forEach(c => { porReq[c.requisito] = c; });
 
-  const items = REQUISITOS_ADMISION.map(r => {
+  const items = requisitos.length ? requisitos.map(r => {
     const guardado = porReq[r.clave] || {};
     const presentado = guardado.presentado === true;
     return `
       <div class="adm-item">
         <label class="adm-chk">
-          <input type="checkbox" class="adm-check" data-req="${r.clave}" ${presentado ? 'checked' : ''}>
+          <input type="checkbox" class="adm-check" data-req="${esc(r.clave)}" ${presentado ? 'checked' : ''}>
           <span>${esc(r.etiqueta)}</span>
         </label>
-        <input class="adm-obs" data-req="${r.clave}" placeholder="Observación (opcional)" value="${esc(guardado.observaciones || '')}">
+        <input class="adm-obs" data-req="${esc(r.clave)}" placeholder="Observación (opcional)" value="${esc(guardado.observaciones || '')}">
         ${presentado ? pill('ok', 'Presentado') : pill('warn', 'Pendiente')}
       </div>`;
-  }).join('');
+  }).join('') : `<div class="state" style="padding:18px">No se pide ningún documento: se configura en la pestaña "Documentación".</div>`;
 
-  const presentados = REQUISITOS_ADMISION.filter(r => porReq[r.clave]?.presentado).length;
-  const total = REQUISITOS_ADMISION.length;
+  const presentados = requisitos.filter(r => porReq[r.clave]?.presentado).length;
+  const total = requisitos.length;
 
   return `
     <button class="back" id="btn-volver-adm">‹ Volver a la lista</button>

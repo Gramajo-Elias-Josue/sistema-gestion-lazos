@@ -1045,6 +1045,14 @@ tbody tr:last-child td{border-bottom:none}
 
 /* ---- Pestañas (tabs) ---- */
 .tabs{display:flex;gap:4px;margin-bottom:22px;border-bottom:1px solid var(--line)}
+/* Botones Editar / Quitar de las listas editables (Documentación de
+   Admisión, Categorías de Pacientes). En el celular se apilan para que la
+   tabla no quede más ancha que la pantalla. */
+.catalogo-acciones{white-space:nowrap;text-align:right}
+@media(max-width:560px){
+  .catalogo-acciones{white-space:normal}
+  .catalogo-acciones .btn{display:block;margin:4px 0 4px auto}
+}
 .tab{all:unset;cursor:pointer;padding:11px 20px;font-size:16px;font-weight:600;color:var(--ink-soft);border-bottom:2.5px solid transparent;margin-bottom:-1px;transition:color .15s,border-color .15s}
 .tab:hover{color:var(--ink)}
 .tab.active{color:var(--teal-700);border-bottom-color:var(--teal-600)}

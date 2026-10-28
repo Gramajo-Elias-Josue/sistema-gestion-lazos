@@ -33,7 +33,9 @@ update public.perfiles set profesional_id = null;
 -- 2) Vaciar los datos del centro. Estas tablas son todas "hijas" entre sí
 --    y de pacientes; `restart identity` reinicia los contadores.
 --    NO se toca `sectores`: son las áreas fijas del centro (Psicología,
---    Fono, T.O., …), configuración del sistema, no datos de prueba.
+--    Fono, T.O., …), configuración del sistema, no datos de prueba. Lo
+--    mismo `requisitos_admision` y `categorias_documento` (la
+--    documentación que se pide y las categorías de la historia clínica).
 truncate table
   public.evaluaciones,
   public.asistencias_profesionales,

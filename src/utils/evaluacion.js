@@ -108,6 +108,15 @@ export function evaluacionVacia(datos = {}) {
 //   asignaciones     -> asignacionModel.listarPorPaciente(id, {soloVigentes:true})
 //   pacientePresente -> boolean (asistencias de hoy)
 //   idsProfPresentes -> Set de profesional_id fichados presente hoy
+// Un profesional firma SOLO sus informes (la base no le deja guardar
+// otros: ver supabase/sql/14-escritura-informes-y-documentos.sql), así
+// que en el editor se le ofrecen solo sus filas. Dirección y secretaría
+// pueden cargar el de cualquiera.
+export function autoresDelUsuario(autores = [], perfil = null) {
+  if (perfil?.rol !== 'profesional') return autores;
+  return autores.filter(a => String(a.profesional_id) === String(perfil.profesional_id));
+}
+
 export function autoresElegiblesHoy({ asignaciones = [], pacientePresente = false, idsProfPresentes = new Set() } = {}) {
   const autores = [];
   if (!pacientePresente) return autores;

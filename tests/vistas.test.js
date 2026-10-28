@@ -13,7 +13,11 @@ import {
 import { renderTabla as tablaProfesionales, renderFormProfesional, renderListaSectores, renderModalSector } from '../src/views/profesionalesView.js';
 import { renderAlertas, renderEntregas } from '../src/views/inicioView.js';
 import { renderLista as listaTurnos, renderFormTurno, renderEstructura } from '../src/views/turnosView.js';
-import { renderLista as listaAdmision, renderAdmision } from '../src/views/admisionView.js';
+import { renderLista as listaAdmision, renderAdmision, renderListaRequisitos, renderModalRequisito } from '../src/views/admisionView.js';
+import {
+  renderCategorias, renderListaCategorias, renderModalCategoria, renderFormDocumento,
+  renderEstructura as pacientesEstructura,
+} from '../src/views/pacientesView.js';
 import { renderFilas as filasAsistencia, filaHtml as filaAsistencia } from '../src/views/asistenciaView.js';
 import { filaHtml as filaFichaje, renderFilas as filasFichaje } from '../src/views/asistenciaProfView.js';
 import { renderLogin, renderPedirRecuperacion, renderNuevaContrasena, renderLinkDelMail } from '../src/views/loginView.js';
@@ -531,14 +535,94 @@ describe('admisionView', () => {
     expect(html).toContain('Abrir admisión'); // botón de acción
   });
 
-  it('renderAdmision arma el checklist con el progreso', () => {
+  // La documentación que se pide viene de la base (pestaña Documentación).
+  const requisitos = [
+    { id: 1, clave: 'dni', etiqueta: 'DNI (copia)' },
+    { id: 2, clave: 'cud', etiqueta: 'CUD (si tiene)' },
+    { id: 3, clave: 'vacunas', etiqueta: 'Certificado de vacunas' },
+  ];
+
+  it('renderAdmision arma el checklist con la documentación configurada y el progreso', () => {
     // "dni" presentado; el resto pendiente.
     const checklist = [{ requisito: 'dni', presentado: true, observaciones: '' }];
-    const html = renderAdmision(pac, checklist);
+    const html = renderAdmision(pac, checklist, requisitos);
     expect(html).toContain('DNI (copia)');
+    expect(html).toContain('Certificado de vacunas'); // uno agregado desde la app
     expect(html).toContain('Presentado'); // el requisito marcado
     expect(html).toContain('Pendiente');  // los no marcados
-    expect(html).toContain('1 / 7 presentados'); // 7 requisitos estándar
+    expect(html).toContain('1 / 3 presentados');
+  });
+
+  it('renderAdmision: lo marcado de un documento que ya no se pide no cuenta', () => {
+    const checklist = [{ requisito: 'informe_escolar', presentado: true }];
+    expect(renderAdmision(pac, checklist, requisitos)).toContain('0 / 3 presentados');
+  });
+
+  it('renderAdmision sin documentación configurada lo avisa', () => {
+    expect(renderAdmision(pac, [], [])).toContain('pestaña "Documentación"');
+  });
+
+  it('pestaña Documentación: lista con Editar y Quitar, y el modal de alta / edición', () => {
+    const html = renderListaRequisitos(requisitos);
+    expect(html).toContain('Certificado de vacunas');
+    expect(html).toContain('btn-editar-requisito');
+    expect(html).toContain('btn-quitar-requisito');
+    expect(renderListaRequisitos([])).toContain('No se pide ningún documento');
+    expect(renderModalRequisito()).toContain('Nuevo documento');
+    const edicion = renderModalRequisito(requisitos[2]);
+    expect(edicion).toContain('Editar documento');
+    expect(edicion).toContain('value="Certificado de vacunas"');
+  });
+});
+
+describe('pacientesView: categorías de la historia clínica', () => {
+  const categorias = [
+    { id: 1, clave: 'cud', titulo: 'CUD', icono: '🪪' },
+    { id: 2, clave: 'historial', titulo: 'Historial médico', icono: '🩺' },
+    { id: 3, clave: 'medicacion', titulo: 'Medicación', icono: '💊' },
+  ];
+  const docs = [
+    { id: 'a', tipo: 'cud', numero: '123', nombre_archivo: 'cud.pdf', storage_path: 'p/cud.pdf' },
+    { id: 'b', tipo: 'medicacion', observaciones: 'Risperidona', nombre_archivo: 'receta.pdf', storage_path: 'p/receta.pdf' },
+  ];
+
+  it('una tarjeta por categoría de la base, con sus documentos', () => {
+    const html = renderCategorias(docs, '', categorias);
+    expect(html).toContain('💊 Medicación');
+    expect(html).toContain('receta.pdf');
+    expect(html).toContain('data-tipo="medicacion"'); // "+ Agregar a Medicación"
+  });
+
+  it('el buscador también encuentra por nombre de categoría', () => {
+    const html = renderCategorias(docs, 'medica', categorias);
+    expect(html).toContain('receta.pdf');
+    expect(html).not.toContain('cud.pdf');
+  });
+
+  it('pestaña Categorías: CUD e Historial médico son fijas (no se eliminan)', () => {
+    const html = renderListaCategorias(categorias);
+    expect(html).toContain('btn-editar-categoria');
+    expect(html).toContain('data-titulo="Medicación"'); // solo esta tiene Eliminar
+    expect(html).not.toContain('data-titulo="CUD"');
+    expect(html).toContain('Fija');
+  });
+
+  it('modal de categoría: nombre e ícono, y en edición vienen cargados', () => {
+    expect(renderModalCategoria()).toContain('Nueva categoría');
+    const html = renderModalCategoria(categorias[2]);
+    expect(html).toContain('value="Medicación"');
+    expect(html).toContain('<option value="💊" selected>');
+  });
+
+  it('agregar documento: se elige la categoría, con la de la tarjeta ya elegida', () => {
+    const html = renderFormDocumento('medicacion', categorias);
+    expect(html).toContain('Categoría *');
+    expect(html).toContain('<option value="medicacion" selected>');
+  });
+
+  it('la pestaña Categorías solo aparece para quien gestiona', () => {
+    expect(pacientesEstructura({ gestiona: true })).toContain('id="pac-tabs"');
+    expect(pacientesEstructura()).not.toContain('id="pac-tabs"');
   });
 });
 
