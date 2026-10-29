@@ -151,6 +151,7 @@ orden, y son re-ejecutables:
 | `17-fichaje-doble-turno.sql` | Quien trabaja mañana y tarde ficha dos tramos en el mismo día (registra el corte del mediodía) |
 | `18-estado-por-turno.sql` | El de doble turno tiene un estado por turno (puede faltar a la mañana y venir a la tarde); el del día lo calcula la base |
 | `19-fichaje-propio-separado.sql` | El fichaje del profesional va en su propia tabla (`fichajes_propios`), aparte de la planilla de la secretaría: lo ven solo él y la dirección |
+| `20-fichaje-independiente.sql` | El fichaje del profesional no depende de la planilla: si la secretaría lo marca ausente igual puede fichar (solo la licencia lo bloquea) |
 
 Tablas principales:
 

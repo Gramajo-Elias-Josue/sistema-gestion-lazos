@@ -19,7 +19,7 @@ import { etiquetaMes } from '../utils/calendario.js';
 import { rangoTurno } from '../utils/turnosCentro.js';
 import {
   CAMPOS_TRAMO, tramosDe, esDobleTurno, botonesFichaje, pasoFichaje, puedeDeshacerSalida,
-  estadoDeTramo, tramoBloqueado,
+  tramoBloqueado,
 } from '../utils/tramosFichaje.js';
 import { ESTADOS_FICHAJE } from './asistenciaProfView.js';
 
@@ -98,7 +98,7 @@ function seccionTramo({ n, turno }, fila, botones, doble) {
   });
 
   const cuerpo = tramoBloqueado(fila, n, doble)
-    ? `<div class="state">En este turno figurás como <b>${esc(ESTADOS_FICHAJE[estadoDeTramo(fila, n, doble)] || '')}</b> en la planilla, así que no hace falta fichar. Si es un error, avisale a la secretaría.</div>`
+    ? `<div class="state">En este turno figurás de <b>licencia</b> en la planilla, así que no hace falta fichar. Si es un error, avisale a la secretaría.</div>`
     : `<div class="fich-grid">${entrada}${salida}</div>`;
   return `
     <section class="fich-tramo ${clase}">
@@ -115,7 +115,7 @@ export function renderFichaje({ fila, profesional }) {
 
   if (paso === 'bloqueado') {
     const estado = ESTADOS_FICHAJE[fila?.estado] || fila?.estado || '';
-    return `<div class="state">Hoy figurás como <b>${esc(estado)}</b> en la planilla, así que no hace falta fichar. Si es un error, avisale a la secretaría.</div>`;
+    return `<div class="state">Hoy figurás de <b>${esc(estado.toLowerCase())}</b> en la planilla, así que no hace falta fichar. Si es un error, avisale a la secretaría.</div>`;
   }
 
   const botones = botonesFichaje(fila, doble);

@@ -91,20 +91,6 @@ export function mensajeErrorUbicacion(err) {
   }
 }
 
-// Qué le toca hacer hoy al profesional según su fila del día:
-//   'entrada'  -> todavía no fichó (o la secretaría lo marcó presente sin hora)
-//   'salida'   -> fichó la entrada, falta la salida
-//   'listo'    -> ya fichó las dos
-//   'bloqueado'-> la planilla lo tiene como ausente / licencia
-// Es la misma regla que aplica fichar() en la base.
-export function proximoPaso(fila) {
-  if (!fila) return 'entrada';
-  if (fila.estado && fila.estado !== 'presente') return 'bloqueado';
-  if (!fila.hora_entrada) return 'entrada';
-  if (!fila.hora_salida) return 'salida';
-  return 'listo';
-}
-
 // Link a Google Maps para ver un punto (para que el director confirme
 // que la ubicación guardada es la del centro).
 export function linkMapa(lat, lng) {

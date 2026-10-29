@@ -1,11 +1,11 @@
 // Tests del fichaje por ubicación: utilidades y vistas (lo que decide la
 // base —distancia, hora— se prueba en la base; acá, lo que ve el usuario).
 import { describe, it, expect, afterEach, vi } from 'vitest';
-import { mensajeErrorUbicacion, proximoPaso, linkMapa, validarUbicacionCentro, obtenerUbicacion, conPrecision } from '../src/utils/ubicacion.js';
+import { mensajeErrorUbicacion, linkMapa, validarUbicacionCentro, obtenerUbicacion, conPrecision } from '../src/utils/ubicacion.js';
 import { mensajeError } from '../src/utils/errores.js';
 import { renderInicio, renderInicioProfesional, renderRecordatorioFichaje } from '../src/views/inicioView.js';
 import { renderFichaje } from '../src/views/fichajeView.js';
-import { botonesFichaje, pasoFichaje, puedeDeshacerSalida, tramosDe, horaFichada, estadoDeTramo } from '../src/utils/tramosFichaje.js';
+import { botonesFichaje, pasoFichaje, puedeDeshacerSalida, tramosDe, horaFichada, estadoDeTramo, combinarFichaje } from '../src/utils/tramosFichaje.js';
 import { filaHtml as filaPlanilla, renderFilas as filasPlanilla, renderPestanasTurnoAsistencia, trabajaEnTurno } from '../src/views/asistenciaProfView.js';
 import { validarTramosFichaje } from '../src/utils/validacion.js';
 import { renderCalendario, renderDetalleDia } from '../src/views/calendarioAsistenciaView.js';
@@ -14,25 +14,6 @@ import { renderGrilla } from '../src/views/grillaAtencionView.js';
 import { puedeVer, seccionesEfectivas } from '../src/permisos.js';
 import { renderUbicacionCentro } from '../src/views/administracionView.js';
 import { filaHtml } from '../src/views/asistenciaProfView.js';
-
-describe('proximoPaso (qué le toca fichar hoy)', () => {
-  it('sin fila -> entrada', () => {
-    expect(proximoPaso(null)).toBe('entrada');
-  });
-  it('la secretaría lo marcó presente sin hora -> entrada', () => {
-    expect(proximoPaso({ estado: 'presente', hora_entrada: null })).toBe('entrada');
-  });
-  it('con entrada y sin salida -> salida', () => {
-    expect(proximoPaso({ estado: 'presente', hora_entrada: '08:00:00' })).toBe('salida');
-  });
-  it('con las dos -> listo', () => {
-    expect(proximoPaso({ estado: 'presente', hora_entrada: '08:00:00', hora_salida: '12:00:00' })).toBe('listo');
-  });
-  it('ausente o licencia -> bloqueado', () => {
-    expect(proximoPaso({ estado: 'licencia' })).toBe('bloqueado');
-    expect(proximoPaso({ estado: 'ausente' })).toBe('bloqueado');
-  });
-});
 
 describe('mensajeErrorUbicacion', () => {
   it('explica cada error del navegador', () => {
@@ -106,7 +87,7 @@ describe('fichajeView: dos botones, entrada y salida', () => {
   });
   it('licencia: avisa y no muestra botones', () => {
     const html = renderFichaje({ fila: { estado: 'licencia' } });
-    expect(html).toContain('Licencia');
+    expect(html).toContain('de <b>licencia</b>');
     expect(html).not.toContain('data-fichar');
   });
   it('si la hora la cargó la secretaría, lo aclara', () => {
@@ -281,8 +262,8 @@ describe('Deshacer la salida', () => {
   });
   it('después de deshacer, vuelve a tocar la salida (y el Inicio la recuerda)', () => {
     const fila = { estado: 'presente', hora_entrada: '08:00:00', hora_salida: null };
-    expect(proximoPaso(fila)).toBe('salida');
-    expect(renderRecordatorioFichaje({ paso: proximoPaso(fila), fila })).toContain('fichar la salida');
+    expect(pasoFichaje(fila)).toBe('salida');
+    expect(renderRecordatorioFichaje({ paso: pasoFichaje(fila), fila })).toContain('fichar la salida');
   });
 });
 
@@ -449,37 +430,52 @@ describe('Doble turno: dos tramos (mañana y tarde) en el mismo día', () => {
   });
 });
 
-describe('Estado por turno (doble turno): faltó a la mañana, vino a la tarde', () => {
+describe('Estado por turno (doble turno) y fichaje independiente de la planilla', () => {
   const doble = { id: 'p1', nombre_completo: 'Flores Ingrid', turnos_trabajo: ['manana', 'tarde'] };
-  const faltoManana = { estado: 'ausente', estado_1: 'ausente', estado_2: null };
+  const licenciaManana = { estado: 'licencia', estado_1: 'licencia', estado_2: null };
+  const ausenteManana = { estado: 'ausente', estado_1: 'ausente', estado_2: null };
 
   it('estadoDeTramo: cada turno con su estado; si no se marcó por turno, el del día', () => {
-    expect(estadoDeTramo(faltoManana, 1, true)).toBe('ausente');
-    expect(estadoDeTramo(faltoManana, 2, true)).toBe(null);
+    expect(estadoDeTramo(licenciaManana, 1, true)).toBe('licencia');
+    expect(estadoDeTramo(licenciaManana, 2, true)).toBe(null);
     expect(estadoDeTramo({ estado: 'licencia' }, 2, true)).toBe('licencia'); // licencia de todo el día
     expect(estadoDeTramo({ estado: 'ausente', estado_1: 'ausente' }, 1, false)).toBe('ausente');
   });
-  it('ausente a la mañana: la mañana no se ficha, la tarde sí', () => {
-    expect(botonesFichaje(faltoManana, true)).toEqual({ entrada: false, salida: false, entrada_2: true, salida_2: false });
-    expect(pasoFichaje(faltoManana, true)).toBe('entrada_2');
+  it('[independencia] si la secretaría lo marcó AUSENTE, igual puede fichar', () => {
+    expect(botonesFichaje(ausenteManana, true)).toEqual({ entrada: true, salida: false, entrada_2: true, salida_2: false });
+    expect(pasoFichaje({ estado: 'ausente' })).toBe('entrada');
+    expect(renderFichaje({ fila: { estado: 'ausente' }, profesional: { turnos_trabajo: ['tarde'] } })).toContain('data-fichar="entrada"');
   });
-  it('ausente a la mañana y la tarde fichada: listo', () => {
-    const fila = { ...faltoManana, estado: 'presente', estado_2: 'presente', hora_entrada_2: '14:00', hora_salida_2: '18:00' };
+  it('de licencia a la mañana: la mañana no se ficha, la tarde sí', () => {
+    expect(botonesFichaje(licenciaManana, true)).toEqual({ entrada: false, salida: false, entrada_2: true, salida_2: false });
+    expect(pasoFichaje(licenciaManana, true)).toBe('entrada_2');
+  });
+  it('licencia a la mañana y la tarde fichada: listo', () => {
+    const fila = { ...licenciaManana, estado: 'presente', estado_2: 'presente', hora_entrada_2: '14:00', hora_salida_2: '18:00' };
     expect(pasoFichaje(fila, true)).toBe('listo');
   });
   it('los dos turnos con licencia: bloqueado', () => {
     expect(pasoFichaje({ estado: 'licencia', estado_1: 'licencia', estado_2: 'licencia' }, true)).toBe('bloqueado');
   });
-  it('Mi fichaje: la mañana muestra el aviso y la tarde sus botones', () => {
-    const html = renderFichaje({ fila: faltoManana, profesional: doble });
-    expect(html).toContain('En este turno figurás como <b>Ausente</b>');
+  it('un solo turno de licencia: bloqueado', () => {
+    expect(pasoFichaje({ estado: 'licencia' })).toBe('bloqueado');
+    expect(renderFichaje({ fila: { estado: 'licencia' }, profesional: { turnos_trabajo: ['tarde'] } })).toContain('licencia');
+  });
+  it('Mi fichaje: la mañana de licencia muestra el aviso y la tarde sus botones', () => {
+    const html = renderFichaje({ fila: licenciaManana, profesional: doble });
+    expect(html).toContain('En este turno figurás de <b>licencia</b>');
     expect(html).toContain('data-fichar="entrada_2"');
     expect(html).not.toContain('data-fichar="entrada"');
   });
+  it('si fichó, en su calendario el día figura presente aunque la planilla diga ausente', () => {
+    const f = combinarFichaje({ fecha: '2026-10-29', estado: 'ausente' }, { fecha: '2026-10-29', hora_entrada: '08:00:00' });
+    expect(f.estado).toBe('presente');
+    expect(combinarFichaje({ fecha: '2026-10-29', estado: 'licencia' }, null).estado).toBe('licencia');
+  });
   it('planilla: cada pestaña edita el estado de su turno', () => {
-    const manana = filaPlanilla(doble, faltoManana, { turno: 'manana' });
+    const manana = filaPlanilla(doble, ausenteManana, { turno: 'manana' });
     expect(manana).toMatch(/<option value="ausente" selected>/);
-    const tarde = filaPlanilla(doble, faltoManana, { turno: 'tarde' });
+    const tarde = filaPlanilla(doble, ausenteManana, { turno: 'tarde' });
     expect(tarde).toMatch(/<option value="presente" selected>/);
     expect(tarde).toContain('gtick pend'); // la tarde todavía no se guardó
   });

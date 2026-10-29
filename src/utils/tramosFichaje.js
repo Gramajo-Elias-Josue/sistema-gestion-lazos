@@ -56,10 +56,12 @@ export function estadoDeTramo(fila, n = 1, dobleTurno = false) {
   return fila[`estado_${n}`] || null;
 }
 
-// ¿Ese turno está marcado ausente / licencia? (entonces no se ficha)
+// ¿Ese turno está de LICENCIA en la planilla? (entonces no se ficha).
+// "Ausente" no bloquea: la planilla de la secretaría y el fichaje del
+// profesional son independientes (script 20), y si no coinciden lo
+// muestra el Control de horas.
 export function tramoBloqueado(fila, n = 1, dobleTurno = false) {
-  const e = estadoDeTramo(fila, n, dobleTurno);
-  return !!e && e !== 'presente';
+  return estadoDeTramo(fila, n, dobleTurno) === 'licencia';
 }
 
 // Qué botones se pueden tocar ahora. Devuelve { entrada, salida,
@@ -83,7 +85,7 @@ export function botonesFichaje(fila, dobleTurno = false) {
 }
 
 // Lo que le falta fichar hoy (para el recordatorio del Inicio):
-//   'bloqueado' (ausente / licencia), 'salida', 'salida_2', 'entrada_2',
+//   'bloqueado' (de licencia), 'salida', 'salida_2', 'entrada_2',
 //   'entrada' o 'listo'. Primero lo que está abierto (una salida pendiente).
 export function pasoFichaje(fila, dobleTurno = false) {
   const b1 = tramoBloqueado(fila, 1, dobleTurno);
@@ -139,8 +141,9 @@ export function combinarFichaje(planilla = null, propio = null) {
   return {
     fecha: propio?.fecha || planilla?.fecha,
     profesional_id: propio?.profesional_id || planilla?.profesional_id,
-    // Estado: el de la planilla; sin planilla, si fichó, presente.
-    estado: planilla?.estado || 'presente',
+    // Estado: si fichó algo, presente (es SU registro, aunque la planilla
+    // diga otra cosa); si no, el de la planilla (p. ej. licencia).
+    estado: (propio?.hora_entrada || propio?.hora_entrada_2) ? 'presente' : (planilla?.estado || 'presente'),
     estado_1: planilla?.estado_1 ?? null,
     estado_2: planilla?.estado_2 ?? null,
     hora_entrada: propio?.hora_entrada ?? null,
