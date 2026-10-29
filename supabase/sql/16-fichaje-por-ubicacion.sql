@@ -130,12 +130,14 @@ begin
     raise exception 'Estás a % m del centro (se permite hasta % m). Para fichar tenés que estar en el centro.', dist, conf.radio_m;
   end if;
 
+  -- Bandera para el trigger: estas horas son "por ubicación". Va ANTES
+  -- del select: un PERFORM pisa la variable FOUND, y el "if not found" de
+  -- abajo tiene que ver el resultado del select.
+  perform set_config('lazos.fichaje', 'ubicacion', true);
+
   select * into fila from public.asistencias_profesionales
    where profesional_id = prof and fecha = hoy
    for update;
-
-  -- Bandera para el trigger: estas horas son "por ubicación".
-  perform set_config('lazos.fichaje', 'ubicacion', true);
 
   if not found then
     insert into public.asistencias_profesionales (profesional_id, fecha, estado, hora_entrada, entrada_distancia_m)

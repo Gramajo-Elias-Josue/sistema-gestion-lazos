@@ -129,6 +129,8 @@ async function iniciarMiFichaje(profesionalId) {
       const { lat, lng } = await obtenerUbicacion();
       btn.textContent = 'Fichando…';
       const fila = await asistenciaProfModel.ficharConUbicacion(lat, lng);
+      // Sin hora de vuelta no se guardó nada: no se avisa "fichada".
+      if (!fila?.hora_entrada) throw new Error('fichar() no devolvió el fichaje');
       dibujar(fila);
       toast(fila?.hora_salida ? 'Salida fichada.' : 'Entrada fichada.');
     } catch (err) {
