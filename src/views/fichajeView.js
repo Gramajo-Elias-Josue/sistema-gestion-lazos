@@ -19,6 +19,7 @@ import { etiquetaMes } from '../utils/calendario.js';
 import { rangoTurno } from '../utils/turnosCentro.js';
 import {
   CAMPOS_TRAMO, tramosDe, esDobleTurno, botonesFichaje, pasoFichaje, puedeDeshacerSalida,
+  estadoDeTramo, tramoBloqueado,
 } from '../utils/tramosFichaje.js';
 import { ESTADOS_FICHAJE } from './asistenciaProfView.js';
 
@@ -68,8 +69,9 @@ function tarjeta({ que, titulo, hora, por, habilitado, ayuda, extra = '' }) {
     </div>`;
 }
 
-// Un turno: encabezado con su color + tarjetas de entrada y salida.
-function seccionTramo({ n, turno }, fila, botones) {
+// Un turno: encabezado con su color + tarjetas de entrada y salida (o el
+// aviso, si ese turno figura ausente / de licencia en la planilla).
+function seccionTramo({ n, turno }, fila, botones, doble) {
   const c = CAMPOS_TRAMO[n];
   const entradaHecha = !!fila?.[c.entrada];
   const clase = turno ? `fich-t-${turno.clave}` : 'fich-t-sin';
@@ -95,10 +97,13 @@ function seccionTramo({ n, turno }, fila, botones) {
       : '',
   });
 
+  const cuerpo = tramoBloqueado(fila, n, doble)
+    ? `<div class="state">En este turno figurás como <b>${esc(ESTADOS_FICHAJE[estadoDeTramo(fila, n, doble)] || '')}</b> en la planilla, así que no hace falta fichar. Si es un error, avisale a la secretaría.</div>`
+    : `<div class="fich-grid">${entrada}${salida}</div>`;
   return `
     <section class="fich-tramo ${clase}">
       <div class="fich-tramo-h">${encabezado}</div>
-      <div class="fich-grid">${entrada}${salida}</div>
+      ${cuerpo}
     </section>`;
 }
 
@@ -114,7 +119,7 @@ export function renderFichaje({ fila, profesional }) {
   }
 
   const botones = botonesFichaje(fila, doble);
-  const secciones = tramosDe(profesional).map(t => seccionTramo(t, fila, botones)).join('');
+  const secciones = tramosDe(profesional).map(t => seccionTramo(t, fila, botones, doble)).join('');
   const pie = paso === 'listo'
     ? `<div class="fich-listo">Ya fichaste ${doble ? 'los dos turnos' : 'la entrada y la salida'} de hoy. ✓</div>`
     : `<p class="fich-nota">Se usa tu ubicación para confirmar que estás en el centro. La hora la pone el sistema.</p>`;

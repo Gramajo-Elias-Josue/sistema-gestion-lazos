@@ -149,6 +149,7 @@ orden, y son re-ejecutables:
 | `15-documentacion-y-categorias.sql` | Documentación de admisión y categorías de la historia clínica, editables desde la app |
 | `16-fichaje-por-ubicacion.sql` | El profesional ficha su entrada y salida con su ubicación (la base valida distancia y hora); ubicación del centro configurable |
 | `17-fichaje-doble-turno.sql` | Quien trabaja mañana y tarde ficha dos tramos en el mismo día (registra el corte del mediodía) |
+| `18-estado-por-turno.sql` | El de doble turno tiene un estado por turno (puede faltar a la mañana y venir a la tarde); el del día lo calcula la base |
 
 Tablas principales:
 

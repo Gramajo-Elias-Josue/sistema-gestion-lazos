@@ -36,12 +36,13 @@ export async function listarPorProfesionalRango(profesionalId, desde, hasta) {
 // Las horas que NO vienen (undefined) no se tocan: la planilla de la
 // secretaría guarda un turno por vez (a la mañana el tramo 1, a la tarde
 // el 2 de quien hace los dos) sin pisar el otro. null = borrar esa hora.
-export async function guardarFichaje({ profesionalId, fecha, horaEntrada, horaSalida, horaEntrada2, horaSalida2, estado, observaciones }) {
-  const fila = {
-    profesional_id: profesionalId,
-    fecha,
-    estado: estado || 'presente',
-  };
+// El de doble turno manda el estado de SU turno (estado1 / estado2) y no
+// el del día: ese lo calcula la base (script 18).
+export async function guardarFichaje({ profesionalId, fecha, horaEntrada, horaSalida, horaEntrada2, horaSalida2, estado, estado1, estado2, observaciones }) {
+  const fila = { profesional_id: profesionalId, fecha };
+  if (estado !== undefined) fila.estado = estado || 'presente';
+  if (estado1 !== undefined) fila.estado_1 = estado1;
+  if (estado2 !== undefined) fila.estado_2 = estado2;
   if (observaciones !== undefined) fila.observaciones = observaciones || null;
   if (horaEntrada !== undefined) fila.hora_entrada = horaEntrada || null;
   if (horaSalida !== undefined) fila.hora_salida = horaSalida || null;

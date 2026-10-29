@@ -14,7 +14,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { fechaLarga, formatearFecha } from './fechas.js';
 import { SECCIONES_INFORME } from './evaluacion.js';
-import { DIAS_SEMANA, ESTADOS_CALENDARIO, etiquetaMes, diasConHorario, origenFichaje, tieneSegundoTramo } from './calendario.js';
+import { DIAS_SEMANA, ESTADOS_CALENDARIO, etiquetaMes, diasConHorario, origenFichaje, tieneSegundoTramo, textoTurnoDia } from './calendario.js';
 import { CLINICA } from '../config/clinica.js';
 
 // Carga el logo institucional como dataURL (base64) para incrustarlo en el
@@ -394,12 +394,11 @@ export async function generarPlanillaAsistencia({ persona = {}, tipo = 'paciente
     // Si algún día tiene la tarde aparte (doble turno), una columna por
     // turno ("08:00 a 12:00"); si no, entrada y salida como siempre.
     const dosTramos = conHorario.some(tieneSegundoTramo);
-    const rango = (e, s) => (e || s) ? `${hhmm(e)} a ${hhmm(s)}` : '—';
     autoTable(doc, {
       startY: y,
       head: [dosTramos ? ['Fecha', 'Mañana', 'Tarde', 'Cargada por'] : ['Fecha', 'Entrada', 'Salida', 'Cargada por']],
       body: conHorario.map(d => dosTramos
-        ? [formatearFecha(d.iso), rango(d.entrada, d.salida), rango(d.entrada2, d.salida2), origenFichaje(d)]
+        ? [formatearFecha(d.iso), textoTurnoDia(d.entrada, d.salida, d.estado1), textoTurnoDia(d.entrada2, d.salida2, d.estado2), origenFichaje(d)]
         : [formatearFecha(d.iso), hhmm(d.entrada), hhmm(d.salida), origenFichaje(d)]),
       styles: { fontSize: 9.5, cellPadding: 5, lineColor: [225, 225, 225], lineWidth: 0.5 },
       headStyles: { fillColor: [23, 119, 179], textColor: 255, fontStyle: 'bold' },

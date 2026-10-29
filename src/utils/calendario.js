@@ -121,6 +121,9 @@ export function armarCalendario({ anio, mes, registros = [], hoy = hoyISO() }) {
       salida2Por: reg?.salida_2_por ?? null,
       entrada2Dist: reg?.entrada_2_distancia_m ?? null,
       salida2Dist: reg?.salida_2_distancia_m ?? null,
+      // Estado de cada turno (doble turno; null = no se marcó por turno).
+      estado1: reg?.estado_1 ?? null,
+      estado2: reg?.estado_2 ?? null,
     });
   }
   while (celdas.length % 7 !== 0) celdas.push(null);
@@ -165,7 +168,15 @@ export function etiquetaOrigen(por) {
 
 // ¿El día tiene horas del segundo tramo (la tarde de un doble turno)?
 export function tieneSegundoTramo(dia) {
-  return !!(dia?.entrada2 || dia?.salida2);
+  return !!(dia?.entrada2 || dia?.salida2 || dia?.estado1 || dia?.estado2);
+}
+
+// Texto de un turno para la planilla: "08:00 a 12:00", o su estado si
+// faltó ("Ausente", "Licencia"), o '—'.
+export function textoTurnoDia(entrada, salida, estado) {
+  if (estado && estado !== 'presente') return ESTADOS_CALENDARIO[estado]?.etiqueta || estado;
+  const hhmm = (t) => (t ? String(t).slice(0, 5) : '—');
+  return (entrada || salida) ? `${hhmm(entrada)} a ${hhmm(salida)}` : '—';
 }
 
 // "Cargada por" de un día, para la planilla en PDF: si las horas las

@@ -208,20 +208,21 @@ async function guardar(profId) {
     if (!(await confirmarFueraDeHorario(prof, [{ habitual, entrada, salida }]))) return;
   }
 
-  // Se guardan solo las horas de este tramo (el otro no se toca). Si el día
-  // no es "presente", el día entero va sin horas: se borran las de los dos.
-  const horas = !conHoras
-    ? { horaEntrada: null, horaSalida: null, ...(doble ? { horaEntrada2: null, horaSalida2: null } : {}) }
-    : tramo === 2
-      ? { horaEntrada2: entrada, horaSalida2: salida }
-      : { horaEntrada: entrada, horaSalida: salida };
+  // Se guardan solo las horas y el estado de este turno (el otro no se
+  // toca). Ausente / licencia van sin horas: se borran las de este turno.
+  // El de doble turno manda el estado de su turno; el del día lo calcula
+  // la base. El de un turno manda el estado del día, como siempre.
+  const horas = tramo === 2
+    ? { horaEntrada2: entrada, horaSalida2: salida }
+    : { horaEntrada: entrada, horaSalida: salida };
+  const estados = !doble ? { estado } : tramo === 2 ? { estado2: estado } : { estado1: estado };
 
   const btn = fila.querySelector('.apf-guardar');
   btn.disabled = true;
   btn.textContent = '…';
   try {
     const saved = await asistenciaProfModel.guardarFichaje({
-      profesionalId: profId, fecha: fechaActual, estado, ...horas,
+      profesionalId: profId, fecha: fechaActual, ...estados, ...horas,
     });
     fichajes[profId] = saved;
     fila.outerHTML = filaHtml(prof, saved, ctx()); // tilde verde

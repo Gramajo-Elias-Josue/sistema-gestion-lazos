@@ -8,14 +8,14 @@
 // Separada en dos pestañas, TURNO MAÑANA y TURNO TARDE (como la grilla):
 // cada una muestra a quienes trabajan ese turno, con las horas de ese
 // turno. El que hace los dos aparece en las dos: a la mañana carga su
-// primer tramo y a la tarde el segundo (script 17). El estado del día
-// (presente / ausente / licencia) es uno solo y se ve en las dos.
+// primer tramo y a la tarde el segundo (script 17), cada uno con su
+// propio estado (script 18): puede faltar a la mañana y venir a la tarde.
 // =====================================================================
 
 import { esc } from '../utils/ui.js';
 import { nombreDia, iniciales } from '../utils/fechas.js';
 import { horarioDe, textoTurnos, turnosDe, TURNOS_CENTRO, rangoTurno } from '../utils/turnosCentro.js';
-import { tramosDe, CAMPOS_TRAMO } from '../utils/tramosFichaje.js';
+import { tramosDe, CAMPOS_TRAMO, esDobleTurno, estadoDeTramo } from '../utils/tramosFichaje.js';
 
 export const ESTADOS_FICHAJE = { presente: 'Presente', ausente: 'Ausente', licencia: 'Licencia' };
 
@@ -90,22 +90,29 @@ export function tramoEnTurno(prof, turno) {
 export function filaHtml(prof, fichaje, ctx = {}) {
   const { bloqueado = false, esHoy = false, ahora = '', turno = 'manana' } = ctx;
   const f = fichaje || {};
-  const estado = f.estado || 'presente';
   const { n, turno: suTurno } = tramoEnTurno(prof, turno);
+  // El estado que se edita en esta pestaña: el del turno (doble turno) o
+  // el del día (un solo turno).
+  const estado = estadoDeTramo(f, n, esDobleTurno(prof)) || 'presente';
   const c = CAMPOS_TRAMO[n];
   // Horario habitual de este tramo: el de su turno (o el de su perfil si
   // no tiene turno cargado).
   const habitual = suTurno ? { entrada: suTurno.desde, salida: suTurno.hasta } : horarioDe(prof);
 
   // Prellenado. Si es hoy no se adelantan horas que todavía no ocurrieron:
-  // la entrada sugiere la hora actual solo si su turno ya empezó.
+  //   - su turno todavía no empezó -> vacío;
+  //   - está en curso              -> la hora actual como entrada;
+  //   - ya terminó                 -> su horario habitual (ya pasó entero).
   const guardadaEnt = f[c.entrada], guardadaSal = f[c.salida];
+  const yaTermino = !!(esHoy && ahora && suTurno && ahora >= suTurno.hasta);
   let entrada;
   if (guardadaEnt) entrada = (esHoy && ahora && hhmm(guardadaEnt) > ahora) ? ahora : hhmm(guardadaEnt);
+  else if (yaTermino) entrada = habitual.entrada;
   else if (esHoy && ahora) entrada = (suTurno && ahora < suTurno.desde) ? '' : ahora;
   else entrada = habitual.entrada;
   let salida;
   if (guardadaSal) salida = (esHoy && ahora && hhmm(guardadaSal) > ahora) ? '' : hhmm(guardadaSal);
+  else if (yaTermino) salida = habitual.salida;
   else salida = esHoy ? '' : habitual.salida;
 
   const conHoras = estado === 'presente';
@@ -124,7 +131,9 @@ export function filaHtml(prof, fichaje, ctx = {}) {
 
   const opts = Object.entries(ESTADOS_FICHAJE)
     .map(([v, l]) => `<option value="${v}" ${v === estado ? 'selected' : ''}>${l}</option>`).join('');
-  const guardado = !!fichaje;
+  // Tilde de "guardado": con doble turno, el de ESTE turno (que la mañana
+  // esté guardada no quiere decir que la tarde también).
+  const guardado = !!fichaje && (!esDobleTurno(prof) || !!(f[`estado_${n}`] || f[c.entrada] || f[c.salida]));
 
   return `
     <div class="asis-row" data-prof="${prof.id}">

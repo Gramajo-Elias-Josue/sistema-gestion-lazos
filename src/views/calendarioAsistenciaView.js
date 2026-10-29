@@ -177,10 +177,14 @@ export function renderDetalleDia(dia) {
     <span>Salida: <b>${hhmm(sal)}</b>${origen(sal && salPor, salDist)}</span>`;
   let horas = '';
   if (tieneSegundoTramo(dia)) {
-    // Doble turno: un renglón por turno (mañana / tarde).
+    // Doble turno: un renglón por turno (mañana / tarde), con sus horas o
+    // su estado si faltó a ese turno.
+    const turno = (est, ...horasTurno) => (est && est !== 'presente')
+      ? `<span>${esc(ESTADOS_CALENDARIO[est]?.etiqueta || est)}</span>`
+      : par(...horasTurno);
     horas = `
-      <div class="cal-tramo cal-t-manana">☀️ <b>Mañana</b>${par(dia.entrada, dia.entradaPor, dia.entradaDist, dia.salida, dia.salidaPor, dia.salidaDist)}</div>
-      <div class="cal-tramo cal-t-tarde">🌇 <b>Tarde</b>${par(dia.entrada2, dia.entrada2Por, dia.entrada2Dist, dia.salida2, dia.salida2Por, dia.salida2Dist)}</div>`;
+      <div class="cal-tramo cal-t-manana">☀️ <b>Mañana</b>${turno(dia.estado1, dia.entrada, dia.entradaPor, dia.entradaDist, dia.salida, dia.salidaPor, dia.salidaDist)}</div>
+      <div class="cal-tramo cal-t-tarde">🌇 <b>Tarde</b>${turno(dia.estado2, dia.entrada2, dia.entrada2Por, dia.entrada2Dist, dia.salida2, dia.salida2Por, dia.salida2Dist)}</div>`;
   } else if (dia.entrada || dia.salida) {
     horas = par(dia.entrada, dia.entradaPor, dia.entradaDist, dia.salida, dia.salidaPor, dia.salidaDist);
   }

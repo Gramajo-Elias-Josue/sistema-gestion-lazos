@@ -5,11 +5,11 @@ import { mensajeErrorUbicacion, proximoPaso, linkMapa, validarUbicacionCentro, o
 import { mensajeError } from '../src/utils/errores.js';
 import { renderInicio, renderInicioProfesional, renderRecordatorioFichaje } from '../src/views/inicioView.js';
 import { renderFichaje } from '../src/views/fichajeView.js';
-import { botonesFichaje, pasoFichaje, puedeDeshacerSalida, tramosDe, horaFichada } from '../src/utils/tramosFichaje.js';
+import { botonesFichaje, pasoFichaje, puedeDeshacerSalida, tramosDe, horaFichada, estadoDeTramo } from '../src/utils/tramosFichaje.js';
 import { filaHtml as filaPlanilla, renderFilas as filasPlanilla, renderPestanasTurnoAsistencia, trabajaEnTurno } from '../src/views/asistenciaProfView.js';
 import { validarTramosFichaje } from '../src/utils/validacion.js';
 import { renderCalendario, renderDetalleDia } from '../src/views/calendarioAsistenciaView.js';
-import { armarCalendario, origenFichaje, diasConHorario } from '../src/utils/calendario.js';
+import { armarCalendario, origenFichaje, diasConHorario, textoTurnoDia } from '../src/utils/calendario.js';
 import { renderGrilla } from '../src/views/grillaAtencionView.js';
 import { puedeVer, seccionesEfectivas } from '../src/permisos.js';
 import { renderUbicacionCentro } from '../src/views/administracionView.js';
@@ -446,5 +446,66 @@ describe('Doble turno: dos tramos (mañana y tarde) en el mismo día', () => {
     expect(html).toContain('14:05');
     expect(origenFichaje(d)).toBe('Ubicación y Secretaría');
     expect(diasConHorario(cal.dias)).toHaveLength(1);
+  });
+});
+
+describe('Estado por turno (doble turno): faltó a la mañana, vino a la tarde', () => {
+  const doble = { id: 'p1', nombre_completo: 'Flores Ingrid', turnos_trabajo: ['manana', 'tarde'] };
+  const faltoManana = { estado: 'ausente', estado_1: 'ausente', estado_2: null };
+
+  it('estadoDeTramo: cada turno con su estado; si no se marcó por turno, el del día', () => {
+    expect(estadoDeTramo(faltoManana, 1, true)).toBe('ausente');
+    expect(estadoDeTramo(faltoManana, 2, true)).toBe(null);
+    expect(estadoDeTramo({ estado: 'licencia' }, 2, true)).toBe('licencia'); // licencia de todo el día
+    expect(estadoDeTramo({ estado: 'ausente', estado_1: 'ausente' }, 1, false)).toBe('ausente');
+  });
+  it('ausente a la mañana: la mañana no se ficha, la tarde sí', () => {
+    expect(botonesFichaje(faltoManana, true)).toEqual({ entrada: false, salida: false, entrada_2: true, salida_2: false });
+    expect(pasoFichaje(faltoManana, true)).toBe('entrada_2');
+  });
+  it('ausente a la mañana y la tarde fichada: listo', () => {
+    const fila = { ...faltoManana, estado: 'presente', estado_2: 'presente', hora_entrada_2: '14:00', hora_salida_2: '18:00' };
+    expect(pasoFichaje(fila, true)).toBe('listo');
+  });
+  it('los dos turnos con licencia: bloqueado', () => {
+    expect(pasoFichaje({ estado: 'licencia', estado_1: 'licencia', estado_2: 'licencia' }, true)).toBe('bloqueado');
+  });
+  it('Mi fichaje: la mañana muestra el aviso y la tarde sus botones', () => {
+    const html = renderFichaje({ fila: faltoManana, profesional: doble });
+    expect(html).toContain('En este turno figurás como <b>Ausente</b>');
+    expect(html).toContain('data-fichar="entrada_2"');
+    expect(html).not.toContain('data-fichar="entrada"');
+  });
+  it('planilla: cada pestaña edita el estado de su turno', () => {
+    const manana = filaPlanilla(doble, faltoManana, { turno: 'manana' });
+    expect(manana).toMatch(/<option value="ausente" selected>/);
+    const tarde = filaPlanilla(doble, faltoManana, { turno: 'tarde' });
+    expect(tarde).toMatch(/<option value="presente" selected>/);
+    expect(tarde).toContain('gtick pend'); // la tarde todavía no se guardó
+  });
+  it('detalle del día y PDF: el turno al que faltó dice su estado', () => {
+    const cal = armarCalendario({ anio: 2026, mes: 10, hoy: '2026-10-30', registros: [{
+      fecha: '2026-10-28', estado: 'presente', estado_1: 'ausente', estado_2: 'presente',
+      hora_entrada_2: '14:00:00', hora_salida_2: '18:00:00',
+    }] });
+    const d = cal.dias.find(x => x.iso === '2026-10-28');
+    const html = renderDetalleDia(d);
+    expect(html).toContain('Mañana');
+    expect(html).toContain('Ausente');
+    expect(html).toContain('14:00');
+    expect(textoTurnoDia(d.entrada, d.salida, d.estado1)).toBe('Ausente');
+    expect(textoTurnoDia(d.entrada2, d.salida2, d.estado2)).toBe('14:00 a 18:00');
+  });
+});
+
+describe('Planilla de hoy: qué sugiere según la hora', () => {
+  const doble = { id: 'p1', nombre_completo: 'Flores Ingrid', turnos_trabajo: ['manana', 'tarde'] };
+  it('turno que ya terminó: su horario habitual; turno en curso: la hora actual', () => {
+    const manana = filaPlanilla(doble, null, { esHoy: true, ahora: '14:50', turno: 'manana' });
+    expect(manana).toContain('class="apf-entrada" value="08:00"');
+    expect(manana).toContain('class="apf-salida" value="12:00"');
+    const tarde = filaPlanilla(doble, null, { esHoy: true, ahora: '14:50', turno: 'tarde' });
+    expect(tarde).toContain('class="apf-entrada" value="14:50"');
+    expect(tarde).toContain('class="apf-salida" value=""');
   });
 });

@@ -8,6 +8,10 @@
 //                                               turno del que hace uno.
 //   tramo 2 (hora_entrada_2 / hora_salida_2) -> la tarde del que hace los dos.
 //
+// El de doble turno tiene además un ESTADO por turno (script 18):
+// estado_1 (mañana) y estado_2 (tarde). Puede faltar a la mañana y venir
+// a la tarde. El estado del día (`estado`) lo calcula la base.
+//
 // Acá están las MISMAS reglas que aplica la base en fichar(): qué botón
 // se puede tocar, qué le falta fichar y qué salida se puede deshacer.
 // =====================================================================
@@ -42,6 +46,22 @@ export function tramosDe(profesional) {
   return [{ n: 1, turno: turnos[0] || null }];
 }
 
+// Estado de UN turno (tramo n). Con un solo turno, el del día. Con doble
+// turno, su estado_n; si no se marcó ningún turno, vale el del día (así
+// una licencia cargada para todo el día bloquea los dos turnos).
+export function estadoDeTramo(fila, n = 1, dobleTurno = false) {
+  if (!fila) return null;
+  if (!dobleTurno) return fila.estado || null;
+  if (fila.estado_1 == null && fila.estado_2 == null) return fila.estado || null;
+  return fila[`estado_${n}`] || null;
+}
+
+// ¿Ese turno está marcado ausente / licencia? (entonces no se ficha)
+export function tramoBloqueado(fila, n = 1, dobleTurno = false) {
+  const e = estadoDeTramo(fila, n, dobleTurno);
+  return !!e && e !== 'presente';
+}
+
 // Qué botones se pueden tocar ahora. Devuelve { entrada, salida,
 // entrada_2, salida_2 } (true = habilitado). Misma regla que fichar():
 //   entrada   -> sin mañana fichada y sin haber empezado la tarde
@@ -49,16 +69,16 @@ export function tramosDe(profesional) {
 //   entrada_2 -> (doble turno) sin tarde, y con la mañana cerrada o sin mañana
 //   salida_2  -> con la entrada de la tarde y sin su salida
 export function botonesFichaje(fila, dobleTurno = false) {
-  if (fila?.estado && fila.estado !== 'presente') {
-    return { entrada: false, salida: false, entrada_2: false, salida_2: false };
-  }
+  const b1 = tramoBloqueado(fila, 1, dobleTurno);
+  const b2 = !dobleTurno || tramoBloqueado(fila, 2, dobleTurno);
   const e1 = !!fila?.hora_entrada, s1 = !!fila?.hora_salida;
   const e2 = !!fila?.hora_entrada_2, s2 = !!fila?.hora_salida_2;
   return {
-    entrada: !e1 && !e2,
-    salida: e1 && !s1,
-    entrada_2: dobleTurno && !e2 && (!e1 || s1),
-    salida_2: dobleTurno && e2 && !s2,
+    entrada: !b1 && !e1 && !e2,
+    salida: !b1 && e1 && !s1,
+    // La tarde: con la mañana cerrada, o sin mañana (faltó o no la fichó).
+    entrada_2: !b2 && !e2 && (!e1 || s1 || b1),
+    salida_2: !b2 && e2 && !s2,
   };
 }
 
@@ -66,15 +86,21 @@ export function botonesFichaje(fila, dobleTurno = false) {
 //   'bloqueado' (ausente / licencia), 'salida', 'salida_2', 'entrada_2',
 //   'entrada' o 'listo'. Primero lo que está abierto (una salida pendiente).
 export function pasoFichaje(fila, dobleTurno = false) {
-  if (fila?.estado && fila.estado !== 'presente') return 'bloqueado';
+  const b1 = tramoBloqueado(fila, 1, dobleTurno);
+  const b2 = dobleTurno && tramoBloqueado(fila, 2, dobleTurno);
+  if (b1 && (!dobleTurno || b2)) return 'bloqueado';
   const e1 = !!fila?.hora_entrada, s1 = !!fila?.hora_salida;
   const e2 = !!fila?.hora_entrada_2, s2 = !!fila?.hora_salida_2;
-  if (e1 && !s1) return 'salida';
+  if (!b1 && e1 && !s1) return 'salida';
   if (!dobleTurno) return e1 ? 'listo' : 'entrada';
-  if (e2 && !s2) return 'salida_2';
-  if (s2) return 'listo';
-  if (s1) return 'entrada_2';   // cerró la mañana, falta la tarde
-  return 'entrada';
+  if (!b2 && e2 && !s2) return 'salida_2';
+  // Un turno está "terminado" si se fichó su salida o está marcado
+  // ausente / licencia (la mañana, también si arrancó directo la tarde).
+  const listaManana = b1 || s1 || (e2 && !e1);
+  const listaTarde = b2 || s2;
+  if (!listaManana && !e2) return 'entrada';
+  if (!listaTarde) return 'entrada_2';
+  return 'listo';
 }
 
 // ¿Se puede deshacer la salida de ese tramo? (misma regla que la base:
