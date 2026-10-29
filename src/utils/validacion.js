@@ -129,6 +129,23 @@ export function validarFichajeProfesional(datos, ctx = {}) {
   return ok();
 }
 
+// Fichaje en dos tramos (quien trabaja mañana y tarde): cada tramo se
+// valida con validarFichajeProfesional, y además la tarde no puede
+// empezar antes de que termine la mañana.
+export function validarTramosFichaje(manana, tarde, ctx = {}) {
+  const v1 = validarFichajeProfesional(manana, ctx);
+  if (!v1.ok) return v1;
+  const v2 = validarFichajeProfesional(tarde, ctx);
+  if (!v2.ok) return error(v2.mensaje.replace('entrada', 'entrada de la tarde').replace('salida', 'salida de la tarde'));
+  if (tarde.hora_entrada && manana.hora_entrada && !manana.hora_salida) {
+    return error('Cargá la salida de la mañana antes de la entrada de la tarde.');
+  }
+  if (tarde.hora_entrada && manana.hora_salida && tarde.hora_entrada < manana.hora_salida) {
+    return error('La entrada de la tarde tiene que ser después de la salida de la mañana.');
+  }
+  return ok();
+}
+
 // ---- Profesional ----
 // `esNuevo` = true al CREAR: ahí se exigen todos los datos (menos
 // matrícula y teléfono 2, que quedan opcionales). Al editar uno ya

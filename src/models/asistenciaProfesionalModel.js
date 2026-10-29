@@ -33,20 +33,22 @@ export async function listarPorProfesionalRango(profesionalId, desde, hasta) {
 }
 
 // Registra o actualiza el fichaje de un profesional en una fecha.
-export async function guardarFichaje({ profesionalId, fecha, horaEntrada, horaSalida, estado, observaciones }) {
+// `horaEntrada2` / `horaSalida2` (la tarde) se mandan solo para quien
+// hace los dos turnos: si no vienen (undefined), no se tocan.
+export async function guardarFichaje({ profesionalId, fecha, horaEntrada, horaSalida, horaEntrada2, horaSalida2, estado, observaciones }) {
+  const fila = {
+    profesional_id: profesionalId,
+    fecha,
+    hora_entrada: horaEntrada || null,
+    hora_salida: horaSalida || null,
+    estado: estado || 'presente',
+    observaciones: observaciones || null,
+  };
+  if (horaEntrada2 !== undefined) fila.hora_entrada_2 = horaEntrada2 || null;
+  if (horaSalida2 !== undefined) fila.hora_salida_2 = horaSalida2 || null;
   const { data, error } = await supabase
     .from(TABLA)
-    .upsert(
-      {
-        profesional_id: profesionalId,
-        fecha,
-        hora_entrada: horaEntrada || null,
-        hora_salida: horaSalida || null,
-        estado: estado || 'presente',
-        observaciones: observaciones || null,
-      },
-      { onConflict: 'profesional_id,fecha' }
-    )
+    .upsert(fila, { onConflict: 'profesional_id,fecha' })
     .select()
     .single();
   if (error) throw error;
@@ -66,7 +68,7 @@ export async function fichajeDelDia(profesionalId, fecha) {
 }
 
 // Fichaje por ubicación del profesional logueado. Manda dónde está y qué
-// ficha ('entrada' | 'salida'): la base (función fichar(), script 16)
+// ficha ('entrada' | 'salida' | 'entrada_2' | 'salida_2'): la base (función fichar(), script 16)
 // decide si está en el centro y si le toca, y pone la hora. Devuelve la
 // fila del día.
 export async function ficharConUbicacion(lat, lng, que) {
@@ -75,10 +77,11 @@ export async function ficharConUbicacion(lat, lng, que) {
   return data;
 }
 
-// Deshace la salida de HOY del profesional logueado (por si la fichó por
-// error). La base solo lo permite si la fichó él con su ubicación.
-export async function deshacerSalida() {
-  const { data, error } = await supabase.rpc('deshacer_salida');
+// Deshace una salida de HOY del profesional logueado (por si la fichó por
+// error): tramo 1 = la de la mañana (o su único turno), 2 = la de la
+// tarde. La base solo lo permite si la fichó él con su ubicación.
+export async function deshacerSalida(tramo = 1) {
+  const { data, error } = await supabase.rpc('deshacer_salida', { tramo });
   if (error) throw error;
   return data;
 }

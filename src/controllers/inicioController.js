@@ -17,7 +17,7 @@ import {
 } from '../views/inicioView.js';
 import { iniciarGrillaAtencion } from './grillaAtencionController.js';
 import { htmlCargando, htmlError } from '../utils/ui.js';
-import { proximoPaso } from '../utils/ubicacion.js';
+import { pasoFichaje, esDobleTurno } from '../utils/tramosFichaje.js';
 import { perfilActual } from '../sesion.js';
 import { hoyISO, rangoMes } from '../utils/fechas.js';
 import { periodoMensual, pendientesDelMes } from '../utils/periodos.js';
@@ -126,9 +126,13 @@ async function iniciarInicioProfesional(contenedor, profesionalId) {
 
   // El recordatorio es un agregado: si falla, el Inicio sigue igual.
   try {
-    const fila = await asistenciaProfModel.fichajeDelDia(profesionalId, hoyISO());
+    const [fila, prof] = await Promise.all([
+      asistenciaProfModel.fichajeDelDia(profesionalId, hoyISO()),
+      profesionalModel.obtenerProfesional(profesionalId),
+    ]);
+    const doble = esDobleTurno(prof);
     document.getElementById('inicio-recordatorio').innerHTML =
-      renderRecordatorioFichaje({ paso: proximoPaso(fila), fila });
+      renderRecordatorioFichaje({ paso: pasoFichaje(fila, doble), fila, doble });
   } catch (err) {
     console.error('Error cargando el recordatorio del fichaje:', err);
   }

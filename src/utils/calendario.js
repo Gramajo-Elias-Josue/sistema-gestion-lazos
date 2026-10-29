@@ -83,7 +83,8 @@ export function mesDeFecha(fechaISO = hoyISO()) {
 //
 //   anio, mes  -> mes a dibujar (mes de 1 a 12)
 //   registros  -> [{ fecha, estado, observaciones, hora_entrada, hora_salida,
-//                    entrada_por, salida_por, entrada_distancia_m, salida_distancia_m }]
+//                    entrada_por, salida_por, entrada_distancia_m, salida_distancia_m,
+//                    y el 2º tramo (la tarde de quien hace los dos turnos): *_2 }]
 //   hoy        -> fecha de referencia (los días posteriores no se juzgan)
 export function armarCalendario({ anio, mes, registros = [], hoy = hoyISO() }) {
   const porFecha = {};
@@ -113,6 +114,13 @@ export function armarCalendario({ anio, mes, registros = [], hoy = hoyISO() }) {
       salidaPor: reg?.salida_por ?? null,
       entradaDist: reg?.entrada_distancia_m ?? null,
       salidaDist: reg?.salida_distancia_m ?? null,
+      // Segundo tramo (la tarde de quien trabaja los dos turnos).
+      entrada2: reg?.hora_entrada_2 ?? null,
+      salida2: reg?.hora_salida_2 ?? null,
+      entrada2Por: reg?.entrada_2_por ?? null,
+      salida2Por: reg?.salida_2_por ?? null,
+      entrada2Dist: reg?.entrada_2_distancia_m ?? null,
+      salida2Dist: reg?.salida_2_distancia_m ?? null,
     });
   }
   while (celdas.length % 7 !== 0) celdas.push(null);
@@ -155,9 +163,24 @@ export function etiquetaOrigen(por) {
   return '—';
 }
 
-// "Cargada por" de un día, para la planilla en PDF: si las dos horas las
-// cargó el mismo, una sola palabra; si no, una por cada hora.
+// ¿El día tiene horas del segundo tramo (la tarde de un doble turno)?
+export function tieneSegundoTramo(dia) {
+  return !!(dia?.entrada2 || dia?.salida2);
+}
+
+// "Cargada por" de un día, para la planilla en PDF: si las horas las
+// cargó el mismo, una sola palabra; si no, una por cada hora (o, con dos
+// tramos, quiénes las cargaron).
 export function origenFichaje(dia) {
+  if (tieneSegundoTramo(dia)) {
+    const origenes = [
+      dia.entrada && dia.entradaPor, dia.salida && dia.salidaPor,
+      dia.entrada2 && dia.entrada2Por, dia.salida2 && dia.salida2Por,
+    ].filter(Boolean);
+    const distintos = [...new Set(origenes)];
+    if (!distintos.length) return '—';
+    return distintos.map(etiquetaOrigen).join(' y ');
+  }
   const ent = dia?.entrada ? dia.entradaPor : null;
   const sal = dia?.salida ? dia.salidaPor : null;
   if (!ent && !sal) return '—';
@@ -168,5 +191,5 @@ export function origenFichaje(dia) {
 
 // Días con horario fichado (para el detalle de horarios de la planilla).
 export function diasConHorario(dias = []) {
-  return dias.filter(d => d.entrada || d.salida);
+  return dias.filter(d => d.entrada || d.salida || tieneSegundoTramo(d));
 }

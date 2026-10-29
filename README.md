@@ -16,7 +16,7 @@ administrativa (convenios, facturación y gastos), con usuarios y permisos por r
 | Sección | Para qué sirve |
 |---|---|
 | **Inicio** | Panel del día: **Grilla de atención** (quién atiende a quién y a qué hora, separada en turno mañana 8–12 y tarde 14–18), disponibilidad del equipo, alertas de CUD por vencer y entregas pendientes del mes. |
-| **Mi fichaje** | Solo para profesionales: un botón para la **entrada** y otro para la **salida**, con su ubicación. La base valida que esté en el centro y pone la hora. La salida fichada por error se puede **deshacer**. Abajo, su **calendario del mes** (tocando un día se ve el detalle) y la planilla en PDF. En su Inicio ve **solo su grilla** y un recordatorio si le falta fichar. |
+| **Mi fichaje** | Solo para profesionales: un botón para la **entrada** y otro para la **salida**, con su ubicación (quien trabaja **mañana y tarde** ficha cada turno aparte, con colores distintos). La base valida que esté en el centro y pone la hora. La salida fichada por error se puede **deshacer**. Abajo, su **calendario del mes** (tocando un día se ve el detalle) y la planilla en PDF. En su Inicio ve **solo su grilla** y un recordatorio si le falta fichar. |
 | **Admisión** | Ingreso de pacientes nuevos con checklist de documentación. Al aprobar, el paciente pasa a la lista de Pacientes. |
 | **Pacientes** | Legajo e **historia clínica**: documentos por categoría, buscador, informes profesionales y evaluación / certificado. |
 | **Turnos** | Agenda para pacientes **casuales** (sin legajo). Nunca puede pisar un turno fijo de la grilla. |
@@ -148,6 +148,7 @@ orden, y son re-ejecutables:
 | `14-escritura-informes-y-documentos.sql` | El profesional crea y edita solo sus informes del día; el CM no escribe informes ni documentos |
 | `15-documentacion-y-categorias.sql` | Documentación de admisión y categorías de la historia clínica, editables desde la app |
 | `16-fichaje-por-ubicacion.sql` | El profesional ficha su entrada y salida con su ubicación (la base valida distancia y hora); ubicación del centro configurable |
+| `17-fichaje-doble-turno.sql` | Quien trabaja mañana y tarde ficha dos tramos en el mismo día (registra el corte del mediodía) |
 
 Tablas principales:
 

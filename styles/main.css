@@ -1182,3 +1182,35 @@ button.cal-dia:hover{filter:brightness(.96)}
 /* Mi fichaje: "Deshacer salida" (enlace discreto debajo del botón) */
 .fich-deshacer{margin-top:6px;background:none;border:none;color:var(--ink-soft);font:inherit;font-size:13.5px;text-decoration:underline;cursor:pointer;align-self:center}
 .fich-deshacer:disabled{opacity:.5;cursor:wait}
+
+/* ---- Fichaje por turno: mañana (naranja) y tarde (violeta) ----
+   Colores fijos, iguales en Mi fichaje, la planilla de la secretaría y
+   el detalle del calendario, para reconocer el turno de un vistazo. */
+:root{--t-manana:#e07b32;--t-manana-suave:#fdf0e4;--t-tarde:#6c5ce7;--t-tarde-suave:#efedfd}
+:root[data-theme="dark"]{--t-manana-suave:#3a2a1c;--t-tarde-suave:#2a2744}
+.fich-tramos{display:flex;flex-direction:column;gap:18px}
+.fich-tramo{border-left:5px solid var(--line);border-radius:12px;padding:12px 0 0 14px}
+.fich-tramo-h{font-family:var(--display);font-weight:700;font-size:17px;margin-bottom:10px;color:var(--ink)}
+.fich-tramo-h small{font-family:var(--body);font-weight:500;font-size:13.5px;color:var(--ink-soft);margin-left:6px}
+.fich-t-manana{border-left-color:var(--t-manana)}
+.fich-t-manana .fich-tramo-h{color:var(--t-manana)}
+.fich-t-manana .fich-card.fich-hecha{background:var(--t-manana-suave);border-color:var(--t-manana-suave)}
+.fich-t-manana .fich-btn:not(:disabled){background:var(--t-manana);border-color:var(--t-manana);color:#fff}
+.fich-t-manana .fich-btn:disabled{background:var(--t-manana-suave);color:var(--t-manana);border-color:var(--t-manana-suave)}
+.fich-t-tarde{border-left-color:var(--t-tarde)}
+.fich-t-tarde .fich-tramo-h{color:var(--t-tarde)}
+.fich-t-tarde .fich-card.fich-hecha{background:var(--t-tarde-suave);border-color:var(--t-tarde-suave)}
+.fich-t-tarde .fich-btn:not(:disabled){background:var(--t-tarde);border-color:var(--t-tarde);color:#fff}
+.fich-t-tarde .fich-btn:disabled{background:var(--t-tarde-suave);color:var(--t-tarde);border-color:var(--t-tarde-suave)}
+.fich-t-manana .fich-hora{color:var(--t-manana)}
+.fich-t-tarde .fich-hora{color:var(--t-tarde)}
+.fich-hora.fich-hora-vacia{color:var(--ink-faint)}
+/* Planilla de la secretaría: etiqueta del turno de cada par de horas */
+.apf-horas{position:relative}
+.apf-turno{font-size:12.5px;font-weight:700;padding:3px 8px;border-radius:999px;align-self:flex-end;margin-bottom:6px;white-space:nowrap}
+.apf-t-manana{background:var(--t-manana-suave);color:var(--t-manana)}
+.apf-t-tarde{background:var(--t-tarde-suave);color:var(--t-tarde)}
+/* Detalle del día con dos turnos */
+.cal-tramo{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;width:100%;padding-left:8px;border-left:4px solid var(--line)}
+.cal-t-manana{border-left-color:var(--t-manana)}
+.cal-t-tarde{border-left-color:var(--t-tarde)}

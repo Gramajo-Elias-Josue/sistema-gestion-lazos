@@ -4,7 +4,10 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { mensajeErrorUbicacion, proximoPaso, linkMapa, validarUbicacionCentro, obtenerUbicacion, conPrecision } from '../src/utils/ubicacion.js';
 import { mensajeError } from '../src/utils/errores.js';
 import { renderInicio, renderInicioProfesional, renderRecordatorioFichaje } from '../src/views/inicioView.js';
-import { renderFichaje, puedeDeshacerSalida } from '../src/views/fichajeView.js';
+import { renderFichaje } from '../src/views/fichajeView.js';
+import { botonesFichaje, pasoFichaje, puedeDeshacerSalida, tramosDe, horaFichada } from '../src/utils/tramosFichaje.js';
+import { filaHtml as filaPlanilla } from '../src/views/asistenciaProfView.js';
+import { validarTramosFichaje } from '../src/utils/validacion.js';
 import { renderCalendario, renderDetalleDia } from '../src/views/calendarioAsistenciaView.js';
 import { armarCalendario, origenFichaje, diasConHorario } from '../src/utils/calendario.js';
 import { renderGrilla } from '../src/views/grillaAtencionView.js';
@@ -316,5 +319,111 @@ describe('Calendario de asistencia: sin horario en el día, detalle al tocarlo',
     expect(origenFichaje(cal.dias.find(x => x.iso === '2026-10-29'))).toBe('Ubicación');
     expect(origenFichaje({ entrada: '08:00', salida: '12:00', entradaPor: 'ubicacion', salidaPor: 'secretaria' }))
       .toBe('Entrada: Ubicación · Salida: Secretaría');
+  });
+});
+
+describe('Doble turno: dos tramos (mañana y tarde) en el mismo día', () => {
+  const doble = { id: 'p1', nombre_completo: 'Flores Ingrid', turnos_trabajo: ['manana', 'tarde'] };
+  const tarde = { id: 'p2', nombre_completo: 'Soria Gabriela', turnos_trabajo: ['tarde'] };
+
+  it('tramosDe: dos tramos para doble turno, uno (de su turno) para el resto', () => {
+    expect(tramosDe(doble).map(t => t.turno.clave)).toEqual(['manana', 'tarde']);
+    expect(tramosDe(tarde).map(t => t.turno.clave)).toEqual(['tarde']);
+    expect(tramosDe({ turnos_trabajo: [] })).toEqual([{ n: 1, turno: null }]);
+  });
+
+  it('botones: se habilitan en orden (entrada, salida, entrada tarde, salida tarde)', () => {
+    expect(botonesFichaje(null, true)).toEqual({ entrada: true, salida: false, entrada_2: true, salida_2: false });
+    const conManana = { estado: 'presente', hora_entrada: '08:00' };
+    expect(botonesFichaje(conManana, true)).toEqual({ entrada: false, salida: true, entrada_2: false, salida_2: false });
+    const mananaCerrada = { ...conManana, hora_salida: '12:00' };
+    expect(botonesFichaje(mananaCerrada, true)).toEqual({ entrada: false, salida: false, entrada_2: true, salida_2: false });
+    const conTarde = { ...mananaCerrada, hora_entrada_2: '14:00' };
+    expect(botonesFichaje(conTarde, true)).toEqual({ entrada: false, salida: false, entrada_2: false, salida_2: true });
+    expect(botonesFichaje({ ...conTarde, hora_salida_2: '18:00' }, true))
+      .toEqual({ entrada: false, salida: false, entrada_2: false, salida_2: false });
+  });
+  it('vino solo a la tarde: después de la entrada de la tarde, la mañana ya no se ficha', () => {
+    expect(botonesFichaje({ estado: 'presente', hora_entrada_2: '14:00' }, true))
+      .toEqual({ entrada: false, salida: false, entrada_2: false, salida_2: true });
+  });
+  it('un solo turno: nunca se habilita la tarde aparte', () => {
+    expect(botonesFichaje({ estado: 'presente', hora_entrada: '14:00', hora_salida: '18:00' }, false))
+      .toEqual({ entrada: false, salida: false, entrada_2: false, salida_2: false });
+  });
+
+  it('pasoFichaje: lo que falta, para el recordatorio del Inicio', () => {
+    expect(pasoFichaje(null, true)).toBe('entrada');
+    expect(pasoFichaje({ estado: 'presente', hora_entrada: '08:00' }, true)).toBe('salida');
+    expect(pasoFichaje({ estado: 'presente', hora_entrada: '08:00', hora_salida: '12:00' }, true)).toBe('entrada_2');
+    expect(pasoFichaje({ estado: 'presente', hora_entrada: '08:00', hora_salida: '12:00', hora_entrada_2: '14:00' }, true)).toBe('salida_2');
+    expect(pasoFichaje({ estado: 'presente', hora_entrada: '08:00', hora_salida: '12:00', hora_entrada_2: '14:00', hora_salida_2: '18:00' }, true)).toBe('listo');
+    expect(pasoFichaje({ estado: 'presente', hora_entrada: '14:00', hora_salida: '18:00' }, false)).toBe('listo');
+  });
+  it('recordatorio: nombra el turno', () => {
+    expect(renderRecordatorioFichaje({ paso: 'salida', fila: { hora_entrada: '08:00' }, doble: true })).toContain('salida de la mañana');
+    expect(renderRecordatorioFichaje({ paso: 'entrada_2', fila: { hora_salida: '12:00' }, doble: true })).toContain('entrada de la tarde');
+    expect(renderRecordatorioFichaje({ paso: 'salida_2', fila: { hora_entrada_2: '14:00' }, doble: true })).toContain('salida de la tarde');
+  });
+
+  it('deshacer: la de la mañana no, si ya empezó la tarde', () => {
+    const fila = { hora_salida: '12:00', salida_por: 'ubicacion', hora_entrada_2: '14:00', hora_salida_2: '18:00', salida_2_por: 'ubicacion' };
+    expect(puedeDeshacerSalida(fila, 1)).toBe(false);
+    expect(puedeDeshacerSalida(fila, 2)).toBe(true);
+    expect(puedeDeshacerSalida({ hora_salida: '12:00', salida_por: 'ubicacion' }, 1)).toBe(true);
+  });
+  it('horaFichada: la hora que devolvió la base para lo que se fichó', () => {
+    expect(horaFichada({ hora_entrada_2: '14:01:00' }, 'entrada_2')).toBe('14:01:00');
+    expect(horaFichada({}, 'salida')).toBe(null);
+  });
+
+  it('Mi fichaje: dos secciones con su color, cada una con sus botones', () => {
+    const html = renderFichaje({ fila: { estado: 'presente', hora_entrada: '08:00:00', hora_salida: '12:00:00' }, profesional: doble });
+    expect(html).toContain('fich-t-manana');
+    expect(html).toContain('fich-t-tarde');
+    expect(html).toContain('data-fichar="salida_2"');
+    expect(html).toMatch(/data-fichar="entrada_2"\s*>/); // habilitado
+  });
+  it('Mi fichaje: un solo turno muestra solo su sección', () => {
+    const html = renderFichaje({ fila: null, profesional: tarde });
+    expect(html).toContain('fich-t-tarde');
+    expect(html).not.toContain('fich-t-manana');
+    expect(html).not.toContain('entrada_2');
+  });
+
+  it('planilla de la secretaría: dos pares de horas para doble turno, uno para el resto', () => {
+    const dos = filaPlanilla(doble, { estado: 'presente', hora_entrada: '08:00:00', hora_salida: '12:00:00', hora_entrada_2: '14:00:00' });
+    expect(dos).toContain('data-tramo="2"');
+    expect(dos).toContain('Mañana');
+    expect(dos).toContain('Tarde');
+    expect(dos).toContain('value="14:00"');
+    expect(filaPlanilla(tarde, null)).not.toContain('data-tramo="2"');
+  });
+  it('planilla de un día pasado: sugiere el horario de cada turno', () => {
+    const html = filaPlanilla(doble, null, { esHoy: false });
+    for (const h of ['08:00', '12:00', '14:00', '18:00']) expect(html).toContain(`value="${h}"`);
+  });
+
+  it('validación de la secretaría: la tarde no puede empezar antes de que termine la mañana', () => {
+    const m = { estado: 'presente', hora_entrada: '08:00', hora_salida: '12:30' };
+    expect(validarTramosFichaje(m, { estado: 'presente', hora_entrada: '12:00' }).ok).toBe(false);
+    expect(validarTramosFichaje(m, { estado: 'presente', hora_entrada: '14:00', hora_salida: '18:00' }).ok).toBe(true);
+    expect(validarTramosFichaje({ estado: 'presente', hora_entrada: '08:00' }, { estado: 'presente', hora_entrada: '14:00' }).ok).toBe(false);
+    expect(validarTramosFichaje(m, { estado: 'presente', hora_entrada: '18:00', hora_salida: '14:00' }).mensaje).toContain('tarde');
+  });
+
+  it('calendario: el detalle del día muestra mañana y tarde; el PDF los pone en columnas', () => {
+    const cal = armarCalendario({ anio: 2026, mes: 10, hoy: '2026-10-30', registros: [{
+      fecha: '2026-10-28', estado: 'presente',
+      hora_entrada: '08:00:00', hora_salida: '12:00:00', entrada_por: 'ubicacion', salida_por: 'ubicacion',
+      hora_entrada_2: '14:05:00', hora_salida_2: '18:00:00', entrada_2_por: 'secretaria', salida_2_por: 'secretaria',
+    }] });
+    const d = cal.dias.find(x => x.iso === '2026-10-28');
+    const html = renderDetalleDia(d);
+    expect(html).toContain('Mañana');
+    expect(html).toContain('Tarde');
+    expect(html).toContain('14:05');
+    expect(origenFichaje(d)).toBe('Ubicación y Secretaría');
+    expect(diasConHorario(cal.dias)).toHaveLength(1);
   });
 });

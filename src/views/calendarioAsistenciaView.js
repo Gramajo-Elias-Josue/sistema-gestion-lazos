@@ -9,7 +9,7 @@
 
 import { esc } from '../utils/ui.js';
 import { iniciales, formatearFecha, fechaLarga } from '../utils/fechas.js';
-import { DIAS_SEMANA, ESTADOS_CALENDARIO, etiquetaMes, etiquetaOrigen } from '../utils/calendario.js';
+import { DIAS_SEMANA, ESTADOS_CALENDARIO, etiquetaMes, etiquetaOrigen, tieneSegundoTramo } from '../utils/calendario.js';
 
 // Modal completo. `persona` = { nombre_completo, ... }, `subtitulo` es el
 // renglón chico (diagnóstico del paciente o profesión del profesional).
@@ -172,9 +172,18 @@ export function renderDetalleDia(dia) {
     return ` <small>(${esc(etiquetaOrigen(por))}${metros})</small>`;
   };
   const estado = ESTADOS_CALENDARIO[dia.estado]?.etiqueta || dia.estado;
-  const horas = (dia.entrada || dia.salida) ? `
-    <span>Entrada: <b>${hhmm(dia.entrada)}</b>${origen(dia.entrada && dia.entradaPor, dia.entradaDist)}</span>
-    <span>Salida: <b>${hhmm(dia.salida)}</b>${origen(dia.salida && dia.salidaPor, dia.salidaDist)}</span>` : '';
+  const par = (ent, entPor, entDist, sal, salPor, salDist) => `
+    <span>Entrada: <b>${hhmm(ent)}</b>${origen(ent && entPor, entDist)}</span>
+    <span>Salida: <b>${hhmm(sal)}</b>${origen(sal && salPor, salDist)}</span>`;
+  let horas = '';
+  if (tieneSegundoTramo(dia)) {
+    // Doble turno: un renglón por turno (mañana / tarde).
+    horas = `
+      <div class="cal-tramo cal-t-manana">☀️ <b>Mañana</b>${par(dia.entrada, dia.entradaPor, dia.entradaDist, dia.salida, dia.salidaPor, dia.salidaDist)}</div>
+      <div class="cal-tramo cal-t-tarde">🌇 <b>Tarde</b>${par(dia.entrada2, dia.entrada2Por, dia.entrada2Dist, dia.salida2, dia.salida2Por, dia.salida2Dist)}</div>`;
+  } else if (dia.entrada || dia.salida) {
+    horas = par(dia.entrada, dia.entradaPor, dia.entradaDist, dia.salida, dia.salidaPor, dia.salidaDist);
+  }
   const nota = dia.nota ? `<span>Observaciones: ${esc(dia.nota)}</span>` : '';
   return `${fecha}<span>${esc(estado)}</span>${horas}${nota}`;
 }

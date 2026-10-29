@@ -21,10 +21,24 @@ import { generarPlanillaAsistencia } from '../utils/informePdf.js';
 import { mensajeError } from '../utils/errores.js';
 import { obtenerUbicacion, mensajeErrorUbicacion, conPrecision } from '../utils/ubicacion.js';
 import { hoyISO } from '../utils/fechas.js';
+import { horaFichada } from '../utils/tramosFichaje.js';
 import { perfilActual } from '../sesion.js';
 
 // Mes del calendario que se está viendo.
 let cal = null; // { anio, mes, calendario }
+// Ficha del profesional logueado (de ahí salen sus turnos: uno o dos tramos).
+let profesional = null;
+
+// Qué se fichó, en palabras (para los avisos).
+const NOMBRE_FICHAJE = {
+  entrada: 'Entrada', salida: 'Salida',
+  entrada_2: 'Entrada de la tarde', salida_2: 'Salida de la tarde',
+};
+
+// Redibuja las tarjetas con la fila del día.
+function dibujar(cuerpo, fila) {
+  cuerpo.innerHTML = renderFichaje({ fila, profesional });
+}
 
 // Punto de entrada de la sección (lo llama el router).
 export async function iniciarFichaje() {
@@ -61,17 +75,22 @@ export async function iniciarFichaje() {
   cargarMes(anio, mes);
 
   try {
-    const fila = await asistenciaProfModel.fichajeDelDia(profesionalId, hoyISO());
-    cuerpo.innerHTML = renderFichaje({ fila });
+    const [fila, prof] = await Promise.all([
+      asistenciaProfModel.fichajeDelDia(profesionalId, hoyISO()),
+      profesionalModel.obtenerProfesional(profesionalId),
+    ]);
+    profesional = prof;
+    dibujar(cuerpo, fila);
   } catch (err) {
     console.error('Error cargando mi fichaje:', err);
     cuerpo.innerHTML = htmlError('No se pudo cargar tu fichaje. Revisá la conexión.');
   }
 }
 
-// Ficha la entrada o la salida (según el botón tocado).
+// Ficha lo que diga el botón tocado: 'entrada' / 'salida' (la mañana, o
+// el único turno) o 'entrada_2' / 'salida_2' (la tarde de quien hace los dos).
 async function fichar(btn, cuerpo) {
-  const que = btn.dataset.fichar; // 'entrada' | 'salida'
+  const que = btn.dataset.fichar;
   const textoOriginal = btn.textContent;
   // Mientras se ficha, ningún botón se puede tocar (evita doble toque).
   cuerpo.querySelectorAll('[data-fichar]').forEach(b => { b.disabled = true; });
@@ -84,11 +103,11 @@ async function fichar(btn, cuerpo) {
     btn.textContent = 'Fichando…';
     const fila = await asistenciaProfModel.ficharConUbicacion(lat, lng, que);
     // Sin la hora de vuelta no se guardó nada: no se avisa "fichada".
-    const hora = que === 'entrada' ? fila?.hora_entrada : fila?.hora_salida;
+    const hora = horaFichada(fila, que);
     if (!hora) throw new Error('fichar() no devolvió la hora');
-    cuerpo.innerHTML = renderFichaje({ fila });
+    dibujar(cuerpo, fila);
     refrescarMesActual();
-    toast(que === 'entrada' ? `Entrada fichada a las ${String(hora).slice(0, 5)}.` : `Salida fichada a las ${String(hora).slice(0, 5)}.`);
+    toast(`${NOMBRE_FICHAJE[que] || 'Fichaje'} fichada a las ${String(hora).slice(0, 5)}.`);
   } catch (err) {
     console.error('Error fichando:', err);
     toast(esErrorDeUbicacion(err)
@@ -98,7 +117,7 @@ async function fichar(btn, cuerpo) {
     // secretaría, o se fichó desde otro dispositivo).
     try {
       const fila = await asistenciaProfModel.fichajeDelDia(perfilActual()?.profesional_id, hoyISO());
-      cuerpo.innerHTML = renderFichaje({ fila });
+      dibujar(cuerpo, fila);
     } catch {
       btn.textContent = textoOriginal;
       btn.disabled = false;
@@ -106,20 +125,22 @@ async function fichar(btn, cuerpo) {
   }
 }
 
-// Deshace la salida de hoy (con confirmación). En el Inicio vuelve a
-// aparecer el recordatorio de fichar la salida.
+// Deshace una salida de hoy (la de la mañana = tramo 1, la de la tarde =
+// tramo 2), con confirmación. En el Inicio vuelve a aparecer el
+// recordatorio de fichar la salida.
 async function deshacerSalida(btn, cuerpo) {
+  const tramo = Number(btn.dataset.deshacerSalida) || 1;
   const ok = await confirmar({
     titulo: '¿Deshacer la salida?',
-    mensaje: 'Se borra la hora de salida de hoy y vas a tener que volver a ficharla al irte.',
+    mensaje: 'Se borra esa hora de salida de hoy y vas a tener que volver a ficharla al irte.',
     textoOk: 'Sí, deshacer',
     textoCancelar: 'Volver',
   });
   if (!ok) return;
   btn.disabled = true;
   try {
-    const fila = await asistenciaProfModel.deshacerSalida();
-    cuerpo.innerHTML = renderFichaje({ fila });
+    const fila = await asistenciaProfModel.deshacerSalida(tramo);
+    dibujar(cuerpo, fila);
     refrescarMesActual();
     toast('Salida deshecha. Acordate de ficharla al irte.');
   } catch (err) {

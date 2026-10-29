@@ -13,7 +13,8 @@ import { abrirCalendarioProfesional } from './calendarioAsistenciaController.js'
 import { hoyISO, sumarDias, nombreDia, ahoraHHMM, horaAMinutos } from '../utils/fechas.js';
 import { horarioDe } from '../utils/turnosCentro.js';
 import { htmlCargando, htmlError, toast, confirmar } from '../utils/ui.js';
-import { validarFichajeProfesional } from '../utils/validacion.js';
+import { validarFichajeProfesional, validarTramosFichaje } from '../utils/validacion.js';
+import { tramosDe } from '../utils/tramosFichaje.js';
 import { mensajeError } from '../utils/errores.js';
 
 let fechaActual = hoyISO();
@@ -62,12 +63,13 @@ export async function iniciarAsistenciaProf() {
     if (!sel) return;
     const fila = sel.closest('.asis-row');
     const conHoras = sel.value === 'presente';
-    const ent = fila.querySelector('.apf-entrada');
-    const sal = fila.querySelector('.apf-salida');
-    ent.disabled = sal.disabled = !conHoras || bloqueado;
+    // Todas las horas de la fila (uno o dos tramos).
+    const inputs = fila.querySelectorAll('.apf-horas input');
+    inputs.forEach(i => { i.disabled = !conHoras || bloqueado; });
+    const ent = fila.querySelector('.apf-horas[data-tramo="1"] .apf-entrada');
     if (!conHoras) {
-      ent.value = ''; sal.value = '';
-    } else if (!ent.value && fechaActual === hoyISO()) {
+      inputs.forEach(i => { i.value = ''; });
+    } else if (ent && !ent.value && fechaActual === hoyISO()) {
       ent.value = ahoraHHMM();  // re-sugerencia al reactivar presente
     }
   });
@@ -127,22 +129,23 @@ function recalcularStats() {
   set('apf-pct', (total ? Math.round((pres / total) * 100) : 0) + '%');
 }
 
-// Si las horas fichadas difieren mucho (>1h) del horario habitual del
-// perfil, pide confirmación (el profesional pudo venir en otro horario
-// real, pero también puede ser un error de tipeo). Devuelve true si se
-// puede seguir.
-async function confirmarFueraDeHorario(prof, entrada, salida) {
-  const { entrada: habEnt, salida: habSal } = horarioDe(prof);
-  if (!habEnt && !habSal) return true; // sin horario habitual: nada que comparar
-
+// Si las horas fichadas difieren mucho (>1h) del horario habitual,
+// pide confirmación (el profesional pudo venir en otro horario real,
+// pero también puede ser un error de tipeo). `tramos` = [{ habitual:
+// { entrada, salida }, entrada, salida }]: uno, o dos (mañana y tarde).
+// Devuelve true si se puede seguir.
+async function confirmarFueraDeHorario(prof, tramos) {
   const TOLERANCIA = 60; // minutos
-  const difEnt = (entrada && habEnt) ? Math.abs(horaAMinutos(entrada) - horaAMinutos(habEnt)) : 0;
-  const difSal = (salida && habSal) ? Math.abs(horaAMinutos(salida) - horaAMinutos(habSal)) : 0;
-  if (difEnt <= TOLERANCIA && difSal <= TOLERANCIA) return true;
+  const lejos = (hora, habitual) => hora && habitual && Math.abs(horaAMinutos(hora) - horaAMinutos(habitual)) > TOLERANCIA;
+  const fuera = tramos.filter(t => lejos(t.entrada, t.habitual.entrada) || lejos(t.salida, t.habitual.salida));
+  if (!fuera.length) return true;
 
+  const habitual = tramos.map(t => `${t.habitual.entrada || '—'} a ${t.habitual.salida || '—'}`).join(' y ');
+  const cargado = tramos.filter(t => t.entrada || t.salida)
+    .map(t => `${t.entrada || '—'}${t.salida ? ` a ${t.salida}` : ''}`).join(' y ');
   return confirmar({
     titulo: 'Fichaje fuera de horario',
-    mensaje: `${prof.nombre_completo} suele trabajar de ${habEnt || '—'} a ${habSal || '—'}. Estás cargando ${entrada || '—'}${salida ? ` a ${salida}` : ''}. ¿Es correcto?`,
+    mensaje: `${prof.nombre_completo} suele trabajar de ${habitual}. Estás cargando ${cargado || '—'}. ¿Es correcto?`,
     textoOk: 'Sí, es correcto',
     textoCancelar: 'Volver',
   });
@@ -156,21 +159,40 @@ async function guardar(profId) {
   const estado = fila.querySelector('.apf-estado').value;
   // Las horas solo aplican a "presente" (ausente / licencia van sin horas).
   const conHoras = estado === 'presente';
-  const entrada = conHoras ? (fila.querySelector('.apf-entrada').value || null) : null;
-  const salida = conHoras ? (fila.querySelector('.apf-salida').value || null) : null;
+  const leer = (tramo, clase) => {
+    const input = fila.querySelector(`.apf-horas[data-tramo="${tramo}"] ${clase}`);
+    return conHoras && input ? (input.value || null) : null;
+  };
+  const entrada = leer(1, '.apf-entrada');
+  const salida = leer(1, '.apf-salida');
+  // Segundo tramo (la tarde): solo existe para quien hace los dos turnos.
+  const dosTramos = !!fila.querySelector('.apf-horas[data-tramo="2"]');
+  const entrada2 = dosTramos ? leer(2, '.apf-entrada') : undefined;
+  const salida2 = dosTramos ? leer(2, '.apf-salida') : undefined;
 
   // Reglas duras: salida sin entrada, salida < entrada y, si es HOY, horas
   // que todavía no ocurrieron (no se ficha el futuro). "Presente" sin horas
   // es válido: confirma que asiste hoy; las horas se cargan cuando ocurren.
-  const v = validarFichajeProfesional(
-    { estado, hora_entrada: entrada, hora_salida: salida },
-    { esHoy: fechaActual === hoyISO(), ahora: ahoraHHMM() }
-  );
+  const ctxHoy = { esHoy: fechaActual === hoyISO(), ahora: ahoraHHMM() };
+  const v = dosTramos
+    ? validarTramosFichaje(
+      { estado, hora_entrada: entrada, hora_salida: salida },
+      { estado, hora_entrada: entrada2, hora_salida: salida2 }, ctxHoy)
+    : validarFichajeProfesional({ estado, hora_entrada: entrada, hora_salida: salida }, ctxHoy);
   if (!v.ok) { toast(v.mensaje, 'bad'); return; }
 
   // Regla blanda: muy lejos del horario habitual -> confirmar con nombre.
   const prof = profesionales.find(p => String(p.id) === String(profId));
-  if (conHoras && prof && !(await confirmarFueraDeHorario(prof, entrada, salida))) return;
+  if (conHoras && prof) {
+    const tramos = dosTramos
+      ? tramosDe(prof).map(({ n, turno }) => ({
+        habitual: { entrada: turno.desde, salida: turno.hasta },
+        entrada: n === 1 ? entrada : entrada2,
+        salida: n === 1 ? salida : salida2,
+      }))
+      : [{ habitual: horarioDe(prof), entrada, salida }];
+    if (!(await confirmarFueraDeHorario(prof, tramos))) return;
+  }
 
   const btn = fila.querySelector('.apf-guardar');
   btn.disabled = true;
@@ -178,7 +200,8 @@ async function guardar(profId) {
   try {
     const saved = await asistenciaProfModel.guardarFichaje({
       profesionalId: profId, fecha: fechaActual,
-      horaEntrada: entrada, horaSalida: salida, estado,
+      horaEntrada: entrada, horaSalida: salida,
+      horaEntrada2: entrada2, horaSalida2: salida2, estado,
     });
     fichajes[profId] = saved;
     fila.outerHTML = filaHtml(prof, saved, ctx()); // tilde verde

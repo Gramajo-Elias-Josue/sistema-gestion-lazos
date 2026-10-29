@@ -71,16 +71,21 @@ export function renderInicioProfesional() {
 }
 
 // Recordatorio del fichaje en el Inicio del profesional. `paso` sale de
-// proximoPaso(): solo se avisa si falta fichar algo. El fichaje se hace
-// en su propia sección (Mi fichaje).
-export function renderRecordatorioFichaje({ paso, fila }) {
-  if (paso !== 'entrada' && paso !== 'salida') return '';
-  const texto = paso === 'entrada'
-    ? '<b>Todavía no fichaste tu entrada de hoy.</b> <span>Hacelo al llegar al centro.</span>'
-    : `<b>Acordate de fichar la salida al irte.</b> <span>Entrada fichada a las ${esc(String(fila?.hora_entrada || '').slice(0, 5))}.</span>`;
+// pasoFichaje() (utils/tramosFichaje.js): solo se avisa si falta fichar
+// algo. `doble` = trabaja mañana y tarde (se nombra el turno). El fichaje
+// se hace en su propia sección (Mi fichaje).
+export function renderRecordatorioFichaje({ paso, fila, doble = false }) {
+  const hora = (t) => esc(String(t || '').slice(0, 5));
+  const textos = {
+    entrada: '<b>Todavía no fichaste tu entrada de hoy.</b> <span>Hacelo al llegar al centro.</span>',
+    salida: `<b>Acordate de fichar la salida${doble ? ' de la mañana' : ''} al irte.</b> <span>Entrada fichada a las ${hora(fila?.hora_entrada)}.</span>`,
+    entrada_2: `<b>Fichá la entrada de la tarde cuando vuelvas.</b> <span>Saliste a las ${hora(fila?.hora_salida)}.</span>`,
+    salida_2: `<b>Acordate de fichar la salida de la tarde al irte.</b> <span>Entrada de la tarde a las ${hora(fila?.hora_entrada_2)}.</span>`,
+  };
+  if (!textos[paso]) return '';
   return `
     <div class="banner banner-alerta fich-recordatorio" style="margin-bottom:20px">
-      <div class="tx">${texto}</div>
+      <div class="tx">${textos[paso]}</div>
       <a class="btn" href="#fichaje">Ir a Mi fichaje</a>
     </div>`;
 }
@@ -121,9 +126,13 @@ export function renderDisponibilidad(profesionales, fichajesPorId = {}) {
     else estadoPill = pill('bad', 'Ausente');
 
     // Horario: lo fichado hoy si está, si no el horario habitual del perfil.
+    // Si fichó la tarde (doble turno), se ven los dos tramos.
     const ent = hhmm(f?.hora_entrada) || horarioDe(p).entrada;
     const sal = hhmm(f?.hora_salida) || horarioDe(p).salida;
-    const horario = (ent || sal) ? `${ent || '—'} a ${sal || '—'}` : 'Sin horario';
+    let horario = (ent || sal) ? `${ent || '—'} a ${sal || '—'}` : 'Sin horario';
+    if (f?.hora_entrada_2 || f?.hora_salida_2) {
+      horario = `${f?.hora_entrada ? `${hhmm(f.hora_entrada)} a ${hhmm(f.hora_salida) || '—'} y ` : ''}${hhmm(f.hora_entrada_2) || '—'} a ${hhmm(f.hora_salida_2) || '—'}`;
+    }
 
     return `
       <div class="alert">

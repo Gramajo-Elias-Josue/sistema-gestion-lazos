@@ -1,10 +1,11 @@
 // =====================================================================
 // VISTA: Mi fichaje (solo el profesional)
 // ---------------------------------------------------------------------
-// CAPA VISTA. Dos tarjetas, una para la ENTRADA y otra para la SALIDA,
-// cada una con su botón. Cada botón se habilita solo cuando le toca:
-//   - Entrada: hasta que se fiche (después queda la hora y el botón apagado).
-//   - Salida:  recién con la entrada fichada, y hasta que se fiche.
+// CAPA VISTA. Una sección por TURNO que trabaja el profesional, cada una
+// con su color (mañana / tarde) y dos tarjetas: ENTRADA y SALIDA. El que
+// hace los dos turnos ve las dos secciones (ficha el corte del mediodía);
+// el que hace uno, solo la suya. Cada botón se habilita solo cuando le
+// toca (utils/tramosFichaje.js, mismas reglas que la base).
 // No hay campo de hora: la pone la base al fichar (función fichar()).
 // La salida fichada por error se puede deshacer (solo la de hoy y solo si
 // la fichó él con su ubicación; si la cargó la secretaría, la corrige ella).
@@ -14,11 +15,14 @@
 // =====================================================================
 
 import { esc } from '../utils/ui.js';
-import { proximoPaso } from '../utils/ubicacion.js';
 import { etiquetaMes } from '../utils/calendario.js';
+import { rangoTurno } from '../utils/turnosCentro.js';
+import {
+  CAMPOS_TRAMO, tramosDe, esDobleTurno, botonesFichaje, pasoFichaje, puedeDeshacerSalida,
+} from '../utils/tramosFichaje.js';
 import { ESTADOS_FICHAJE } from './asistenciaProfView.js';
 
-// Estructura de la sección: las dos tarjetas y el calendario del mes.
+// Estructura de la sección: los turnos y el calendario del mes.
 export function renderEstructuraFichaje({ anio, mes }) {
   return `
     <div class="panel" style="margin-bottom:20px"><div class="panel-b" id="fich-cuerpo"></div></div>
@@ -39,17 +43,15 @@ export function renderEstructuraFichaje({ anio, mes }) {
     </div>`;
 }
 
-// ¿Se puede deshacer la salida de esta fila? (misma regla que la base)
-export function puedeDeshacerSalida(fila) {
-  return !!fila?.hora_salida && fila?.salida_por === 'ubicacion';
-}
-
 // "HH:MM:SS" -> "HH:MM".
 const hhmm = (t) => t ? String(t).slice(0, 5) : '';
 
-// Una tarjeta (entrada o salida). `hora` = la fichada (o vacío);
-// `habilitado` = si el botón se puede tocar ahora.
-function tarjeta({ que, titulo, icono, hora, por, habilitado, ayuda, extra = '' }) {
+// Ícono de cada turno (además del color, para quien no distingue colores).
+const ICONO_TURNO = { manana: '☀️', tarde: '🌇' };
+
+// Una tarjeta (entrada o salida de un tramo). `hora` = la fichada (o
+// vacío); `habilitado` = si el botón se puede tocar ahora.
+function tarjeta({ que, titulo, hora, por, habilitado, ayuda, extra = '' }) {
   const hecho = !!hora;
   const detalle = hecho
     ? `<div class="fich-hora">${esc(hhmm(hora))}</div>
@@ -57,7 +59,7 @@ function tarjeta({ que, titulo, icono, hora, por, habilitado, ayuda, extra = '' 
     : `<div class="fich-hora fich-hora-vacia">--:--</div><small>${esc(ayuda)}</small>`;
   return `
     <div class="fich-card${hecho ? ' fich-hecha' : ''}">
-      <div class="fich-tit">${icono} ${esc(titulo)}</div>
+      <div class="fich-tit">${esc(titulo)}</div>
       ${detalle}
       <button type="button" class="btn fich-btn" data-fichar="${que}" ${habilitado ? '' : 'disabled'}>
         ${hecho ? `✓ ${esc(titulo)} fichada` : `📍 Fichar ${esc(titulo.toLowerCase())}`}
@@ -66,34 +68,56 @@ function tarjeta({ que, titulo, icono, hora, por, habilitado, ayuda, extra = '' 
     </div>`;
 }
 
-// La pantalla completa. `fila` = el fichaje del día (o null).
-export function renderFichaje({ fila }) {
-  const paso = proximoPaso(fila);
+// Un turno: encabezado con su color + tarjetas de entrada y salida.
+function seccionTramo({ n, turno }, fila, botones) {
+  const c = CAMPOS_TRAMO[n];
+  const entradaHecha = !!fila?.[c.entrada];
+  const clase = turno ? `fich-t-${turno.clave}` : 'fich-t-sin';
+  const encabezado = turno
+    ? `${ICONO_TURNO[turno.clave] || ''} ${esc(turno.etiqueta)} <small>${esc(rangoTurno(turno))}</small>`
+    : 'Tu turno <small>(todavía no tenés turno cargado)</small>';
+
+  const entrada = tarjeta({
+    que: c.fichaEntrada, titulo: 'Entrada',
+    hora: fila?.[c.entrada], por: fila?.[c.entradaPor],
+    habilitado: botones[c.fichaEntrada],
+    ayuda: n === 2 && fila?.hora_entrada && !fila?.hora_salida
+      ? 'Se habilita después de fichar la salida de la mañana.'
+      : 'Fichala al llegar al centro.',
+  });
+  const salida = tarjeta({
+    que: c.fichaSalida, titulo: 'Salida',
+    hora: fila?.[c.salida], por: fila?.[c.salidaPor],
+    habilitado: botones[c.fichaSalida],
+    ayuda: entradaHecha ? 'Fichala al irte.' : 'Se habilita después de fichar la entrada.',
+    extra: puedeDeshacerSalida(fila, n)
+      ? `<button type="button" class="fich-deshacer" data-deshacer-salida="${n}">↺ Deshacer salida (si fue un error)</button>`
+      : '',
+  });
+
+  return `
+    <section class="fich-tramo ${clase}">
+      <div class="fich-tramo-h">${encabezado}</div>
+      <div class="fich-grid">${entrada}${salida}</div>
+    </section>`;
+}
+
+// La pantalla completa. `fila` = el fichaje del día (o null);
+// `profesional` = su ficha (de ahí salen sus turnos).
+export function renderFichaje({ fila, profesional }) {
+  const doble = esDobleTurno(profesional);
+  const paso = pasoFichaje(fila, doble);
 
   if (paso === 'bloqueado') {
     const estado = ESTADOS_FICHAJE[fila?.estado] || fila?.estado || '';
     return `<div class="state">Hoy figurás como <b>${esc(estado)}</b> en la planilla, así que no hace falta fichar. Si es un error, avisale a la secretaría.</div>`;
   }
 
-  const entrada = tarjeta({
-    que: 'entrada', titulo: 'Entrada', icono: '🟢',
-    hora: fila?.hora_entrada, por: fila?.entrada_por,
-    habilitado: paso === 'entrada',
-    ayuda: 'Fichala al llegar al centro.',
-  });
-  const salida = tarjeta({
-    que: 'salida', titulo: 'Salida', icono: '🔴',
-    hora: fila?.hora_salida, por: fila?.salida_por,
-    habilitado: paso === 'salida',
-    ayuda: paso === 'entrada' ? 'Se habilita después de fichar la entrada.' : 'Fichala al irte.',
-    extra: puedeDeshacerSalida(fila)
-      ? `<button type="button" class="fich-deshacer" data-deshacer-salida>↺ Deshacer salida (si fue un error)</button>`
-      : '',
-  });
-
+  const botones = botonesFichaje(fila, doble);
+  const secciones = tramosDe(profesional).map(t => seccionTramo(t, fila, botones)).join('');
   const pie = paso === 'listo'
-    ? `<div class="fich-listo">Ya fichaste la entrada y la salida de hoy. ✓</div>`
+    ? `<div class="fich-listo">Ya fichaste ${doble ? 'los dos turnos' : 'la entrada y la salida'} de hoy. ✓</div>`
     : `<p class="fich-nota">Se usa tu ubicación para confirmar que estás en el centro. La hora la pone el sistema.</p>`;
 
-  return `<div class="fich-grid">${entrada}${salida}</div>${pie}`;
+  return `<div class="fich-tramos">${secciones}</div>${pie}`;
 }

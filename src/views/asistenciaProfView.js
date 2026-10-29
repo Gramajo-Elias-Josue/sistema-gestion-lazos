@@ -3,12 +3,14 @@
 // ---------------------------------------------------------------------
 // CAPA VISTA. Navegación por fecha + una fila por profesional con su
 // estado del día y los horarios de entrada / salida (prellenados con el
-// horario habitual del perfil si todavía no fichó).
+// horario habitual del perfil si todavía no fichó). El que trabaja
+// mañana Y tarde tiene dos pares de horas: uno por turno (script 17).
 // =====================================================================
 
 import { esc } from '../utils/ui.js';
 import { nombreDia, iniciales } from '../utils/fechas.js';
 import { horarioDe, textoTurnos } from '../utils/turnosCentro.js';
+import { tramosDe, CAMPOS_TRAMO } from '../utils/tramosFichaje.js';
 
 export const ESTADOS_FICHAJE = { presente: 'Presente', ausente: 'Ausente', licencia: 'Licencia' };
 
@@ -56,31 +58,48 @@ export function filaHtml(prof, fichaje, ctx = {}) {
   const { bloqueado = false, esHoy = false, ahora = '' } = ctx;
   const f = fichaje || {};
   const estado = f.estado || 'presente';
+  const tramos = tramosDe(prof);
+  const doble = tramos.length === 2;
 
-  const prefillEntrada = () => {
-    if (f.hora_entrada) {
-      if (esHoy && ahora && hhmm(f.hora_entrada) > ahora) return ahora;
-      return hhmm(f.hora_entrada);
-    }
-    if (esHoy && ahora) return ahora;
-    return horarioDe(prof).entrada;
+  // Prellenado de un tramo. `habitual` = { entrada, salida } de su turno.
+  // El de la tarde (tramo 2), si es hoy, solo se sugiere cuando ya llegó
+  // la hora de la tarde (a la mañana todavía no pasó).
+  const prefill = (n, habitual, turno) => {
+    const c = CAMPOS_TRAMO[n];
+    const guardadaEnt = f[c.entrada], guardadaSal = f[c.salida];
+    let entrada;
+    if (guardadaEnt) entrada = (esHoy && ahora && hhmm(guardadaEnt) > ahora) ? ahora : hhmm(guardadaEnt);
+    else if (esHoy && ahora) entrada = (n === 2 && turno && ahora < turno.desde) ? '' : ahora;
+    else entrada = habitual.entrada;
+    let salida;
+    if (guardadaSal) salida = (esHoy && ahora && hhmm(guardadaSal) > ahora) ? '' : hhmm(guardadaSal);
+    else salida = esHoy ? '' : habitual.salida;
+    return { entrada, salida };
   };
-  const prefillSalida = () => {
-    if (f.hora_salida) {
-      if (esHoy && ahora && hhmm(f.hora_salida) > ahora) return '';
-      return hhmm(f.hora_salida);
-    }
-    if (esHoy) return '';
-    return horarioDe(prof).salida;
-  };
+
   const conHoras = estado === 'presente';
-  const entrada = conHoras ? prefillEntrada() : '';
-  const salida = conHoras ? prefillSalida() : '';
+  const offHoras = (bloqueado || !conHoras) ? 'disabled' : '';
+  const horas = tramos.map(({ n, turno }) => {
+    const c = CAMPOS_TRAMO[n];
+    // Con un solo turno, el habitual es el de su perfil; con dos, el de cada turno.
+    const habitual = doble && turno ? { entrada: turno.desde, salida: turno.hasta } : horarioDe(prof);
+    const v = conHoras ? prefill(n, habitual, turno) : { entrada: '', salida: '' };
+    const titulo = doble && turno
+      ? `<span class="apf-turno apf-t-${turno.clave}">${turno.clave === 'manana' ? '☀️ Mañana' : '🌇 Tarde'}</span>`
+      : '';
+    return `
+      <div class="apf-horas" data-tramo="${n}">
+        ${titulo}
+        <label class="apf-hora"><span>Entrada${marcaUbicacion(f[c.entradaPor], f[c.entradaDist])}</span>
+          <input type="time" class="apf-entrada" value="${v.entrada}" ${offHoras}></label>
+        <label class="apf-hora"><span>Salida${marcaUbicacion(f[c.salidaPor], f[c.salidaDist])}</span>
+          <input type="time" class="apf-salida" value="${v.salida}" ${offHoras}></label>
+      </div>`;
+  }).join('');
 
   const opts = Object.entries(ESTADOS_FICHAJE)
     .map(([v, l]) => `<option value="${v}" ${v === estado ? 'selected' : ''}>${l}</option>`).join('');
   const guardado = !!fichaje;
-  const offHoras = (bloqueado || !conHoras) ? 'disabled' : '';
 
   return `
     <div class="asis-row" data-prof="${prof.id}">
@@ -92,12 +111,7 @@ export function filaHtml(prof, fichaje, ctx = {}) {
         </span>
       </button>
       <select class="apf-estado" ${bloqueado ? 'disabled' : ''}>${opts}</select>
-      <div class="apf-horas">
-        <label class="apf-hora"><span>Entrada${marcaUbicacion(f.entrada_por, f.entrada_distancia_m)}</span>
-          <input type="time" class="apf-entrada" value="${entrada}" ${offHoras}></label>
-        <label class="apf-hora"><span>Salida${marcaUbicacion(f.salida_por, f.salida_distancia_m)}</span>
-          <input type="time" class="apf-salida" value="${salida}" ${offHoras}></label>
-      </div>
+      ${horas}
       <span class="gtick ${guardado ? 'ok' : 'pend'}" title="${guardado ? 'Fichaje guardado' : 'Sin guardar'}">${guardado ? '✓' : '•'}</span>
       <button class="btn apf-guardar" data-prof="${prof.id}" ${bloqueado ? 'disabled' : ''}>Guardar</button>
     </div>`;
