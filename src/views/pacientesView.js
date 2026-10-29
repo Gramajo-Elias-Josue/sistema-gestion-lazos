@@ -459,8 +459,8 @@ export function renderFormEvaluacion(paciente = {}, turnos = [], datosPorProf = 
   } = opts;
   const opciones = turnos.map(t => {
     const p = t.profesionales || {};
-    // Sin turno.id: es un paciente de la GRILLA (atendido hoy sin turno,
-    // ver autoresElegiblesHoy). data-turno vacío, no "null" como texto.
+    // Sin turno.id: es un paciente de la GRILLA (atendido en el mes sin
+    // turno, ver autoresElegiblesMes). data-turno vacío, no "null" como texto.
     const et = `${p.nombre_completo || 'Profesional'}${p.profesion ? ' — ' + p.profesion : ''}${t.hora ? ' · ' + String(t.hora).slice(0, 5) : ''}`;
     return `<option value="${t.profesional_id}" data-turno="${t.id ? esc(String(t.id)) : ''}">${esc(et)}</option>`;
   }).join('');

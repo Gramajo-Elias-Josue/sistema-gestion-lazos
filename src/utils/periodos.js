@@ -59,22 +59,45 @@ export function diasHastaFinDeMes(hoy = hoyISO()) {
 // PENDIENTES DEL MES
 // ---------------------------------------------------------------------
 // Quiénes NO entregaron todavía. Se calcula acá (no en la vista ni en la
-// base) para poder probarlo y para que el panel de inicio y la sección
-// de galería muestren exactamente lo mismo.
+// base) para poder probarlo y para que el panel de inicio, la campana y
+// la galería muestren exactamente lo mismo.
 //
 //   profesionales: [{ id, nombre_completo, profesion }] (activos)
 //   informes:      los informes MENSUALES cargados, tal como salen de
-//                  `evaluaciones`: [{ profesional_id, tipo, fecha }].
-//                  Alcanza con UNO en el mes para estar al día.
+//                  `evaluaciones`: [{ profesional_id, paciente_id, tipo, fecha }].
+//   asignaciones:  las celdas vigentes de la grilla [{ profesional_id,
+//                  paciente_id, pacientes: { nombre_completo } }]. El informe
+//                  mensual es UNO POR PACIENTE: cada profesional debe el de
+//                  cada paciente que tiene en la grilla. Sin asignaciones
+//                  (undefined), alcanza con uno en el mes (regla vieja).
 //   fotos:         [{ profesional_id, periodo }]
 //
 // Devuelve { periodo, informes: [prof…], fotos: [prof…], alDia: bool }.
-export function pendientesDelMes({ profesionales = [], informes = [], fotos = [], periodo = periodoMensual() } = {}) {
-  const conInforme = new Set(
-    informes
-      .filter(i => i.tipo === 'mensual' && periodoMensual(i.fecha) === periodo)
-      .map(i => String(i.profesional_id))
-  );
+// Con asignaciones, cada profesional de `informes` trae
+// `pacientesPendientes`: [{ id, nombre_completo }] (los que le faltan).
+export function pendientesDelMes({ profesionales = [], informes = [], fotos = [], asignaciones, periodo = periodoMensual() } = {}) {
+  const delMes = informes.filter(i => i.tipo === 'mensual' && periodoMensual(i.fecha) === periodo);
+
+  let sinInforme;
+  if (Array.isArray(asignaciones)) {
+    // Uno por paciente: (profesional, paciente) con informe este mes.
+    const hechos = new Set(delMes.map(i => `${i.profesional_id}|${i.paciente_id}`));
+    sinInforme = profesionales
+      .map(p => {
+        const vistos = new Set();
+        const pacientesPendientes = asignaciones
+          .filter(a => String(a.profesional_id) === String(p.id) && a.paciente_id)
+          .filter(a => !vistos.has(String(a.paciente_id)) && vistos.add(String(a.paciente_id)))
+          .filter(a => !hechos.has(`${p.id}|${a.paciente_id}`))
+          .map(a => ({ id: a.paciente_id, nombre_completo: a.pacientes?.nombre_completo || 'Paciente' }))
+          .sort((a, b) => a.nombre_completo.localeCompare(b.nombre_completo, 'es'));
+        return { ...p, pacientesPendientes };
+      })
+      .filter(p => p.pacientesPendientes.length);
+  } else {
+    const conInforme = new Set(delMes.map(i => String(i.profesional_id)));
+    sinInforme = profesionales.filter(p => !conInforme.has(String(p.id)));
+  }
 
   // Cuántas fotos subió cada profesional en ese mes.
   const fotosPorProf = {};
@@ -84,8 +107,6 @@ export function pendientesDelMes({ profesionales = [], informes = [], fotos = []
       const k = String(f.profesional_id);
       fotosPorProf[k] = (fotosPorProf[k] || 0) + 1;
     });
-
-  const sinInforme = profesionales.filter(p => !conInforme.has(String(p.id)));
   const sinFoto = profesionales.filter(p => (fotosPorProf[String(p.id)] || 0) < FOTOS_MINIMAS_POR_MES);
 
   return {

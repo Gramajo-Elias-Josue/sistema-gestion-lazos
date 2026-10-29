@@ -1244,3 +1244,16 @@ button.cal-dia:hover{filter:brightness(.96)}
     background:linear-gradient(120deg, var(--tono-bg, var(--teal-50)) 0%, color-mix(in srgb, var(--tono-bg, var(--teal-50)) 30%, var(--card)) 100%);
     border-bottom:1px solid color-mix(in srgb, var(--tono-fg, var(--teal-600)) 18%, var(--line-soft))}
 }
+
+/* ---- Control de horas (Asistencia, solo dirección) ---- */
+.ctl-ayuda{color:var(--ink-soft);font-size:14.5px;margin:-6px 0 16px}
+.ctl-fila{cursor:pointer}
+.ctl-fila .pill{white-space:nowrap}
+.ctl-fila:hover td{background:var(--card-2)}
+.ctl-fila.sel td{background:var(--teal-50)}
+.ctl-fila .pav{background:color-mix(in srgb, var(--tono-fg, var(--teal-600)) 18%, var(--tono-bg, var(--teal-50)));color:var(--tono-fg, var(--teal-700))}
+.ctl-alerta td{background:var(--amber-50)}
+@media(max-width:760px){
+  .ctl-fila.sel{outline:3px solid var(--teal-600);outline-offset:-1px}
+  .ctl-alerta{border-color:var(--amber-100)}
+}

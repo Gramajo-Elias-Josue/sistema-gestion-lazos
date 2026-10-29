@@ -38,7 +38,7 @@ export async function listarPorPaciente(pacienteId) {
 export async function listarInformesPorRango(tipo, desde, hasta) {
   const { data, error } = await supabase
     .from(TABLA)
-    .select('id, profesional_id, fecha, tipo, profesionales(nombre_completo, profesion)')
+    .select('id, profesional_id, paciente_id, fecha, tipo, profesionales(nombre_completo, profesion)')
     .eq('tipo', tipo)
     .gte('fecha', desde)
     .lte('fecha', hasta);

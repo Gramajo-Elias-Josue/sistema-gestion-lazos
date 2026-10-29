@@ -3,7 +3,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   TIPOS_INFORME, TIPO_CERTIFICADO, tituloPorTipo, parseEvaluacion, serializarEvaluacion, evaluacionVacia,
-  autoresElegiblesHoy, autoresCertificado,
+  autoresElegiblesMes, autoresCertificado,
 } from '../src/utils/evaluacion.js';
 
 describe('TIPOS_INFORME', () => {
@@ -56,40 +56,35 @@ describe('evaluacionVacia', () => {
   });
 });
 
-// Gate "atendido hoy": quién puede cargar el informe. Solo por la grilla
-// (la agenda de turnos es para casuales sin legajo), ver el comentario de
-// la función en utils/evaluacion.js.
-describe('autoresElegiblesHoy', () => {
+// Gate del informe MENSUAL: quién puede cargarlo. Solo por la grilla (la
+// agenda de turnos es para casuales sin legajo) y con al menos un día del
+// mes en que el paciente y el profesional figuraron presentes.
+describe('autoresElegiblesMes', () => {
   const profUno = { nombre_completo: 'Lic. Uno', profesion: 'Psicología' };
   const profGrilla = { nombre_completo: 'Lic. Diario', profesion: 'T.O.' };
+  const dia = '2026-10-07';
 
-  it('vía grilla: paciente y profesional presentes -> entra sin turno (id null)', () => {
+  it('vía grilla: paciente y profesional presentes el mismo día -> entra sin turno (id null)', () => {
     const asignaciones = [{ profesional_id: 'p2', profesionales: profGrilla }];
-    const r = autoresElegiblesHoy({
-      asignaciones, pacientePresente: true, idsProfPresentes: new Set(['p2']),
-    });
+    const r = autoresElegiblesMes({ asignaciones, fechasPaciente: [dia], presenciasProf: { p2: new Set([dia]) } });
     expect(r).toEqual([{ id: null, profesional_id: 'p2', profesionales: profGrilla, hora: null }]);
   });
 
-  it('vía grilla: si el PACIENTE no está presente hoy, no entra aunque el profesional sí', () => {
+  it('si el PACIENTE no vino en el mes, no entra aunque el profesional sí', () => {
     const asignaciones = [{ profesional_id: 'p2', profesionales: profGrilla }];
-    const r = autoresElegiblesHoy({
-      asignaciones, pacientePresente: false, idsProfPresentes: new Set(['p2']),
-    });
+    const r = autoresElegiblesMes({ asignaciones, fechasPaciente: [], presenciasProf: { p2: new Set([dia]) } });
     expect(r).toEqual([]);
   });
 
-  it('vía grilla: si el PROFESIONAL no fichó presente, no entra', () => {
+  it('si el PROFESIONAL no estuvo presente en el mes, no entra', () => {
     const asignaciones = [{ profesional_id: 'p2', profesionales: profGrilla }];
-    const r = autoresElegiblesHoy({
-      asignaciones, pacientePresente: true, idsProfPresentes: new Set(),
-    });
+    const r = autoresElegiblesMes({ asignaciones, fechasPaciente: [dia], presenciasProf: {} });
     expect(r).toEqual([]);
   });
 
   it('asignación sin profesional_id (celda escrita a mano) se ignora', () => {
     const asignaciones = [{ profesional_id: null, profesional_nombre: 'X a mano' }];
-    const r = autoresElegiblesHoy({ asignaciones, pacientePresente: true, idsProfPresentes: new Set() });
+    const r = autoresElegiblesMes({ asignaciones, fechasPaciente: [dia], presenciasProf: {} });
     expect(r).toEqual([]);
   });
 
@@ -99,19 +94,13 @@ describe('autoresElegiblesHoy', () => {
       { profesional_id: 'p1', profesionales: profUno },    // otra franja, mismo profesional
       { profesional_id: 'p2', profesionales: profGrilla },
     ];
-    const r = autoresElegiblesHoy({
-      asignaciones, pacientePresente: true, idsProfPresentes: new Set(['p1', 'p2']),
-    });
+    const presenciasProf = { p1: new Set([dia]), p2: new Set([dia]) };
+    const r = autoresElegiblesMes({ asignaciones, fechasPaciente: [dia], presenciasProf });
     expect(r.map(a => a.profesional_id)).toEqual(['p1', 'p2']);
   });
 
-  it('[regresión] un turno "atendido" de la agenda ya no habilita el informe (es de casuales)', () => {
-    const turnosAtendidos = [{ id: 't1', profesional_id: 'p1', profesionales: profUno, hora: '10:00' }];
-    expect(autoresElegiblesHoy({ turnosAtendidos })).toEqual([]);
-  });
-
   it('sin nada, no hay autores', () => {
-    expect(autoresElegiblesHoy()).toEqual([]);
+    expect(autoresElegiblesMes()).toEqual([]);
   });
 });
 

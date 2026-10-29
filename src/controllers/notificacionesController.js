@@ -21,6 +21,7 @@ import { notificacionesCumpleanos, notificacionesGlobales, DIAS_AVISO_ENTREGAS }
 import { periodoMensual, pendientesDelMes, diasHastaFinDeMes } from '../utils/periodos.js';
 import { hoyISO, rangoMes } from '../utils/fechas.js';
 import { perfilActual } from '../sesion.js';
+import * as asignacionModel from '../models/asignacionModel.js';
 import { puedeVer } from '../permisos.js';
 import { htmlError } from '../utils/ui.js';
 
@@ -68,20 +69,25 @@ export async function cargarNotificaciones() {
     ]);
     const cumpleanos = notificacionesCumpleanos({ pacientes, profesionales, verPacientes, verProfesionales, hoy });
 
-    // Informes/fotos pendientes: es compliance del equipo, solo tiene
-    // sentido para quien entra a la sección Profesionales. Y solo cerca
-    // de fin de mes: antes todavía hay tiempo, y avisar desde el día 1
-    // solo generaba ruido (quedaba "molestando" todo el mes).
+    // Informes/fotos pendientes, solo cerca de fin de mes (antes todavía
+    // hay tiempo, y avisar desde el día 1 solo generaba ruido):
+    //   - quien entra a Profesionales (dirección, secretaría): los de todo el equipo;
+    //   - el profesional: los SUYOS (el informe de cada paciente y su foto).
+    // El informe mensual es uno por paciente (por eso las asignaciones).
     const avisarEntregas = diasHastaFinDeMes(hoy) <= DIAS_AVISO_ENTREGAS;
     let pendientes = { informes: [], fotos: [] };
-    if (verProfesionales && avisarEntregas) {
+    const miProfesionalId = perfil?.rol === 'profesional' ? perfil?.profesional_id : null;
+    if (avisarEntregas && (verProfesionales || miProfesionalId)) {
       const periodo = periodoMensual(hoy);
       const { desde, hasta } = rangoMes(hoy);
-      const [informes, fotos] = await Promise.all([
+      const [informes, fotos, asignaciones, yo] = await Promise.all([
         evaluacionModel.listarInformesPorRango('mensual', desde, hasta),
         fotoModel.listarTodas(),
+        asignacionModel.listarVigentes(),
+        !verProfesionales && miProfesionalId ? profesionalModel.obtenerProfesional(miProfesionalId) : null,
       ]);
-      pendientes = pendientesDelMes({ profesionales, informes, fotos, periodo });
+      const equipo = verProfesionales ? profesionales : (yo ? [yo] : []);
+      pendientes = pendientesDelMes({ profesionales: equipo, informes, fotos, asignaciones, periodo });
     }
 
     const items = notificacionesGlobales({ cumpleanos, pendientes, avisarEntregas });

@@ -20,9 +20,9 @@ import {
   renderListaCategorias, renderModalCategoria,
 } from '../views/pacientesView.js';
 import { htmlCargando, htmlError, toast, confirmar } from '../utils/ui.js';
-import { hoyISO } from '../utils/fechas.js';
+import { hoyISO, rangoMes } from '../utils/fechas.js';
 import { validarPaciente, validarDocumento, normalizarDni } from '../utils/validacion.js';
-import { parseEvaluacion, autoresElegiblesHoy, autoresCertificado, autoresDelUsuario, TIPO_CERTIFICADO } from '../utils/evaluacion.js';
+import { parseEvaluacion, autoresElegiblesMes, presenciasPorProfesional, autoresCertificado, autoresDelUsuario, TIPO_CERTIFICADO } from '../utils/evaluacion.js';
 import { mensajeError } from '../utils/errores.js';
 import { abrirEditorInforme } from './editorInforme.js';
 import { FILTROS_VACIOS, cantidadFiltros, hayQueMostrar, pasaFiltros } from '../utils/filtrosPacientes.js';
@@ -533,10 +533,12 @@ function abrirFormDocumento(pacienteId, tipoDefault = CATEGORIA_CUD) {
 // ---------------------------------------------------------------------
 // FORMULARIO CARGAR EVALUACIÓN (desde la ficha del paciente)
 // ---------------------------------------------------------------------
-// El profesional carga la evaluación acá, no en Agenda (que es de la
-// secretaría y solo para casuales sin legajo). GATE: solo si el paciente
-// fue ATENDIDO HOY: asignado en la grilla + paciente y profesional
-// presentes hoy (ver autoresElegiblesHoy en utils/evaluacion.js).
+// El profesional carga el informe acá, no en Agenda (que es de la
+// secretaría y solo para casuales sin legajo). El informe es MENSUAL: se
+// puede cargar cualquier día del mes, si el profesional lo atendió al
+// menos una vez en el mes: paciente presente y profesional presente el
+// mismo día, con el paciente en su grilla (ver autoresElegiblesMes en
+// utils/evaluacion.js).
 // El autor se elige entre esos "autores" elegibles. El informe sigue la
 // PLANTILLA de secciones y, al guardar, genera un PDF que se descarga y se
 // adjunta a la historia clínica. `paciente` = objeto completo (para el
@@ -547,25 +549,27 @@ async function abrirFormEvaluacion(paciente, evalsPaciente = []) {
 
   let turnos = [];
   try {
-    const [asignaciones, asistenciasHoy, fichajesHoy] = await Promise.all([
+    // Del primer día del mes hasta hoy.
+    const desde = rangoMes(hoy).desde;
+    const [asignaciones, asistenciasPaciente, planilla, propios] = await Promise.all([
       asignacionModel.listarPorPaciente(pacienteId, { soloVigentes: true }),
-      asistenciaModel.listarAsistenciasPorFecha(hoy),
-      asistenciaProfModel.listarPorFecha(hoy),
+      asistenciaModel.listarPorPacienteRango(pacienteId, desde, hoy),
+      asistenciaProfModel.listarPorRango(desde, hoy),
+      // Su propio fichaje también cuenta como presente (la base solo le
+      // devuelve lo que puede ver: el profesional, lo suyo).
+      asistenciaProfModel.listarPropiosPorRango(desde, hoy),
     ]);
 
-    const pacientePresente = asistenciasHoy.some(a => String(a.paciente_id) === String(pacienteId) && a.estado === 'presente');
-    const idsProfPresentes = new Set(
-      fichajesHoy.filter(f => f.estado === 'presente').map(f => String(f.profesional_id))
-    );
-
-    turnos = autoresDelUsuario(autoresElegiblesHoy({ asignaciones, pacientePresente, idsProfPresentes }), perfilActual());
+    const fechasPaciente = asistenciasPaciente.filter(a => a.estado === 'presente').map(a => a.fecha);
+    const presenciasProf = presenciasPorProfesional({ planilla, propios });
+    turnos = autoresDelUsuario(autoresElegiblesMes({ asignaciones, fechasPaciente, presenciasProf }), perfilActual());
   } catch (err) {
-    console.error('Error buscando la atención de hoy:', err);
-    toast('No se pudo consultar la atención de hoy. Revisá la conexión.', 'bad');
+    console.error('Error buscando la atención del mes:', err);
+    toast('No se pudo consultar la atención del mes. Revisá la conexión.', 'bad');
     return;
   }
   if (!turnos.length) {
-    toast('Este paciente todavía no figura atendido hoy: marcá presente al paciente y a su profesional de la grilla en Asistencia.', 'bad');
+    toast('Este paciente todavía no tiene una sesión este mes con su profesional: tienen que figurar los dos presentes el mismo día en Asistencia.', 'bad');
     return;
   }
 

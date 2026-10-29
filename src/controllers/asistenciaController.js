@@ -18,6 +18,8 @@ import {
   renderEstructura, renderFilas, filaHtml, renderAvisoFuturo, renderModalAviso,
 } from '../views/asistenciaView.js';
 import { iniciarAsistenciaProf } from './asistenciaProfController.js';
+import { iniciarControlHoras } from './controlHorasController.js';
+import { perfilActual } from '../sesion.js';
 import { abrirCalendarioPaciente } from './calendarioAsistenciaController.js';
 import { htmlCargando, htmlError, toast } from '../utils/ui.js';
 import { hoyISO, sumarDias, rangoMes, nombreDia } from '../utils/fechas.js';
@@ -35,6 +37,7 @@ let mesVisible = null;   // { anio, mes } del mes que se está mostrando
 let fechaActual = hoyISO();
 let bloqueado = false;   // true si la fecha elegida es futura
 let profIniciado = false; // true si ya se cargó la pestaña de profesionales
+let ctlIniciado = false;  // true si ya se cargó la pestaña de control de horas
 let semanaVisible = 0;   // índice de semana que se ve en la tira de cada fila (todas comparten el mismo mes)
 
 // Reúne el estado de la pantalla para pasárselo a la vista.
@@ -45,19 +48,24 @@ function vista() {
 // Punto de entrada de la sección Asistencia (lo llama el router).
 export async function iniciarAsistencia() {
   const contenedor = document.getElementById('v-asistencia');
-  // Dos pestañas: Pacientes (planilla existente) y Profesionales (fichaje).
-  // La planilla de pacientes se rinde en su propio panel; la de
-  // profesionales se inicializa la primera vez que se entra a su pestaña.
+  // Pestañas: Pacientes (planilla existente), Profesionales (planilla de
+  // la secretaría) y, SOLO para la dirección, Control de horas (compara
+  // esa planilla con el fichaje propio de cada profesional, para los
+  // sueldos). Las dos últimas se inicializan la primera vez que se abren.
+  const esDireccion = perfilActual()?.rol === 'director';
   contenedor.innerHTML = `
     <div class="tabs" id="asis-tabs">
       <button class="tab active" data-tab="pac">Pacientes</button>
       <button class="tab" data-tab="prof">Profesionales</button>
+      ${esDireccion ? '<button class="tab" data-tab="ctl" title="Solo la dirección">Control de horas</button>' : ''}
     </div>
     <div id="asis-pane-pac"></div>
-    <div id="asis-pane-prof" class="hidden"></div>`;
+    <div id="asis-pane-prof" class="hidden"></div>
+    ${esDireccion ? '<div id="asis-pane-ctl" class="hidden"></div>' : ''}`;
   document.getElementById('asis-pane-pac').innerHTML = renderEstructura(hoyISO());
 
   profIniciado = false;
+  ctlIniciado = false;
   document.getElementById('asis-tabs').addEventListener('click', (e) => {
     const b = e.target.closest('.tab');
     if (b) cambiarTab(b.dataset.tab);
@@ -114,9 +122,14 @@ function cambiarTab(tab) {
     b.classList.toggle('active', b.dataset.tab === tab));
   document.getElementById('asis-pane-pac').classList.toggle('hidden', tab !== 'pac');
   document.getElementById('asis-pane-prof').classList.toggle('hidden', tab !== 'prof');
+  document.getElementById('asis-pane-ctl')?.classList.toggle('hidden', tab !== 'ctl');
   if (tab === 'prof' && !profIniciado) {
     profIniciado = true;
     iniciarAsistenciaProf();
+  }
+  if (tab === 'ctl' && !ctlIniciado) {
+    ctlIniciado = true;
+    iniciarControlHoras();
   }
 }
 

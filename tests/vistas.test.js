@@ -345,12 +345,12 @@ describe('inicioView.renderEntregas (lo que debe cada profesional)', () => {
 
   it('[regresión] singular y plural bien escritos', () => {
     const html = renderEntregas({ periodo, informes: uno, fotos: uno });
-    expect(html).toContain('1 profesional debe el informe del mes');
+    expect(html).toContain('1 profesional debe informes del mes');
     expect(html).toContain('1 profesional no subió su foto del mes');
     expect(html).not.toContain('1 profesional no subieron');
 
     const plural = renderEntregas({ periodo, informes: dos, fotos: dos });
-    expect(plural).toContain('2 profesionales deben el informe del mes');
+    expect(plural).toContain('2 profesionales deben informes del mes');
     expect(plural).toContain('2 profesionales no subieron su foto del mes');
   });
 

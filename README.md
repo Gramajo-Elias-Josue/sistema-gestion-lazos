@@ -18,9 +18,9 @@ administrativa (convenios, facturación y gastos), con usuarios y permisos por r
 | **Inicio** | Panel del día: **Grilla de atención** (quién atiende a quién y a qué hora, separada en turno mañana 8–12 y tarde 14–18), disponibilidad del equipo, alertas de CUD por vencer y entregas pendientes del mes. |
 | **Mi fichaje** | Solo para profesionales: un botón para la **entrada** y otro para la **salida**, con su ubicación (quien trabaja **mañana y tarde** ficha cada turno aparte, con colores distintos). La base valida que esté en el centro y pone la hora. La salida fichada por error se puede **deshacer**. Abajo, su **calendario del mes** (tocando un día se ve el detalle) y la planilla en PDF. En su Inicio ve **solo su grilla** y un recordatorio si le falta fichar. |
 | **Admisión** | Ingreso de pacientes nuevos con checklist de documentación. Al aprobar, el paciente pasa a la lista de Pacientes. |
-| **Pacientes** | Legajo e **historia clínica**: documentos por categoría, buscador, informes profesionales y evaluación / certificado. |
+| **Pacientes** | Legajo e **historia clínica**: documentos por categoría, buscador, informes profesionales y evaluación / certificado. El **informe mensual** es uno por paciente y se carga cualquier día del mes en que hubo sesión; Inicio y la campana avisan a quién le falta y de qué pacientes. |
 | **Turnos** | Agenda para pacientes **casuales** (sin legajo). Nunca puede pisar un turno fijo de la grilla. |
-| **Asistencia** | Planilla diaria de pacientes y fichaje de profesionales, con calendario mensual y PDF. Las horas que el profesional fichó con su ubicación se ven con 📍. |
+| **Asistencia** | Planilla diaria de pacientes y de profesionales (por turno, mañana y tarde), con calendario mensual y PDF. La **dirección** tiene además **Control de horas**: compara la planilla de la secretaría con el fichaje propio de cada profesional, marca lo que no cuadra y se exporta a Excel (para los sueldos). |
 | **Profesionales** | Equipo, profesiones (sectores), días y turnos de trabajo. Al crear un profesional se le crea su usuario. |
 | **Galería** | Fotos del trabajo del mes (material de difusión). Cada profesional sube las suyas. |
 | **Facturación / Gastos** | Gestión de la sociedad: estado de facturación por paciente y mes, gastos y rendición por socio. Ambas se **exportan a Excel** (.xlsx). |
@@ -150,6 +150,7 @@ orden, y son re-ejecutables:
 | `16-fichaje-por-ubicacion.sql` | El profesional ficha su entrada y salida con su ubicación (la base valida distancia y hora); ubicación del centro configurable |
 | `17-fichaje-doble-turno.sql` | Quien trabaja mañana y tarde ficha dos tramos en el mismo día (registra el corte del mediodía) |
 | `18-estado-por-turno.sql` | El de doble turno tiene un estado por turno (puede faltar a la mañana y venir a la tarde); el del día lo calcula la base |
+| `19-fichaje-propio-separado.sql` | El fichaje del profesional va en su propia tabla (`fichajes_propios`), aparte de la planilla de la secretaría: lo ven solo él y la dirección |
 
 Tablas principales:
 

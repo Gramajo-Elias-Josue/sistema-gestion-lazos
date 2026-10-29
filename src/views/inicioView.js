@@ -58,6 +58,7 @@ export function renderInicio() {
 export function renderInicioProfesional() {
   return `
     <div id="inicio-recordatorio"></div>
+    <div id="inicio-mis-entregas"></div>
     <div class="panel" style="margin-bottom:20px">
       <div class="panel-h">
         <h2>Mis horarios</h2>
@@ -88,6 +89,23 @@ export function renderRecordatorioFichaje({ paso, fila, doble = false }) {
       <div class="tx">${textos[paso]}</div>
       <a class="btn" href="#fichaje">Ir a Mi fichaje</a>
     </div>`;
+}
+
+// Recordatorio de lo que le falta entregar ESTE MES al profesional: el
+// informe mensual de cada uno de sus pacientes y su foto de trabajo.
+// `pacientes` = [{ id, nombre_completo }] sin informe; `debeFoto` = bool.
+export function renderMisEntregas({ periodo, pacientes = [], debeFoto = false }) {
+  if (!pacientes.length && !debeFoto) return '';
+  const mes = etiquetaPeriodo(periodo);
+  const informes = pacientes.length ? `
+    <div class="tx"><b>Te ${pacientes.length === 1 ? 'falta el informe mensual de 1 paciente' : `faltan los informes mensuales de ${pacientes.length} pacientes`} (${esc(mes)}).</b>
+      <span>${pacientes.map(p => esc(p.nombre_completo)).join(' · ')}. Se cargan en su historia clínica, en Pacientes.</span></div>
+    <a class="btn" href="#pacientes">Ir a Pacientes</a>` : '';
+  const foto = debeFoto ? `
+    <div class="tx"><b>Todavía no subiste tu foto del trabajo de ${esc(mes)}.</b></div>
+    <a class="btn" href="#galeria">Ir a Galería</a>` : '';
+  return [informes, foto].filter(Boolean).map(x => `
+    <div class="banner banner-alerta fich-recordatorio" style="margin-bottom:14px">${x}</div>`).join('');
 }
 
 // Tarjeta KPI del encabezado. Antes había 4 (pacientes activos,
@@ -156,22 +174,32 @@ export function renderEntregas({ periodo, informes = [], fotos = [], alDia = fal
   }
 
   // Singular y plural van separados: "1 profesional debe" / "3 profesionales deben".
-  const bloque = ({ uno, varios }, gente, clase, icono) => {
+  // El informe mensual es uno por paciente: a cada profesional se le
+  // nombran los pacientes que le faltan.
+  const nombreConPacientes = (p) => {
+    const pend = p.pacientesPendientes;
+    if (!pend?.length) return esc(p.nombre_completo);
+    return `<b>${esc(p.nombre_completo)}</b> (${pend.length === 1 ? '1 paciente' : `${pend.length} pacientes`}: ${pend.map(x => esc(x.nombre_completo)).join(', ')})`;
+  };
+  const bloque = ({ uno, varios }, gente, clase, icono, conPacientes = false) => {
     if (!gente.length) return '';
     const encabezado = gente.length === 1 ? `1 profesional ${uno}` : `${gente.length} profesionales ${varios}`;
+    const detalle = conPacientes
+      ? gente.map(nombreConPacientes).join('<br>')
+      : gente.map(p => esc(p.nombre_completo)).join(' · ');
     return `
       <div class="alert">
         <div class="ico ${clase}">${icono}</div>
         <div class="tx">
           <b>${encabezado}</b>
-          <span>${gente.map(p => esc(p.nombre_completo)).join(' · ')}</span>
+          <span>${detalle}</span>
         </div>
         <span class="tag ${clase === 'i-red' ? 't-red' : 't-amber'}">${esc(mes)}</span>
       </div>`;
   };
 
   return `
-    ${bloque({ uno: 'debe el informe del mes', varios: 'deben el informe del mes' }, informes, 'i-red', '📄')}
+    ${bloque({ uno: 'debe informes del mes', varios: 'deben informes del mes' }, informes, 'i-red', '📄', true)}
     ${bloque({ uno: 'no subió su foto del mes', varios: 'no subieron su foto del mes' }, fotos, 'i-amber', '📷')}
     <div class="hint" style="margin-top:10px;font-size:13.5px;color:var(--ink-faint)">
       Los <b>informes</b> se cargan en la historia clínica de cada paciente; las

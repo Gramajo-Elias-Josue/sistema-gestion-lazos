@@ -3,8 +3,10 @@
 // ---------------------------------------------------------------------
 // CAPA CONTROLADOR. Cada botón (entrada / salida) pide la ubicación al
 // navegador y se la manda a la base junto con QUÉ se ficha. La base
-// (función fichar(), script 16) decide: que esté en el centro, que le
-// toque fichar eso, y pone la hora. Acá solo se redibuja con lo que vuelve.
+// (función fichar(), scripts 16 a 19) decide: que esté en el centro, que
+// le toque fichar eso, y pone la hora. Se guarda en SU fichaje
+// (fichajes_propios), aparte de la planilla de la secretaría: lo ven solo
+// él y la dirección. Acá solo se redibuja con lo que vuelve.
 //
 // Debajo, el calendario del mes ("Mi asistencia"): el mismo de la ficha
 // del profesional, con el detalle del día al tocarlo y el PDF.
@@ -76,7 +78,7 @@ export async function iniciarFichaje() {
 
   try {
     const [fila, prof] = await Promise.all([
-      asistenciaProfModel.fichajeDelDia(profesionalId, hoyISO()),
+      asistenciaProfModel.miFichajeDelDia(profesionalId, hoyISO()),
       profesionalModel.obtenerProfesional(profesionalId),
     ]);
     profesional = prof;
@@ -101,11 +103,11 @@ async function fichar(btn, cuerpo) {
     const { lat, lng } = ubicacion;
     precision = ubicacion.precision;
     btn.textContent = 'Fichando…';
-    const fila = await asistenciaProfModel.ficharConUbicacion(lat, lng, que);
+    const propio = await asistenciaProfModel.ficharConUbicacion(lat, lng, que);
     // Sin la hora de vuelta no se guardó nada: no se avisa "fichada".
-    const hora = horaFichada(fila, que);
+    const hora = horaFichada(propio, que);
     if (!hora) throw new Error('fichar() no devolvió la hora');
-    dibujar(cuerpo, fila);
+    dibujar(cuerpo, await asistenciaProfModel.miFichajeDelDia(perfilActual()?.profesional_id, hoyISO()));
     refrescarMesActual();
     toast(`${NOMBRE_FICHAJE[que] || 'Fichaje'} fichada a las ${String(hora).slice(0, 5)}.`);
   } catch (err) {
@@ -116,8 +118,7 @@ async function fichar(btn, cuerpo) {
     // Se vuelve a pedir el estado real: por si cambió (lo cargó la
     // secretaría, o se fichó desde otro dispositivo).
     try {
-      const fila = await asistenciaProfModel.fichajeDelDia(perfilActual()?.profesional_id, hoyISO());
-      dibujar(cuerpo, fila);
+      dibujar(cuerpo, await asistenciaProfModel.miFichajeDelDia(perfilActual()?.profesional_id, hoyISO()));
     } catch {
       btn.textContent = textoOriginal;
       btn.disabled = false;
@@ -139,8 +140,8 @@ async function deshacerSalida(btn, cuerpo) {
   if (!ok) return;
   btn.disabled = true;
   try {
-    const fila = await asistenciaProfModel.deshacerSalida(tramo);
-    dibujar(cuerpo, fila);
+    await asistenciaProfModel.deshacerSalida(tramo);
+    dibujar(cuerpo, await asistenciaProfModel.miFichajeDelDia(perfilActual()?.profesional_id, hoyISO()));
     refrescarMesActual();
     toast('Salida deshecha. Acordate de ficharla al irte.');
   } catch (err) {
@@ -164,7 +165,8 @@ async function cargarMes(anio, mes) {
 
   const { desde, hasta } = rangoDelMes(anio, mes);
   try {
-    const registros = await asistenciaProfModel.listarPorProfesionalRango(perfilActual()?.profesional_id, desde, hasta);
+    // Sus horas fichadas + el estado de la planilla, un registro por día.
+    const registros = await asistenciaProfModel.miAsistenciaPorRango(perfilActual()?.profesional_id, desde, hasta);
     // Guard anti-carrera: si ya se cambió de mes, se descarta.
     if (!cal || cal.anio !== anio || cal.mes !== mes) return;
     cal.calendario = armarCalendario({ anio, mes, registros });

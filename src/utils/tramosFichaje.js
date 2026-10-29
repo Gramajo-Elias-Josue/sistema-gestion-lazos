@@ -122,3 +122,46 @@ export function horaFichada(fila, que) {
   }[que];
   return columna ? fila?.[columna] || null : null;
 }
+
+// ---------------------------------------------------------------------
+// FICHAJE PROPIO + PLANILLA (script 19)
+// ---------------------------------------------------------------------
+// Desde el 19 son dos registros separados: lo que ficha el profesional
+// (fichajes_propios: horas y distancias) y la planilla de la secretaría
+// (asistencias_profesionales: el ESTADO del día y de cada turno). "Mi
+// fichaje" muestra las horas propias y respeta el estado de la planilla
+// (si figura ausente / licencia, ese turno no se ficha). Se combinan en
+// una fila con la forma de siempre; las horas propias se marcan
+// "ubicacion" (así las reglas de deshacer funcionan igual).
+export function combinarFichaje(planilla = null, propio = null) {
+  if (!planilla && !propio) return null;
+  const marca = (hora) => (hora ? 'ubicacion' : null);
+  return {
+    fecha: propio?.fecha || planilla?.fecha,
+    profesional_id: propio?.profesional_id || planilla?.profesional_id,
+    // Estado: el de la planilla; sin planilla, si fichó, presente.
+    estado: planilla?.estado || 'presente',
+    estado_1: planilla?.estado_1 ?? null,
+    estado_2: planilla?.estado_2 ?? null,
+    hora_entrada: propio?.hora_entrada ?? null,
+    hora_salida: propio?.hora_salida ?? null,
+    hora_entrada_2: propio?.hora_entrada_2 ?? null,
+    hora_salida_2: propio?.hora_salida_2 ?? null,
+    entrada_por: marca(propio?.hora_entrada),
+    salida_por: marca(propio?.hora_salida),
+    entrada_2_por: marca(propio?.hora_entrada_2),
+    salida_2_por: marca(propio?.hora_salida_2),
+    entrada_distancia_m: propio?.entrada_distancia_m ?? null,
+    salida_distancia_m: propio?.salida_distancia_m ?? null,
+    entrada_2_distancia_m: propio?.entrada_2_distancia_m ?? null,
+    salida_2_distancia_m: propio?.salida_2_distancia_m ?? null,
+  };
+}
+
+// Lo mismo para un mes entero (calendario de "Mi asistencia"): una fila
+// combinada por fecha, de las dos listas.
+export function combinarPorFecha(planillas = [], propios = []) {
+  const fechas = new Set([...planillas.map(r => r.fecha), ...propios.map(r => r.fecha)]);
+  const deFecha = (lista, f) => lista.find(r => r.fecha === f) || null;
+  return [...fechas].sort().map(f => combinarFichaje(deFecha(planillas, f), deFecha(propios, f)));
+}

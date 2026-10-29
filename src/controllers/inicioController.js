@@ -13,8 +13,9 @@ import * as fotoModel from '../models/fotoModel.js';
 import * as evaluacionModel from '../models/evaluacionModel.js';
 import {
   renderInicio, renderKpis, renderAlertas, renderDisponibilidad, renderEntregas,
-  renderInicioProfesional, renderRecordatorioFichaje,
+  renderInicioProfesional, renderRecordatorioFichaje, renderMisEntregas,
 } from '../views/inicioView.js';
+import * as asignacionModel from '../models/asignacionModel.js';
 import { iniciarGrillaAtencion } from './grillaAtencionController.js';
 import { htmlCargando, htmlError } from '../utils/ui.js';
 import { pasoFichaje, esDobleTurno } from '../utils/tramosFichaje.js';
@@ -68,12 +69,17 @@ export async function iniciarInicio() {
   iniciarGrillaAtencion(cajaGrilla);
 
   // --- Disponibilidad de hoy (profesionales presentes según el fichaje) ---
+  // La planilla de la secretaría manda; si todavía no lo cargó pero el
+  // profesional fichó con su ubicación, también figura presente (eso lo
+  // ve solo la dirección: a la secretaría la base no le da los fichajes).
   try {
-    const [profs, fichajes] = await Promise.all([
+    const [profs, fichajes, propios] = await Promise.all([
       profesionalModel.listarProfesionales({ soloActivos: true }),
       asistenciaProfModel.listarPorFecha(hoy),
+      asistenciaProfModel.listarPropiosPorRango(hoy, hoy).catch(() => []),
     ]);
     const porId = {};
+    propios.forEach(f => { porId[f.profesional_id] = { ...f, estado: 'presente' }; });
     fichajes.forEach(f => { porId[f.profesional_id] = f; });
     cajaDisp.innerHTML = renderDisponibilidad(profs, porId);
   } catch (err) {
@@ -83,17 +89,19 @@ export async function iniciarInicio() {
 
   // --- Entregas del mes (informe mensual + foto de trabajo) ---
   // El informe mensual es el MISMO que se carga en la historia clínica
-  // del paciente: acá solo se mira quién cargó al menos uno este mes.
+  // del paciente, y es UNO POR PACIENTE: cada profesional debe el de cada
+  // paciente que tiene en la grilla.
   try {
     const periodo = periodoMensual();
     const { desde, hasta } = rangoMes(hoy);
-    const [profs, informes, fotos] = await Promise.all([
+    const [profs, informes, fotos, asignaciones] = await Promise.all([
       profesionalModel.listarProfesionales({ soloActivos: true }),
       evaluacionModel.listarInformesPorRango('mensual', desde, hasta),
       fotoModel.listarTodas(),
+      asignacionModel.listarVigentes(),
     ]);
     cajaEntregas.innerHTML = renderEntregas(
-      pendientesDelMes({ profesionales: profs, informes, fotos, periodo })
+      pendientesDelMes({ profesionales: profs, informes, fotos, asignaciones, periodo })
     );
   } catch (err) {
     console.error('Error cargando las entregas del mes:', err);
@@ -114,7 +122,8 @@ export async function iniciarInicio() {
 // INICIO DEL PROFESIONAL
 // ---------------------------------------------------------------------
 // Solo su grilla (sus horarios y pacientes, sin editar) y, si le falta
-// fichar algo hoy, un recordatorio que lleva a "Mi fichaje".
+// algo, recordatorios: fichar hoy (lleva a "Mi fichaje") y lo que debe
+// entregar este mes (el informe de cada paciente, su foto).
 async function iniciarInicioProfesional(contenedor, profesionalId) {
   contenedor.innerHTML = renderInicioProfesional();
   if (!profesionalId) {
@@ -127,7 +136,7 @@ async function iniciarInicioProfesional(contenedor, profesionalId) {
   // El recordatorio es un agregado: si falla, el Inicio sigue igual.
   try {
     const [fila, prof] = await Promise.all([
-      asistenciaProfModel.fichajeDelDia(profesionalId, hoyISO()),
+      asistenciaProfModel.miFichajeDelDia(profesionalId, hoyISO()),
       profesionalModel.obtenerProfesional(profesionalId),
     ]);
     const doble = esDobleTurno(prof);
@@ -135,5 +144,26 @@ async function iniciarInicioProfesional(contenedor, profesionalId) {
       renderRecordatorioFichaje({ paso: pasoFichaje(fila, doble), fila, doble });
   } catch (err) {
     console.error('Error cargando el recordatorio del fichaje:', err);
+  }
+
+  // Lo que debe entregar este mes (también es un agregado).
+  try {
+    const hoy = hoyISO();
+    const periodo = periodoMensual(hoy);
+    const { desde, hasta } = rangoMes(hoy);
+    const [prof, informes, fotos, asignaciones] = await Promise.all([
+      profesionalModel.obtenerProfesional(profesionalId),
+      evaluacionModel.listarInformesPorRango('mensual', desde, hasta),
+      fotoModel.listarTodas(),
+      asignacionModel.listarVigentes(),
+    ]);
+    const pend = pendientesDelMes({ profesionales: [prof], informes, fotos, asignaciones, periodo });
+    document.getElementById('inicio-mis-entregas').innerHTML = renderMisEntregas({
+      periodo,
+      pacientes: pend.informes[0]?.pacientesPendientes || [],
+      debeFoto: pend.fotos.length > 0,
+    });
+  } catch (err) {
+    console.error('Error cargando lo que falta entregar:', err);
   }
 }

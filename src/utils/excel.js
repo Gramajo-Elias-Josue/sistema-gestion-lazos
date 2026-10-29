@@ -13,6 +13,7 @@ import { formatearFecha } from './fechas.js';
 import { etiquetaPeriodo } from './periodos.js';
 import { resumenPorSocio, totalGastos } from './gastos.js';
 import { ESTADOS_FACTURACION, ESTADO_POR_DEFECTO } from './facturacion.js';
+import { minutosDia, horarioTexto, enHoras } from './controlHoras.js';
 
 // Formato de pesos para las celdas de monto (Excel lo muestra con el
 // separador de la configuración regional de quien lo abre).
@@ -78,6 +79,42 @@ export function hojasFacturacion(pacientes = [], estadosPorId = {}, periodo) {
 // DESCARGA
 // ---------------------------------------------------------------------
 // hojas: [{ nombre, filas: [[...]], anchos: [n…], columnasPesos: [i…] }]
+// ---------------------------------------------------------------------
+// CONTROL DE HORAS (sueldos)
+// ---------------------------------------------------------------------
+// Hoja 1: un profesional por fila, días y horas según la planilla de la
+// secretaría y según su propio fichaje. Hoja 2: el detalle día por día,
+// con lo que no cuadra. Las horas van como NÚMERO (con decimales: 7,5 =
+// 7 h 30 min) para poder sumarlas o multiplicarlas por el valor hora.
+// `resumen` = lo que devuelve resumenControlHoras() (utils/controlHoras.js).
+export function hojasControlHoras(resumen = [], periodo) {
+  const titulo = `Control de horas — ${etiquetaPeriodo(periodo)}`;
+  const totales = [
+    [titulo],
+    [],
+    ['Profesional', 'Profesión', 'Días (secretaría)', 'Horas (secretaría)', 'Días (su fichaje)', 'Horas (su fichaje)', 'Diferencia (horas)', 'Días que no cuadran'],
+    ...resumen.map(r => [
+      r.profesional.nombre_completo || '', r.profesional.profesion || '',
+      r.diasPlanilla, enHoras(r.minPlanilla), r.diasPropio, enHoras(r.minPropio),
+      enHoras(r.minPropio - r.minPlanilla), r.alertas,
+    ]),
+  ];
+  const detalle = [
+    [`Detalle por día — ${etiquetaPeriodo(periodo)}`],
+    [],
+    ['Profesional', 'Fecha', 'Planilla: estado', 'Planilla: horario', 'Su fichaje: horario', 'Horas (secretaría)', 'Horas (su fichaje)', 'Observación'],
+    ...resumen.flatMap(r => r.dias.map(d => [
+      r.profesional.nombre_completo || '', formatearFecha(d.fecha),
+      d.planilla?.estado || 'Sin planilla', horarioTexto(d.planilla), horarioTexto(d.propio),
+      enHoras(minutosDia(d.planilla)), enHoras(minutosDia(d.propio)), d.alerta || '',
+    ])),
+  ];
+  return [
+    { nombre: 'Resumen', filas: totales, anchos: [28, 18, 16, 18, 16, 18, 18, 18] },
+    { nombre: 'Detalle', filas: detalle, anchos: [28, 12, 16, 26, 26, 16, 16, 34] },
+  ];
+}
+
 export async function descargarExcel(nombreArchivo, hojas) {
   const XLSX = await import('xlsx');
   const libro = XLSX.utils.book_new();

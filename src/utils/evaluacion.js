@@ -93,43 +93,55 @@ export function evaluacionVacia(datos = {}) {
 }
 
 // ---------------------------------------------------------------------
-// GATE "ATENDIDO HOY": quién puede cargar el informe de un paciente
+// AUTORES DEL USUARIO
 // ---------------------------------------------------------------------
-// El paciente con legajo se atiende por la GRILLA (la agenda de turnos es
-// solo para casuales sin legajo, que no tienen historia clínica). Puede
-// cargar el informe el profesional que lo tiene asignado en la grilla
-// (asignación vigente), si AMBOS figuran presentes hoy: el paciente en la
-// planilla de asistencia y el profesional en su fichaje.
-//
-// Devuelve la lista de "autores" posibles con la forma que espera
-// pacientesView.renderFormEvaluacion (id de turno null, profesional_id,
-// profesionales embebido, hora null). Un profesional que lo tiene en
-// varias franjas aparece una sola vez.
-//   asignaciones     -> asignacionModel.listarPorPaciente(id, {soloVigentes:true})
-//   pacientePresente -> boolean (asistencias de hoy)
-//   idsProfPresentes -> Set de profesional_id fichados presente hoy
 // Un profesional firma SOLO sus informes (la base no le deja guardar
 // otros: ver supabase/sql/14-escritura-informes-y-documentos.sql), así
 // que en el editor se le ofrecen solo sus filas. Dirección y secretaría
-// pueden cargar el de cualquiera.
+// pueden cargar el de cualquiera. (Quién puede cargar el informe del mes:
+// ver autoresElegiblesMes, más abajo.)
 export function autoresDelUsuario(autores = [], perfil = null) {
   if (perfil?.rol !== 'profesional') return autores;
   return autores.filter(a => String(a.profesional_id) === String(perfil.profesional_id));
 }
 
-export function autoresElegiblesHoy({ asignaciones = [], pacientePresente = false, idsProfPresentes = new Set() } = {}) {
+// ---------------------------------------------------------------------
+// GATE DEL INFORME MENSUAL: atendido ALGÚN día de este mes
+// ---------------------------------------------------------------------
+// El informe es MENSUAL: se puede cargar cualquier día del mes, siempre
+// que el profesional haya atendido al paciente al menos una vez en el
+// mes: un mismo día con el paciente presente en la planilla y el
+// profesional presente (planilla de la secretaría o su propio fichaje),
+// y el paciente en su grilla (asignación vigente).
+//   asignaciones     -> asignacionModel.listarPorPaciente(id, {soloVigentes:true})
+//   fechasPaciente   -> fechas del mes en que el paciente figuró presente
+//   presenciasProf   -> { profesional_id: Set de fechas en que estuvo presente }
+// Devuelve los autores con la forma de renderFormEvaluacion (sin turno).
+export function autoresElegiblesMes({ asignaciones = [], fechasPaciente = [], presenciasProf = {} } = {}) {
   const autores = [];
-  if (!pacientePresente) return autores;
-
   asignaciones
-    .filter(a => a.profesional_id && idsProfPresentes.has(String(a.profesional_id)))
+    .filter(a => a.profesional_id)
+    .filter(a => {
+      const suyas = presenciasProf[String(a.profesional_id)];
+      return !!suyas && fechasPaciente.some(f => suyas.has(f));
+    })
     .forEach(a => {
       if (!autores.some(x => String(x.profesional_id) === String(a.profesional_id))) {
         autores.push({ id: null, profesional_id: a.profesional_id, profesionales: a.profesionales, hora: null });
       }
     });
-
   return autores;
+}
+
+// Días en que cada profesional estuvo presente, juntando la planilla de
+// la secretaría (estado "presente") y su propio fichaje (alguna hora
+// fichada). Devuelve { profesional_id: Set de fechas }.
+export function presenciasPorProfesional({ planilla = [], propios = [] } = {}) {
+  const out = {};
+  const sumar = (id, fecha) => { (out[String(id)] ||= new Set()).add(fecha); };
+  planilla.filter(r => r.estado === 'presente').forEach(r => sumar(r.profesional_id, r.fecha));
+  propios.filter(r => r.hora_entrada || r.hora_entrada_2).forEach(r => sumar(r.profesional_id, r.fecha));
+  return out;
 }
 
 // ---------------------------------------------------------------------

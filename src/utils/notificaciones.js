@@ -84,9 +84,16 @@ function etiquetaCuando(faltan) {
 //   avisarEntregas -> false = todavía no está cerca de fin de mes: no
 //                     molesta con los pendientes (ver DIAS_AVISO_ENTREGAS)
 export function notificacionesGlobales({ cumpleanos = [], pendientes = { informes: [], fotos: [] }, avisarEntregas = true } = {}) {
+  // El informe mensual es uno por paciente: se dice cuántos y de quiénes.
+  const detalleInformes = (p) => {
+    const pend = p.pacientesPendientes;
+    if (!pend?.length) return 'Debe el informe del mes';
+    const nombres = pend.slice(0, 3).map(x => x.nombre_completo).join(', ') + (pend.length > 3 ? '…' : '');
+    return `Debe ${pend.length === 1 ? '1 informe' : `${pend.length} informes`} del mes: ${nombres}`;
+  };
   const deInformes = avisarEntregas ? pendientes.informes.map(p => ({
     tipo: 'informe', icono: '📄', color: 'red',
-    titulo: p.nombre_completo, detalle: 'Debe el informe del mes',
+    titulo: p.nombre_completo, detalle: detalleInformes(p),
   })) : [];
   const deFotos = avisarEntregas ? pendientes.fotos.map(p => ({
     tipo: 'foto', icono: '📷', color: 'amber',
