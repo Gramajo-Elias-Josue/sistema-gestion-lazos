@@ -38,9 +38,11 @@ const ROLES_ALTA = [
   ...ROLES_ASIGNABLES,
 ];
 
-// Etiqueta legible de una sección.
+// Etiqueta legible de una sección. "Mi fichaje" no está en SECCIONES (no
+// se tilda: la tiene siempre el rol profesional), pero sí se muestra.
+const ETIQUETAS_EXTRA = { fichaje: 'Mi fichaje' };
 function etiquetaSeccion(clave) {
-  return SECCIONES.find(s => s.clave === clave)?.etiqueta || clave;
+  return SECCIONES.find(s => s.clave === clave)?.etiqueta || ETIQUETAS_EXTRA[clave] || clave;
 }
 
 // Estructura base: encabezado + botón "Nuevo usuario" + tabla.

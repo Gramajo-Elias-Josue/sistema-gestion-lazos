@@ -94,3 +94,12 @@ describe('administracionView.renderFormUsuario', () => {
     expect(html).toContain('value="director"');
   });
 });
+
+describe('[regresión] etiqueta de "Mi fichaje" en la lista de usuarios', () => {
+  it('el profesional muestra "Mi fichaje", no la clave interna', async () => {
+    const { renderListaUsuarios } = await import('../src/views/administracionView.js');
+    const html = renderListaUsuarios([{ id: 'u1', nombre: 'Ana', email: 'a@x.test', rol: 'profesional' }]);
+    expect(html).toContain('Mi fichaje');
+    expect(html).not.toMatch(/>fichaje</);
+  });
+});
