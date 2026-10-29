@@ -11,7 +11,8 @@
 -- Ojo: al revertir se pierde el control por rol en la base (el gating del
 -- front sigue, pero es sólo cosmético). Es para destrabar y diagnosticar,
 -- no para dejarlo así. Para volver a la seguridad por rol, correr de nuevo
--- 04-seguridad-rls.sql (borra solo estas políticas "emergencia_*").
+-- 04-seguridad-rls.sql (borra solo estas políticas "emergencia_*") y
+-- después el 13 y el 14.
 -- =====================================================================
 
 -- 1) Tablas: borrar las políticas por rol y recrear la abierta.

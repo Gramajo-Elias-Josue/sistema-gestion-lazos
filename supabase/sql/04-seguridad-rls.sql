@@ -19,6 +19,11 @@
 --                  no crea turnos ni los marca "Atendido".
 --   anon (sin sesión) -> NADA. Ahora hay que iniciar sesión.
 --
+-- ⚠️ Si lo volvés a correr, después corré de nuevo el 13 y el 14: ajustan
+--    algunas de estas políticas (el CM no lee datos clínicos; el
+--    profesional escribe solo sus informes del día) y el 04 las devuelve
+--    a su versión base.
+--
 -- ⚠️ Si algo queda bloqueado de más, corré `supabase/sql/mantenimiento/rls-revertir.sql`
 --    (deja todo libre solo para usuarios logueados) y avisá qué falló.
 --

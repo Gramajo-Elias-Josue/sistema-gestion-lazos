@@ -23,6 +23,7 @@ create or replace function public.hoy_local()
 returns date
 language sql
 stable
+set search_path = public
 as $$
   select (now() at time zone 'America/Argentina/Buenos_Aires')::date;
 $$;
@@ -39,6 +40,10 @@ as $$
   select public.puede_operar()
       or (prof is not null and prof = public.mi_profesional_id() and fecha = public.hoy_local());
 $$;
+
+-- Solo tiene sentido con sesión: sin sesión no se puede ni llamar.
+revoke execute on function public.puede_escribir_informe(uuid, date) from public, anon;
+grant execute on function public.puede_escribir_informe(uuid, date) to authenticated;
 
 drop policy if exists "eval_insert" on public.evaluaciones;
 create policy "eval_insert" on public.evaluaciones

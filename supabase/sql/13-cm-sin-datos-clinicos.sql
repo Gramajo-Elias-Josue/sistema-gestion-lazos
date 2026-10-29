@@ -25,6 +25,10 @@ as $$
   select coalesce(public.rol_actual() in ('director', 'secretaria', 'profesional'), false);
 $$;
 
+-- Solo tiene sentido con sesión: sin sesión no se puede ni llamar.
+revoke execute on function public.ve_datos_clinicos() from public, anon;
+grant execute on function public.ve_datos_clinicos() to authenticated;
+
 -- Tablas clínicas: se cambia SOLO quién puede leer (las de escritura ya
 -- eran de director/secretaría y no cambian).
 alter policy rol_select  on public.pacientes                 using (public.ve_datos_clinicos());

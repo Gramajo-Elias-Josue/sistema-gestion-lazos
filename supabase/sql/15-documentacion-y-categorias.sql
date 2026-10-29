@@ -101,6 +101,7 @@ create policy "cat_escritura" on public.categorias_documento
 create or replace function public.proteger_categorias_fijas()
 returns trigger
 language plpgsql
+set search_path = public
 as $$
 begin
   if old.clave in ('cud', 'historial') then
