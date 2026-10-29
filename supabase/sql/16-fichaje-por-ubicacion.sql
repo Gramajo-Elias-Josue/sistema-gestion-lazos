@@ -98,9 +98,13 @@ $$;
 -- ---------------------------------------------------------------------
 -- 4) fichar(): la única puerta del fichaje por ubicación
 -- ---------------------------------------------------------------------
--- Primera vez en el día -> entrada. Segunda -> salida. Después, nada.
+-- `que` = 'entrada' o 'salida' (un botón para cada una en la app). Cada
+-- una se ficha UNA vez por día, y la salida recién después de la entrada.
 -- Devuelve la fila del día. Los mensajes de error son para el usuario.
-create or replace function public.fichar(lat double precision, lng double precision)
+-- (La primera versión recibía solo lat/lng y adivinaba cuál tocaba.)
+drop function if exists public.fichar(double precision, double precision);
+
+create or replace function public.fichar(lat double precision, lng double precision, que text)
 returns public.asistencias_profesionales
 language plpgsql security definer set search_path = public as $$
 declare
@@ -110,69 +114,79 @@ declare
   hoy    date := public.hoy_local();
   ahora  time := date_trunc('minute', now() at time zone 'America/Argentina/Buenos_Aires')::time;
   fila   public.asistencias_profesionales;
+  existe boolean;
   MINUTOS_ENTRE_ENTRADA_Y_SALIDA constant integer := 10;
 begin
+  if que is null or que not in ('entrada', 'salida') then
+    raise exception 'Fichaje inválido: tiene que ser la entrada o la salida.';
+  end if;
   if prof is null then
     raise exception 'Tu usuario no está vinculado a un profesional. Avisale a la dirección.';
   end if;
 
+  -- 1) ¿Le corresponde fichar eso? (antes que la ubicación: si ya fichó,
+  --    el aviso es ese, esté donde esté)
+  select * into fila from public.asistencias_profesionales
+   where profesional_id = prof and fecha = hoy
+   for update;
+  existe := found;  -- se guarda ya: cualquier PERFORM posterior pisa FOUND
+
+  if existe and fila.estado <> 'presente' then
+    raise exception 'Hoy figurás como "%" en la planilla. Si es un error, avisale a la secretaría.', fila.estado;
+  end if;
+  if que = 'entrada' and existe and fila.hora_entrada is not null then
+    raise exception 'Ya fichaste la entrada a las %.', to_char(fila.hora_entrada, 'HH24:MI');
+  end if;
+  if que = 'salida' and (not existe or fila.hora_entrada is null) then
+    raise exception 'Primero tenés que fichar la entrada.';
+  end if;
+  if que = 'salida' and fila.hora_salida is not null then
+    raise exception 'Ya fichaste la salida a las %.', to_char(fila.hora_salida, 'HH24:MI');
+  end if;
+  if que = 'salida' and ahora < fila.hora_entrada + make_interval(mins => MINUTOS_ENTRE_ENTRADA_Y_SALIDA) then
+    raise exception 'Fichaste la entrada a las %. La salida se puede fichar desde las %.',
+      to_char(fila.hora_entrada, 'HH24:MI'),
+      to_char(fila.hora_entrada + make_interval(mins => MINUTOS_ENTRE_ENTRADA_Y_SALIDA), 'HH24:MI');
+  end if;
+
+  -- 2) ¿Está en el centro?
   select * into conf from public.configuracion_centro where id;
   if conf.latitud is null or conf.longitud is null then
     raise exception 'Todavía no está configurada la ubicación del centro. Avisale a la dirección.';
   end if;
-
   if lat is null or lng is null or lat not between -90 and 90 or lng not between -180 and 180 then
     raise exception 'No llegó tu ubicación. Probá de nuevo.';
   end if;
-
   dist := round(public.distancia_metros(lat, lng, conf.latitud, conf.longitud));
   if dist > conf.radio_m then
     raise exception 'Estás a % m del centro (se permite hasta % m). Para fichar tenés que estar en el centro.', dist, conf.radio_m;
   end if;
 
-  -- Bandera para el trigger: estas horas son "por ubicación". Va ANTES
-  -- del select: un PERFORM pisa la variable FOUND, y el "if not found" de
-  -- abajo tiene que ver el resultado del select.
+  -- 3) Se guarda. Bandera para el trigger: estas horas son "por ubicación".
   perform set_config('lazos.fichaje', 'ubicacion', true);
-
-  select * into fila from public.asistencias_profesionales
-   where profesional_id = prof and fecha = hoy
-   for update;
-
-  if not found then
+  if que = 'entrada' and not existe then
     insert into public.asistencias_profesionales (profesional_id, fecha, estado, hora_entrada, entrada_distancia_m)
     values (prof, hoy, 'presente', ahora, dist)
     returning * into fila;
-  elsif fila.estado <> 'presente' then
-    raise exception 'Hoy figurás como "%" en la planilla. Si es un error, avisale a la secretaría.', fila.estado;
-  elsif fila.hora_entrada is null then
+  elsif que = 'entrada' then
     update public.asistencias_profesionales
        set hora_entrada = ahora, entrada_distancia_m = dist
      where id = fila.id
     returning * into fila;
-  elsif fila.hora_salida is null then
-    if ahora < fila.hora_entrada + make_interval(mins => MINUTOS_ENTRE_ENTRADA_Y_SALIDA) then
-      raise exception 'Ya fichaste la entrada a las %. La salida se puede fichar desde las %.',
-        to_char(fila.hora_entrada, 'HH24:MI'),
-        to_char(fila.hora_entrada + make_interval(mins => MINUTOS_ENTRE_ENTRADA_Y_SALIDA), 'HH24:MI');
-    end if;
+  else
     update public.asistencias_profesionales
        set hora_salida = ahora, salida_distancia_m = dist
      where id = fila.id
     returning * into fila;
-  else
-    raise exception 'Hoy ya fichaste la entrada (%) y la salida (%).',
-      to_char(fila.hora_entrada, 'HH24:MI'), to_char(fila.hora_salida, 'HH24:MI');
   end if;
-
   perform set_config('lazos.fichaje', '', true);
   return fila;
 end;
 $$;
 
 -- Solo con sesión. distancia_metros y el trigger no se llaman desde afuera.
-revoke execute on function public.fichar(double precision, double precision) from public, anon;
-grant execute on function public.fichar(double precision, double precision) to authenticated;
+revoke execute on function public.fichar(double precision, double precision, text) from public, anon;
+grant execute on function public.fichar(double precision, double precision, text) to authenticated;
 revoke execute on function public.distancia_metros(double precision, double precision, double precision, double precision) from public, anon;
 revoke execute on function public.marcar_origen_fichaje() from public, anon;
 

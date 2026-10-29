@@ -16,10 +16,11 @@ administrativa (convenios, facturación y gastos), con usuarios y permisos por r
 | Sección | Para qué sirve |
 |---|---|
 | **Inicio** | Panel del día: **Grilla de atención** (quién atiende a quién y a qué hora, separada en turno mañana 8–12 y tarde 14–18), disponibilidad del equipo, alertas de CUD por vencer y entregas pendientes del mes. |
+| **Mi fichaje** | Solo para profesionales: un botón para la **entrada** y otro para la **salida**, con su ubicación. La base valida que esté en el centro y pone la hora. En su Inicio ve **solo su grilla** y un recordatorio si le falta fichar. |
 | **Admisión** | Ingreso de pacientes nuevos con checklist de documentación. Al aprobar, el paciente pasa a la lista de Pacientes. |
 | **Pacientes** | Legajo e **historia clínica**: documentos por categoría, buscador, informes profesionales y evaluación / certificado. |
 | **Turnos** | Agenda para pacientes **casuales** (sin legajo). Nunca puede pisar un turno fijo de la grilla. |
-| **Asistencia** | Planilla diaria de pacientes y fichaje de profesionales, con calendario mensual y PDF. El profesional también puede **fichar solo desde Inicio con su ubicación** (📍 en la planilla). |
+| **Asistencia** | Planilla diaria de pacientes y fichaje de profesionales, con calendario mensual y PDF. Las horas que el profesional fichó con su ubicación se ven con 📍. |
 | **Profesionales** | Equipo, profesiones (sectores), días y turnos de trabajo. Al crear un profesional se le crea su usuario. |
 | **Galería** | Fotos del trabajo del mes (material de difusión). Cada profesional sube las suyas. |
 | **Facturación / Gastos** | Gestión de la sociedad: estado de facturación por paciente y mes, gastos y rendición por socio. Ambas se **exportan a Excel** (.xlsx). |

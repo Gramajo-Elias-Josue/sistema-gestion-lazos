@@ -32,7 +32,7 @@ import {
 import { htmlCargando, htmlError, toast } from '../utils/ui.js';
 import { normalizar } from '../utils/areas.js';
 import { ahoraHHMM, hoyISO } from '../utils/fechas.js';
-import { turnoSegunHora } from '../utils/turnosCentro.js';
+import { turnoSegunHora, turnosDe } from '../utils/turnosCentro.js';
 import { perfilActual } from '../sesion.js';
 import { puedeOperar } from '../permisos.js';
 
@@ -46,10 +46,14 @@ let editando = null;  // la celda que tiene el campo abierto
 let caja = null;      // contenedor de la grilla
 let turno = 'manana'; // pestaña visible: 'manana' | 'tarde'
 let casuales = {};    // { 'profesionalId|franja': turno casual de HOY } (solo para ver)
+let propia = false;   // true = grilla de UN profesional (el logueado), solo lectura
 
 // Arranca la grilla dentro del contenedor que le pasa el inicio.
-export async function iniciarGrillaAtencion(contenedor) {
-  editable = puedeOperar(perfilActual());
+// `soloProfesionalId`: el Inicio del profesional muestra solo SU tarjeta
+// (sus horarios y pacientes), sin poder editar.
+export async function iniciarGrillaAtencion(contenedor, { soloProfesionalId = null } = {}) {
+  propia = !!soloProfesionalId;
+  editable = !propia && puedeOperar(perfilActual());
   caja = contenedor;
   // Abre en el turno en curso: a la tarde nadie busca la mañana.
   turno = turnoSegunHora(ahoraHHMM());
@@ -69,7 +73,12 @@ export async function iniciarGrillaAtencion(contenedor) {
       }),
     ]);
     pacientes = pacs;
-    profesionales = profs;
+    profesionales = propia ? profs.filter(p => String(p.id) === String(soloProfesionalId)) : profs;
+    // Si el profesional trabaja en un solo turno, se abre en ese.
+    if (propia && profesionales.length) {
+      const suyos = turnosDe(profesionales[0]).map(t => t.clave);
+      if (suyos.length === 1) turno = suyos[0];
+    }
     sectores = secs;
     casuales = casualesPorCelda(turnosHoy);
     celdas = {};
@@ -93,7 +102,7 @@ function pintar() {
   // Repintar rehace el buscador: se conserva lo escrito para no perder
   // el filtro al recargar.
   const buscado = caja.querySelector('#ga-buscar')?.value ?? '';
-  caja.innerHTML = renderGrilla({ profesionales, sectores, pacientes, celdas, editable, turno, casuales });
+  caja.innerHTML = renderGrilla({ profesionales, sectores, pacientes, celdas, editable, turno, casuales, propia });
   const buscador = caja.querySelector('#ga-buscar');
   if (buscador) buscador.value = buscado;
   aplicarFiltro();

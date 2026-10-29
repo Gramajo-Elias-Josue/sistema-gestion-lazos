@@ -8,12 +8,14 @@
 // =====================================================================
 
 import { fechaLarga } from './utils/fechas.js';
-import { perfilActual } from './sesion.js';
+import { perfilActual, rolActual } from './sesion.js';
 import { puedeVer, seccionInicial } from './permisos.js';
 
 // Metadatos de cada sección. `iniciar` se completa con registrarControlador().
 const SECCIONES = {
-  inicio:        { titulo: 'Panel de Dirección',  sub: () => fechaLarga(),                    iniciar: null },
+  // El Inicio del profesional es "Mi día" (su grilla), no el panel de la dirección.
+  inicio:        { titulo: () => rolActual() === 'profesional' ? 'Mi día' : 'Panel de Dirección', sub: () => fechaLarga(), iniciar: null },
+  fichaje:       { titulo: 'Mi fichaje',          sub: () => fechaLarga(),                    iniciar: null },
   admision:      { titulo: 'Admisión',            sub: () => 'Ingreso y documentación',       iniciar: null },
   pacientes:     { titulo: 'Pacientes',           sub: () => 'Legajos y documentación',       iniciar: null },
   agenda:        { titulo: 'Turnos',              sub: () => 'Pacientes casuales (sin legajo)', iniciar: null },
@@ -56,7 +58,7 @@ async function mostrar(nombre) {
 
   // Actualiza el encabezado.
   const meta = SECCIONES[nombre];
-  document.getElementById('ttl').textContent = meta.titulo;
+  document.getElementById('ttl').textContent = typeof meta.titulo === 'function' ? meta.titulo() : meta.titulo;
   document.getElementById('sub').textContent = meta.sub();
 
   // Arranca el controlador de la sección (si está registrado).

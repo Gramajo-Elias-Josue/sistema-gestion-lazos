@@ -23,6 +23,7 @@ import { leerLinkDelMail } from './utils/linkMail.js';
 import { abrirPerfil, pintarAvatar } from './controllers/perfilController.js';
 import { conectarNotificaciones, cargarNotificaciones } from './controllers/notificacionesController.js';
 import { iniciarInicio } from './controllers/inicioController.js';
+import { iniciarFichaje } from './controllers/fichajeController.js';
 import { iniciarAdmision } from './controllers/admisionController.js';
 import { iniciarPacientes } from './controllers/pacientesController.js';
 import { iniciarTurnos } from './controllers/turnosController.js';
@@ -60,6 +61,7 @@ let sesionActual = null;
 // Conecta cada sección con su controlador (solo la primera vez).
 function registrarControladores() {
   registrarControlador('inicio', iniciarInicio);
+  registrarControlador('fichaje', iniciarFichaje);
   registrarControlador('admision', iniciarAdmision);
   registrarControlador('pacientes', iniciarPacientes);
   registrarControlador('agenda', iniciarTurnos);

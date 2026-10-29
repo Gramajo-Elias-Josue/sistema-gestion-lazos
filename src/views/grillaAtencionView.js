@@ -215,9 +215,13 @@ function renderPestanasTurno(profesionales, turno) {
 //   editable      -> false = solo lectura (perfil sin permiso de operar)
 //   turno         -> 'manana' | 'tarde': la pestaña que se está viendo
 //   casuales      -> { 'profesionalId|franja': turno } de HOY (casualesPorCelda)
-export function renderGrilla({ profesionales = [], sectores = [], pacientes = [], celdas = {}, editable = true, turno = 'manana', casuales = {} }) {
+//   propia        -> true = es la grilla del profesional logueado (solo su
+//                    tarjeta): sin buscador y con avisos escritos para él
+export function renderGrilla({ profesionales = [], sectores = [], pacientes = [], celdas = {}, editable = true, turno = 'manana', casuales = {}, propia = false }) {
   if (!profesionales.length) {
-    return `<div class="state">No hay profesionales activos. Cargalos desde <b>Profesionales</b> y aparecen acá solos.</div>`;
+    return propia
+      ? `<div class="state">No encontramos tu ficha de profesional activa. Avisale a la secretaría.</div>`
+      : `<div class="state">No hay profesionales activos. Cargalos desde <b>Profesionales</b> y aparecen acá solos.</div>`;
   }
   if (!sectores.length) {
     return `<div class="state">No hay profesiones cargadas. Agregá la primera desde Profesionales → pestaña "Profesiones".</div>`;
@@ -232,14 +236,20 @@ export function renderGrilla({ profesionales = [], sectores = [], pacientes = []
   // Los que no tienen ningún turno tildado no entran en ninguna pestaña:
   // se avisa para que no "desaparezcan" sin explicación.
   const sinTurno = profesionales.filter(p => !turnosDe(p).length);
-  const avisoSinTurno = sinTurno.length ? `
+  const avisoSinTurno = (sinTurno.length && propia) ? `
+    <div class="banner banner-alerta"><div>
+      <b>Todavía no tenés turno cargado</b> (mañana o tarde). Avisale a la secretaría.
+    </div></div>` : sinTurno.length ? `
     <div class="banner banner-alerta"><div>
       <b>Sin turno cargado:</b> ${esc(sinTurno.map(p => p.nombre_completo).join(' · '))}.
       Tildá su turno en <b>Profesionales</b> para verlos en la grilla.
     </div></div>` : '';
 
   const nombreTurno = TURNOS_CENTRO.find(t => t.clave === turno)?.etiqueta.toLowerCase() || 'este turno';
-  const contenido = tarjetas || `<div class="state">Nadie trabaja en el ${esc(nombreTurno)}. Se tilda en <b>Profesionales</b>.</div>`;
+  const vacio = propia
+    ? `<div class="state">No trabajás en el ${esc(nombreTurno)}.</div>`
+    : `<div class="state">Nadie trabaja en el ${esc(nombreTurno)}. Se tilda en <b>Profesionales</b>.</div>`;
+  const contenido = tarjetas || vacio;
 
   // El carrusel/flechas son solo para el celular (una tarjeta a la vez);
   // en pantalla ancha el mismo markup se ve como columnas lado a lado.
@@ -249,11 +259,12 @@ export function renderGrilla({ profesionales = [], sectores = [], pacientes = []
     ${renderListaPacientes(pacientes)}
     ${renderPestanasTurno(profesionales, turno)}
     ${avisoSinTurno}
+    ${propia ? '' : `
     <div class="ga-toolbar">
       <input id="ga-buscar" type="search" autocomplete="off"
              placeholder="🔎 Buscar profesional o paciente…">
       <span class="ga-contador" id="ga-contador"></span>
-    </div>
+    </div>`}
     <div class="ga-carrusel">
       <div class="ga-tarjetas" id="ga-tarjetas">${contenido}</div>
       <div class="ga-pager" id="ga-pager" hidden>

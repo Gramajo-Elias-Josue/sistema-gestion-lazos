@@ -1152,3 +1152,21 @@ tbody tr:last-child td{border-bottom:none}
 .av-opcion.sel{border-color:var(--teal-700);box-shadow:0 0 0 3px var(--teal-100)}
 /* El avatar elegido llena el círculo (encabezado y vista previa). */
 .perfil-av img,.who .av img{width:100%;height:100%;display:block;object-fit:cover}
+
+/* ---- Mi fichaje (profesional): dos tarjetas, entrada y salida ---- */
+.fich-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:640px){.fich-grid{grid-template-columns:1fr}}
+.fich-card{border:1px solid var(--line);border-radius:14px;background:var(--card-2);padding:18px;display:flex;flex-direction:column;gap:6px}
+.fich-card.fich-hecha{background:var(--teal-50);border-color:var(--teal-100)}
+.fich-tit{font-family:var(--display);font-weight:700;font-size:17px;color:var(--ink)}
+.fich-hora{font-family:var(--display);font-size:38px;font-weight:700;line-height:1.1;color:var(--teal-800)}
+.fich-hora-vacia{color:var(--ink-faint)}
+.fich-card small{color:var(--ink-soft);font-size:13.5px}
+.fich-btn{margin-top:10px;width:100%;justify-content:center}
+.fich-btn:disabled{opacity:.55;cursor:not-allowed}
+.fich-listo{margin-top:14px;color:var(--teal-700);font-weight:600}
+.fich-nota{margin-top:14px;color:var(--ink-faint);font-size:13.5px}
+/* Recordatorio en el Inicio del profesional */
+.fich-recordatorio{justify-content:space-between;flex-wrap:wrap}
+.fich-recordatorio .tx span{display:block;font-size:13.5px;margin-top:2px}
+.fich-recordatorio .btn{white-space:nowrap;text-decoration:none}

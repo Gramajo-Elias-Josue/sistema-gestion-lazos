@@ -65,11 +65,12 @@ export async function fichajeDelDia(profesionalId, fecha) {
   return data;
 }
 
-// Fichaje por ubicación del profesional logueado. Solo manda dónde está:
-// la base (función fichar(), script 16) decide si está en el centro, pone
-// la hora y elige si es la entrada o la salida. Devuelve la fila del día.
-export async function ficharConUbicacion(lat, lng) {
-  const { data, error } = await supabase.rpc('fichar', { lat, lng });
+// Fichaje por ubicación del profesional logueado. Manda dónde está y qué
+// ficha ('entrada' | 'salida'): la base (función fichar(), script 16)
+// decide si está en el centro y si le toca, y pone la hora. Devuelve la
+// fila del día.
+export async function ficharConUbicacion(lat, lng, que) {
+  const { data, error } = await supabase.rpc('fichar', { lat, lng, que });
   if (error) throw error;
   return data;
 }

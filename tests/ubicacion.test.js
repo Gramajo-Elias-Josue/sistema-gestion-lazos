@@ -3,7 +3,10 @@
 import { describe, it, expect } from 'vitest';
 import { mensajeErrorUbicacion, proximoPaso, linkMapa, validarUbicacionCentro } from '../src/utils/ubicacion.js';
 import { mensajeError } from '../src/utils/errores.js';
-import { renderMiFichaje, renderInicio } from '../src/views/inicioView.js';
+import { renderInicio, renderInicioProfesional, renderRecordatorioFichaje } from '../src/views/inicioView.js';
+import { renderFichaje } from '../src/views/fichajeView.js';
+import { renderGrilla } from '../src/views/grillaAtencionView.js';
+import { puedeVer, seccionesEfectivas } from '../src/permisos.js';
 import { renderUbicacionCentro } from '../src/views/administracionView.js';
 import { filaHtml } from '../src/views/asistenciaProfView.js';
 
@@ -69,34 +72,96 @@ describe('linkMapa', () => {
   });
 });
 
-describe('inicioView: Mi fichaje', () => {
-  it('el panel aparece solo para el profesional', () => {
-    expect(renderInicio({ conFichaje: true })).toContain('inicio-fichaje');
-    expect(renderInicio()).not.toContain('inicio-fichaje');
+describe('fichajeView: dos botones, entrada y salida', () => {
+  const botones = (html) => {
+    const m = [...html.matchAll(/<button[^>]*data-fichar="(entrada|salida)"[^>]*>/g)];
+    return Object.fromEntries(m.map(([tag, que]) => [que, !tag.includes('disabled')]));
+  };
+
+  it('sin fichar: entrada habilitada, salida deshabilitada', () => {
+    const html = renderFichaje({ fila: null });
+    expect(botones(html)).toEqual({ entrada: true, salida: false });
+    expect(html).toContain('Se habilita después de fichar la entrada');
+    expect(html).not.toContain('type="time"'); // la hora no se elige
   });
-  it('sin fichar: botón de entrada, sin campo para elegir la hora', () => {
-    const html = renderMiFichaje({ paso: 'entrada', fila: null });
-    expect(html).toContain('Fichar entrada');
-    expect(html).not.toContain('type="time"');
-  });
-  it('con entrada: muestra la hora y ofrece la salida', () => {
-    const html = renderMiFichaje({ paso: 'salida', fila: { estado: 'presente', hora_entrada: '08:02:00', entrada_por: 'ubicacion' } });
+  it('con entrada: entrada apagada con su hora, salida habilitada', () => {
+    const html = renderFichaje({ fila: { estado: 'presente', hora_entrada: '08:02:00', entrada_por: 'ubicacion' } });
+    expect(botones(html)).toEqual({ entrada: false, salida: true });
     expect(html).toContain('08:02');
-    expect(html).toContain('Fichar salida');
+    expect(html).toContain('Entrada fichada');
   });
-  it('completo: sin botón', () => {
-    const html = renderMiFichaje({ paso: 'listo', fila: { estado: 'presente', hora_entrada: '08:02:00', hora_salida: '12:01:00' } });
-    expect(html).not.toContain('btn-fichar');
+  it('completo: los dos apagados', () => {
+    const html = renderFichaje({ fila: { estado: 'presente', hora_entrada: '08:02:00', hora_salida: '12:01:00' } });
+    expect(botones(html)).toEqual({ entrada: false, salida: false });
     expect(html).toContain('12:01');
+    expect(html).toContain('Ya fichaste la entrada y la salida');
   });
-  it('licencia: avisa y no deja fichar', () => {
-    const html = renderMiFichaje({ paso: 'bloqueado', fila: { estado: 'licencia' } });
+  it('la secretaría lo marcó presente sin hora: puede fichar la entrada', () => {
+    expect(botones(renderFichaje({ fila: { estado: 'presente' } }))).toEqual({ entrada: true, salida: false });
+  });
+  it('licencia: avisa y no muestra botones', () => {
+    const html = renderFichaje({ fila: { estado: 'licencia' } });
     expect(html).toContain('Licencia');
-    expect(html).not.toContain('btn-fichar');
+    expect(html).not.toContain('data-fichar');
   });
   it('si la hora la cargó la secretaría, lo aclara', () => {
-    const html = renderMiFichaje({ paso: 'salida', fila: { estado: 'presente', hora_entrada: '08:00:00', entrada_por: 'secretaria' } });
+    const html = renderFichaje({ fila: { estado: 'presente', hora_entrada: '08:00:00', entrada_por: 'secretaria' } });
     expect(html).toContain('secretaría');
+  });
+});
+
+describe('Inicio del profesional', () => {
+  it('muestra su grilla y el lugar del recordatorio, nada de la dirección', () => {
+    const html = renderInicioProfesional();
+    expect(html).toContain('inicio-grilla');
+    expect(html).toContain('inicio-recordatorio');
+    expect(html).not.toContain('inicio-kpis');
+    expect(html).not.toContain('inicio-alertas');
+    expect(html).not.toContain('inicio-entregas');
+  });
+  it('el Inicio de la dirección no tiene fichaje', () => {
+    expect(renderInicio()).not.toContain('fich');
+  });
+  it('recordatorio: avisa la entrada o la salida pendiente y lleva a Mi fichaje', () => {
+    const entrada = renderRecordatorioFichaje({ paso: 'entrada', fila: null });
+    expect(entrada).toContain('entrada');
+    expect(entrada).toContain('href="#fichaje"');
+    const salida = renderRecordatorioFichaje({ paso: 'salida', fila: { hora_entrada: '08:02:00' } });
+    expect(salida).toContain('salida');
+    expect(salida).toContain('08:02');
+  });
+  it('recordatorio: nada si ya fichó todo o está de licencia', () => {
+    expect(renderRecordatorioFichaje({ paso: 'listo' })).toBe('');
+    expect(renderRecordatorioFichaje({ paso: 'bloqueado' })).toBe('');
+  });
+});
+
+describe('Grilla propia del profesional', () => {
+  const sectores = [{ clave: 'psicologia', etiqueta: 'Psicología' }];
+  const yo = { id: 'x1', nombre_completo: 'Flores Ingrid', sector: 'psicologia', turnos_trabajo: ['manana'] };
+  it('sin buscador y con avisos escritos para él', () => {
+    const html = renderGrilla({ profesionales: [yo], sectores, celdas: {}, editable: false, turno: 'tarde', propia: true });
+    expect(html).not.toContain('ga-buscar');
+    expect(html).toContain('No trabajás en el turno tarde');
+  });
+  it('sin turno cargado: le dice que avise a la secretaría', () => {
+    const html = renderGrilla({ profesionales: [{ ...yo, turnos_trabajo: [] }], sectores, celdas: {}, propia: true });
+    expect(html).toContain('Todavía no tenés turno cargado');
+  });
+});
+
+describe('Permisos: Mi fichaje es solo del profesional', () => {
+  it('el profesional la ve siempre, aunque tenga secciones propias', () => {
+    expect(puedeVer({ rol: 'profesional' }, 'fichaje')).toBe(true);
+    expect(puedeVer({ rol: 'profesional', secciones: ['pacientes'] }, 'fichaje')).toBe(true);
+  });
+  it('director, secretaría y CM no', () => {
+    expect(puedeVer({ rol: 'director' }, 'fichaje')).toBe(false);
+    expect(puedeVer({ rol: 'secretaria' }, 'fichaje')).toBe(false);
+    expect(puedeVer({ rol: 'cm' }, 'fichaje')).toBe(false);
+  });
+  it('no aparece para tildar en Administración (no está entre las secciones del director)', () => {
+    expect(seccionesEfectivas({ rol: 'director' })).not.toContain('fichaje');
   });
 });
 

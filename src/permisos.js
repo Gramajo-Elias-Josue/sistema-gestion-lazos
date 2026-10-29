@@ -52,6 +52,11 @@ const POR_DEFECTO = {
   cm:          ['galeria'],
 };
 
+// "Mi fichaje" es solo del PROFESIONAL (ficha con su ubicación): no está
+// en SECCIONES, así no aparece para tildar en Administración ni la recibe
+// el director (que no ficha). Se le agrega siempre al rol profesional.
+const SOLO_PROFESIONAL = ['fichaje'];
+
 // Roles que NO reciben Inicio de regalo (ver seccionesEfectivas).
 const SIN_INICIO = ['cm'];
 
@@ -80,8 +85,8 @@ export function seccionesEfectivas(perfil) {
   const rol = perfil?.rol || ROL_FALLBACK;
   const propias = Array.isArray(perfil?.secciones) ? perfil.secciones.filter(s => TODAS.includes(s)) : [];
   const base = propias.length ? propias : seccionesPorDefecto(rol);
-  if (base.includes('inicio') || SIN_INICIO.includes(rol)) return base;
-  return ['inicio', ...base];
+  const conInicio = (base.includes('inicio') || SIN_INICIO.includes(rol)) ? base : ['inicio', ...base];
+  return rol === 'profesional' ? [...conInicio, ...SOLO_PROFESIONAL] : conInicio;
 }
 
 // Sección a la que se entra al iniciar sesión (o a la que se vuelve si

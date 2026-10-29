@@ -11,11 +11,13 @@ import * as documentoModel from '../models/documentoModel.js';
 import * as asistenciaProfModel from '../models/asistenciaProfesionalModel.js';
 import * as fotoModel from '../models/fotoModel.js';
 import * as evaluacionModel from '../models/evaluacionModel.js';
-import { renderInicio, renderKpis, renderAlertas, renderDisponibilidad, renderEntregas, renderMiFichaje } from '../views/inicioView.js';
+import {
+  renderInicio, renderKpis, renderAlertas, renderDisponibilidad, renderEntregas,
+  renderInicioProfesional, renderRecordatorioFichaje,
+} from '../views/inicioView.js';
 import { iniciarGrillaAtencion } from './grillaAtencionController.js';
-import { htmlCargando, htmlError, toast } from '../utils/ui.js';
-import { mensajeError } from '../utils/errores.js';
-import { obtenerUbicacion, mensajeErrorUbicacion, proximoPaso } from '../utils/ubicacion.js';
+import { htmlCargando, htmlError } from '../utils/ui.js';
+import { proximoPaso } from '../utils/ubicacion.js';
 import { perfilActual } from '../sesion.js';
 import { hoyISO, rangoMes } from '../utils/fechas.js';
 import { periodoMensual, pendientesDelMes } from '../utils/periodos.js';
@@ -23,11 +25,14 @@ import { periodoMensual, pendientesDelMes } from '../utils/periodos.js';
 // Punto de entrada de la sección Inicio (lo llama el router).
 export async function iniciarInicio() {
   const contenedor = document.getElementById('v-inicio');
-  // El profesional (usuario vinculado a un profesional) ficha desde acá.
+  // El profesional tiene su propio Inicio: su grilla y el recordatorio
+  // del fichaje.
   const perfil = perfilActual();
-  const miProfesionalId = perfil?.rol === 'profesional' ? perfil?.profesional_id : null;
-  contenedor.innerHTML = renderInicio({ conFichaje: !!miProfesionalId });
-  if (miProfesionalId) iniciarMiFichaje(miProfesionalId);
+  if (perfil?.rol === 'profesional') {
+    await iniciarInicioProfesional(contenedor, perfil.profesional_id);
+    return;
+  }
+  contenedor.innerHTML = renderInicio();
 
   const cajaKpis = document.getElementById('inicio-kpis');
   const cajaGrilla = document.getElementById('inicio-grilla');
@@ -106,51 +111,25 @@ export async function iniciarInicio() {
 }
 
 // ---------------------------------------------------------------------
-// MI FICHAJE (solo el profesional)
+// INICIO DEL PROFESIONAL
 // ---------------------------------------------------------------------
-// El botón manda la ubicación a la base; la base decide (distancia, hora,
-// entrada o salida) y devuelve la fila del día, que se vuelve a dibujar.
-async function iniciarMiFichaje(profesionalId) {
-  const caja = document.getElementById('inicio-fichaje');
-  caja.innerHTML = htmlCargando('Cargando tu fichaje…');
-
-  const dibujar = (fila) => {
-    caja.innerHTML = renderMiFichaje({ paso: proximoPaso(fila), fila });
-  };
-
-  // Delegación: el botón se vuelve a dibujar después de cada fichaje.
-  caja.addEventListener('click', async (e) => {
-    const btn = e.target.closest('#btn-fichar');
-    if (!btn || btn.disabled) return;
-    const textoOriginal = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = 'Buscando tu ubicación…';
-    try {
-      const { lat, lng } = await obtenerUbicacion();
-      btn.textContent = 'Fichando…';
-      const fila = await asistenciaProfModel.ficharConUbicacion(lat, lng);
-      // Sin hora de vuelta no se guardó nada: no se avisa "fichada".
-      if (!fila?.hora_entrada) throw new Error('fichar() no devolvió el fichaje');
-      dibujar(fila);
-      toast(fila?.hora_salida ? 'Salida fichada.' : 'Entrada fichada.');
-    } catch (err) {
-      console.error('Error fichando:', err);
-      toast(esErrorDeUbicacion(err) ? mensajeErrorUbicacion(err) : mensajeError(err, 'No se pudo fichar. Probá de nuevo.'), 'bad');
-      btn.disabled = false;
-      btn.textContent = textoOriginal;
-    }
-  });
-
-  try {
-    dibujar(await asistenciaProfModel.fichajeDelDia(profesionalId, hoyISO()));
-  } catch (err) {
-    console.error('Error cargando mi fichaje:', err);
-    caja.innerHTML = htmlError('No se pudo cargar tu fichaje.');
+// Solo su grilla (sus horarios y pacientes, sin editar) y, si le falta
+// fichar algo hoy, un recordatorio que lleva a "Mi fichaje".
+async function iniciarInicioProfesional(contenedor, profesionalId) {
+  contenedor.innerHTML = renderInicioProfesional();
+  if (!profesionalId) {
+    document.getElementById('inicio-grilla').innerHTML =
+      `<div class="state">Tu usuario no está vinculado a un profesional. Avisale a la dirección.</div>`;
+    return;
   }
-}
+  iniciarGrillaAtencion(document.getElementById('inicio-grilla'), { soloProfesionalId: profesionalId });
 
-// Los errores del navegador traen un código numérico (1, 2, 3); los de
-// la base, un código de texto ('P0001', '42501'…).
-function esErrorDeUbicacion(err) {
-  return typeof err?.code === 'number' || err?.code === 'NO_SOPORTADO';
+  // El recordatorio es un agregado: si falla, el Inicio sigue igual.
+  try {
+    const fila = await asistenciaProfModel.fichajeDelDia(profesionalId, hoyISO());
+    document.getElementById('inicio-recordatorio').innerHTML =
+      renderRecordatorioFichaje({ paso: proximoPaso(fila), fila });
+  } catch (err) {
+    console.error('Error cargando el recordatorio del fichaje:', err);
+  }
 }
