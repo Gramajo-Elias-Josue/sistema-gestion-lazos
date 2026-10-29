@@ -1208,10 +1208,39 @@ button.cal-dia:hover{filter:brightness(.96)}
 /* Planilla de la secretaría: pestañas por turno, con su color */
 .apf-turnos .tab.apf-tab-manana.active{color:var(--t-manana);border-bottom-color:var(--t-manana)}
 .apf-turnos .tab.apf-tab-tarde.active{color:var(--t-tarde);border-bottom-color:var(--t-tarde)}
-.apf-lista-manana{border-top:4px solid var(--t-manana)}
-.apf-lista-tarde{border-top:4px solid var(--t-tarde)}
+/* La pestaña de cada turno se reconoce por su color: franja arriba de la lista. */
+.apf-lista-manana{border-top:4px solid var(--t-manana);padding-top:12px}
+.apf-lista-tarde{border-top:4px solid var(--t-tarde);padding-top:12px}
 .apf-sin-turno{font-size:12px;font-weight:600;color:var(--amber-600);background:var(--amber-50);padding:3px 8px;border-radius:999px;align-self:flex-end;margin-bottom:8px;white-space:nowrap}
 /* Detalle del día con dos turnos */
 .cal-tramo{display:flex;flex-wrap:wrap;gap:4px 14px;align-items:baseline;width:100%;padding-left:8px;border-left:4px solid var(--line)}
 .cal-t-manana{border-left-color:var(--t-manana)}
 .cal-t-tarde{border-left-color:var(--t-tarde)}
+
+/* ---- Asistencia (pacientes y profesionales): una TARJETA por persona ----
+   Antes era una lista corrida con una línea finita entre filas y no se
+   distinguía dónde empezaba y terminaba cada uno. Ahora cada persona es
+   una tarjeta separada (borde, sombra, espacio entre tarjetas) con una
+   franja de su color a la izquierda; en el celular la franja va arriba y
+   la cabecera (avatar + nombre) va teñida, como en Facturación. */
+.asis-lista{display:flex;flex-direction:column;gap:12px}
+.asis-lista .asis-row{background:var(--card);border:1px solid var(--line);border-left:5px solid var(--tono-fg, var(--teal-600));
+  border-radius:14px;box-shadow:var(--shadow);padding:14px 18px}
+.asis-lista .asis-row:last-child{border-bottom:1px solid var(--line)}
+.asis-lista .asis-row:hover{background:var(--card);border-color:color-mix(in srgb, var(--tono-fg, var(--teal-600)) 35%, var(--line));
+  border-left-color:var(--tono-fg, var(--teal-600))}
+.asis-lista .state{background:var(--card);border:1px solid var(--line);border-radius:14px}
+/* El nombre no se aplasta: si no entra todo en una línea, bajan los
+   controles (estado, horas) y no el nombre palabra por palabra. */
+.asis-lista .asis-row .ficha-asis{flex:1 1 240px}
+/* El avatar con el mismo color de la tarjeta. */
+.asis-lista .asis-row[class*="tono-"] .ficha-asis .pav{background:color-mix(in srgb, var(--tono-fg) 18%, var(--tono-bg));color:var(--tono-fg)}
+@media(max-width:760px){
+  .asis-lista{gap:14px}
+  .asis-lista .asis-row{border-left-width:1px;border-top:4px solid var(--tono-fg, var(--teal-600));padding:0 14px 14px;overflow:hidden}
+  .asis-lista .asis-row:hover{border-left-color:color-mix(in srgb, var(--tono-fg, var(--teal-600)) 35%, var(--line))}
+  /* Cabecera teñida con el tono de la persona, de borde a borde. */
+  .asis-lista .asis-row .ficha-asis{margin:0 -14px 2px;padding:12px 14px;border-radius:0;
+    background:linear-gradient(120deg, var(--tono-bg, var(--teal-50)) 0%, color-mix(in srgb, var(--tono-bg, var(--teal-50)) 30%, var(--card)) 100%);
+    border-bottom:1px solid color-mix(in srgb, var(--tono-fg, var(--teal-600)) 18%, var(--line-soft))}
+}

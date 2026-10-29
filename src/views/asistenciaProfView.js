@@ -12,7 +12,7 @@
 // propio estado (script 18): puede faltar a la mañana y venir a la tarde.
 // =====================================================================
 
-import { esc } from '../utils/ui.js';
+import { esc, tonoDe } from '../utils/ui.js';
 import { nombreDia, iniciales } from '../utils/fechas.js';
 import { horarioDe, textoTurnos, turnosDe, TURNOS_CENTRO, rangoTurno } from '../utils/turnosCentro.js';
 import { tramosDe, CAMPOS_TRAMO, esDobleTurno, estadoDeTramo } from '../utils/tramosFichaje.js';
@@ -136,7 +136,7 @@ export function filaHtml(prof, fichaje, ctx = {}) {
   const guardado = !!fichaje && (!esDobleTurno(prof) || !!(f[`estado_${n}`] || f[c.entrada] || f[c.salida]));
 
   return `
-    <div class="asis-row" data-prof="${prof.id}">
+    <div class="asis-row tono-${tonoDe(prof.id)}" data-prof="${prof.id}">
       <button class="ficha-asis" data-ficha-prof="${prof.id}" title="Ver el calendario de asistencia de ${esc(prof.nombre_completo)}">
         <span class="pav">${esc(iniciales(prof.nombre_completo))}</span>
         <span class="nm">
@@ -167,5 +167,5 @@ export function renderFilas(profesionales, fichajesPorId = {}, ctx = {}) {
   if (!delTurno.length) {
     return `${aviso}<div class="tablewrap"><div class="state">Nadie trabaja en el ${esc(nombreTurno)}. Se tilda en <b>Profesionales</b>.</div></div>`;
   }
-  return `${aviso}<div class="tablewrap apf-lista apf-lista-${turno}" style="padding:6px 4px">${delTurno.map(p => filaHtml(p, fichajesPorId[p.id], ctx)).join('')}</div>`;
+  return `${aviso}<div class="asis-lista apf-lista-${turno}">${delTurno.map(p => filaHtml(p, fichajesPorId[p.id], ctx)).join('')}</div>`;
 }
