@@ -58,6 +58,9 @@
 /* ---- TEMA OSCURO: azul como primario, fondo oscuro, naranja más vivo
         para que resalte sobre superficies oscuras. ---- */
 :root[data-theme="dark"]{
+  /* Los controles nativos (calendario, reloj, desplegables, barras de
+     scroll) también en oscuro; si no, quedan blancos sobre fondo oscuro. */
+  color-scheme:dark;
   --teal-900:#0f1a2e; --teal-800:#152740; --teal-700:#5fb2e6; --teal-600:#1c80c0;
   --teal-500:#46b3e6; --teal-100:#1c3450; --teal-50:#172838;
   --orange-600:#f4925a; --orange-500:#f6a065; --orange-100:#3a2a18; --orange-50:#2a2010;
@@ -631,12 +634,12 @@ tbody tr:last-child td{border-bottom:none}
    visual clara entre la planilla y el calendario. */
 .seg button.on-p{background:#2a9d6e;color:#fff}
 .seg button.on-a{background:#d44242;color:#fff}
-.seg button.on-av{background:#e09a26;color:#fff}
+.seg button.on-av{background:#e09a26;color:#2b1a00}
 .seg button.on-e{background:#8a6cd6;color:#fff}
 /* Facturación: rojo = todavía no facturado, ámbar = facturado pero sin
    cobrar, verde = cobrado. Mismo semáforo que el resto de la app. */
 .seg button.on-nf{background:#d44242;color:#fff}
-.seg button.on-fnc{background:#e09a26;color:#fff}
+.seg button.on-fnc{background:#e09a26;color:#2b1a00}
 .seg button.on-fc{background:#2a9d6e;color:#fff}
 /* Navegación de fecha (día anterior / siguiente) */
 .datenav{display:flex;align-items:center;gap:8px}
@@ -738,7 +741,8 @@ tbody tr:last-child td{border-bottom:none}
   .es-track{grid-column:1 / -1;grid-row:2}
   .es-tabla th:not(:first-child),.es-tabla td:not(:first-child){width:auto}
 }
-.asis-toolbar input{flex:1;font-family:var(--body);font-size:15.5px;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--card);box-shadow:var(--shadow)}
+.asis-toolbar input{flex:1;font-family:var(--body);font-size:15.5px;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--card);color:var(--ink);box-shadow:var(--shadow)}
+.asis-toolbar input::placeholder{color:var(--ink-faint)}
 .asis-toolbar input:focus{outline:none;border-color:var(--teal-500);box-shadow:0 0 0 3px var(--teal-50)}
 /* Corregir: ÚNICA función es reabrir una fila guardada para editarla.
    Solo ícono, pero grande y con fondo propio (antes era un tenue 34px
@@ -1257,3 +1261,8 @@ button.cal-dia:hover{filter:brightness(.96)}
   .ctl-fila.sel{outline:3px solid var(--teal-600);outline-offset:-1px}
   .ctl-alerta{border-color:var(--amber-100)}
 }
+
+/* Texto de los campos: el del tema (sin esto, el navegador pone negro y en
+   modo oscuro lo que se escribe quedaba invisible, p. ej. en los buscadores). */
+input, select, textarea{color:var(--ink)}
+input::placeholder, textarea::placeholder{color:var(--ink-faint)}

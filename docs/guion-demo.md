@@ -80,7 +80,7 @@ Vite y Supabase (base de datos, login, archivos y seguridad por rol).*
 
 ## 5. Historia clínica e informes (3 min)
 
-1. **Pacientes**: la lista **no se muestra de entrada** (son datos sensibles): se busca
+1. **Pacientes**: la lista **no se muestra de entrada** (para alivianar la página): se busca
    por nombre o DNI, o se abre **Filtros** (estado, CUD, obra social). Buscar al
    paciente que se marcó presente.
 2. **Historia clínica**: documentos por categoría (CUD con vencimiento, etc.).

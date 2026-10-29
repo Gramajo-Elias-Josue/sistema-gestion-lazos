@@ -2,9 +2,10 @@
 // UTILIDAD: Búsqueda y filtros del listado de pacientes
 // ---------------------------------------------------------------------
 // Funciones PURAS. El listado NO muestra a todos los pacientes de
-// entrada (a pedido del centro: datos sensibles a la vista de cualquiera
-// que pase): solo aparecen los que se buscan, o el grupo que se elige con
-// "Filtros". "Ver todos" queda como opción explícita.
+// entrada (lo pidió la cátedra, para alivianar la página: no se dibuja
+// una lista larga que casi nunca se recorre entera): solo aparecen los que
+// se buscan, o el grupo que se elige con "Filtros". "Ver todos" queda como
+// opción explícita.
 // =====================================================================
 
 // Sin ningún filtro elegido.
