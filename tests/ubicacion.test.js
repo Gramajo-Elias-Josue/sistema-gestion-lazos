@@ -1,7 +1,7 @@
 // Tests del fichaje por ubicación: utilidades y vistas (lo que decide la
 // base —distancia, hora— se prueba en la base; acá, lo que ve el usuario).
-import { describe, it, expect } from 'vitest';
-import { mensajeErrorUbicacion, proximoPaso, linkMapa, validarUbicacionCentro } from '../src/utils/ubicacion.js';
+import { describe, it, expect, afterEach, vi } from 'vitest';
+import { mensajeErrorUbicacion, proximoPaso, linkMapa, validarUbicacionCentro, obtenerUbicacion, conPrecision } from '../src/utils/ubicacion.js';
 import { mensajeError } from '../src/utils/errores.js';
 import { renderInicio, renderInicioProfesional, renderRecordatorioFichaje } from '../src/views/inicioView.js';
 import { renderFichaje } from '../src/views/fichajeView.js';
@@ -190,5 +190,73 @@ describe('asistenciaProfView: marca 📍 en la planilla de la secretaría', () =
   it('no aparece si la cargó la secretaría', () => {
     const html = filaHtml(prof, { estado: 'presente', hora_entrada: '08:00:00', entrada_por: 'secretaria' });
     expect(html).not.toContain('apf-ubi');
+  });
+});
+
+// GPS de mentira: va entregando lecturas (precisión en metros) cada 100 ms.
+function gpsSimulado(precisiones, { error } = {}) {
+  const watch = { cortado: false };
+  vi.stubGlobal('navigator', {
+    geolocation: {
+      watchPosition(ok, fallo) {
+        precisiones.forEach((acc, i) => setTimeout(() => {
+          if (!watch.cortado) ok({ coords: { latitude: -27.43 + i, longitude: -65.62, accuracy: acc } });
+        }, 100 * (i + 1)));
+        if (error) setTimeout(() => { if (!watch.cortado) fallo(error); }, 50);
+        return 7;
+      },
+      clearWatch() { watch.cortado = true; },
+    },
+  });
+  return watch;
+}
+
+describe('obtenerUbicacion: se queda con la lectura más precisa', () => {
+  afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
+
+  it('termina apenas una lectura llega a la precisión buscada', async () => {
+    vi.useFakeTimers();
+    const watch = gpsSimulado([120, 60, 15, 5]);
+    const p = obtenerUbicacion({ precisionBuscada: 25, esperaMaxima: 10000 });
+    await vi.advanceTimersByTimeAsync(400);
+    const r = await p;
+    expect(r.precision).toBe(15);
+    expect(watch.cortado).toBe(true);
+  });
+
+  it('si ninguna llega, al terminar la espera usa la mejor que hubo', async () => {
+    vi.useFakeTimers();
+    gpsSimulado([150, 70, 90]);
+    const p = obtenerUbicacion({ precisionBuscada: 25, esperaMaxima: 1000 });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect((await p).precision).toBe(70);
+  });
+
+  it('permiso denegado: rechaza con ese error', async () => {
+    vi.useFakeTimers();
+    gpsSimulado([], { error: { code: 1 } });
+    const p = obtenerUbicacion({ esperaMaxima: 1000 });
+    const resultado = expect(p).rejects.toEqual({ code: 1 });
+    await vi.advanceTimersByTimeAsync(100);
+    await resultado;
+  });
+
+  it('navegador sin ubicación: NO_SOPORTADO', async () => {
+    vi.stubGlobal('navigator', {});
+    await expect(obtenerUbicacion()).rejects.toEqual({ code: 'NO_SOPORTADO' });
+  });
+});
+
+describe('conPrecision: el "Estás a X m" dice qué tan preciso estaba el GPS', () => {
+  const msg = 'Estás a 127 m del centro (se permite hasta 100 m). Para fichar tenés que estar en el centro.';
+  it('suma la precisión', () => {
+    expect(conPrecision(msg, 12)).toContain('±12 m');
+    expect(conPrecision(msg, 12)).not.toContain('impreciso');
+  });
+  it('con GPS flojo, aconseja probar de nuevo', () => {
+    expect(conPrecision(msg, 140)).toContain('impreciso');
+  });
+  it('otros mensajes no se tocan', () => {
+    expect(conPrecision('Ya fichaste la entrada a las 08:00.', 12)).toBe('Ya fichaste la entrada a las 08:00.');
   });
 });

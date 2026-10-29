@@ -83,8 +83,11 @@ async function usarUbicacionActual() {
     const { lat, lng, precision } = await obtenerUbicacion();
     document.getElementById('ubi-lat').value = lat.toFixed(6);
     document.getElementById('ubi-lng').value = lng.toFixed(6);
-    document.getElementById('ubi-precision').textContent =
-      `Ubicación tomada con una precisión de ±${precision} m. Revisala y tocá "Guardar ubicación".`;
+    // Una PC no tiene GPS: el navegador estima por WiFi y puede errar
+    // cientos de metros. Si la lectura es floja, se avisa antes de guardar.
+    document.getElementById('ubi-precision').textContent = precision > 50
+      ? `⚠️ Precisión baja (±${precision} m): parece una ubicación estimada (por ejemplo, desde una PC). Para que el fichaje funcione bien, tomala desde un celular con GPS, parado en el centro.`
+      : `Ubicación tomada con una precisión de ±${precision} m. Revisala y tocá "Guardar ubicación".`;
   } catch (err) {
     console.error('Error obteniendo la ubicación:', err);
     toast(mensajeErrorUbicacion(err), 'bad');

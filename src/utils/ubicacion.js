@@ -10,25 +10,68 @@
 // localhost) y después de que el usuario acepta el permiso.
 // =====================================================================
 
+// Precisión (en metros) que ya alcanza para dejar de esperar, y cuánto se
+// espera como máximo a que el GPS mejore.
+export const PRECISION_BUSCADA_M = 25;
+export const ESPERA_MAXIMA_MS = 10000;
+
 // Pide la ubicación actual. Devuelve { lat, lng, precision } (precisión
 // en metros, la que informa el GPS) o rechaza con el error del navegador.
-export function obtenerUbicacion() {
+//
+// Adentro de un edificio, la PRIMERA lectura del GPS suele ser la peor
+// (arranca con la ubicación aproximada por WiFi/antenas y después afina).
+// Por eso se escuchan las lecturas durante unos segundos y se queda con la
+// más precisa: termina antes si alguna ya llega a PRECISION_BUSCADA_M.
+export function obtenerUbicacion({ precisionBuscada = PRECISION_BUSCADA_M, esperaMaxima = ESPERA_MAXIMA_MS } = {}) {
   return new Promise((resolve, reject) => {
-    if (!('geolocation' in navigator)) {
+    const geo = typeof navigator !== 'undefined' ? navigator.geolocation : null;
+    if (!geo) {
       reject({ code: 'NO_SOPORTADO' });
       return;
     }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => resolve({
-        lat: pos.coords.latitude,
-        lng: pos.coords.longitude,
-        precision: Math.round(pos.coords.accuracy),
-      }),
-      reject,
+    let mejor = null;
+    let terminado = false;
+    let id = null;
+
+    const terminar = (error) => {
+      if (terminado) return;
+      terminado = true;
+      clearTimeout(reloj);
+      if (id !== null) geo.clearWatch(id);
+      if (mejor) resolve(mejor);
+      else reject(error || { code: 3 }); // sin ninguna lectura: "tardó demasiado"
+    };
+
+    const reloj = setTimeout(() => terminar(), esperaMaxima);
+    id = geo.watchPosition(
+      (pos) => {
+        const lectura = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          precision: Math.round(pos.coords.accuracy),
+        };
+        if (!mejor || lectura.precision < mejor.precision) mejor = lectura;
+        if (mejor.precision <= precisionBuscada) terminar();
+      },
+      // Permiso denegado o GPS apagado: no tiene sentido seguir esperando.
+      // (Si ya hubo una lectura buena, se usa esa.)
+      (err) => terminar(err),
       // Alta precisión (GPS si hay) y sin reusar una ubicación vieja.
-      { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
+      { enableHighAccuracy: true, timeout: esperaMaxima, maximumAge: 0 }
     );
+    // Si ya terminó durante la primera lectura (antes de tener el id), se
+    // corta la escucha acá.
+    if (terminado) geo.clearWatch(id);
   });
+}
+
+// Al mensaje "Estás a X m del centro" de la base le suma la precisión del
+// GPS de esa lectura: así se entiende si quedó afuera por estar lejos o
+// porque el GPS estaba impreciso (y conviene probar de nuevo).
+export function conPrecision(mensaje, precision) {
+  if (!Number.isFinite(precision) || !/^Estás a \d+ m del centro/.test(mensaje || '')) return mensaje;
+  const consejo = precision > 50 ? ' Tu GPS estaba impreciso: probá de nuevo cerca de una ventana o afuera.' : '';
+  return `${mensaje} (Precisión de tu ubicación: ±${precision} m.)${consejo}`;
 }
 
 // Mensaje para el usuario según el error del navegador. Los códigos son

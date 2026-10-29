@@ -11,7 +11,7 @@ import * as asistenciaProfModel from '../models/asistenciaProfesionalModel.js';
 import { renderFichaje } from '../views/fichajeView.js';
 import { htmlCargando, htmlError, toast } from '../utils/ui.js';
 import { mensajeError } from '../utils/errores.js';
-import { obtenerUbicacion, mensajeErrorUbicacion } from '../utils/ubicacion.js';
+import { obtenerUbicacion, mensajeErrorUbicacion, conPrecision } from '../utils/ubicacion.js';
 import { hoyISO } from '../utils/fechas.js';
 import { perfilActual } from '../sesion.js';
 
@@ -50,8 +50,11 @@ async function fichar(btn, cuerpo) {
   // Mientras se ficha, ningún botón se puede tocar (evita doble toque).
   cuerpo.querySelectorAll('[data-fichar]').forEach(b => { b.disabled = true; });
   btn.textContent = 'Buscando tu ubicación…';
+  let precision = null; // la del GPS en esta lectura (para el mensaje de error)
   try {
-    const { lat, lng } = await obtenerUbicacion();
+    const ubicacion = await obtenerUbicacion();
+    const { lat, lng } = ubicacion;
+    precision = ubicacion.precision;
     btn.textContent = 'Fichando…';
     const fila = await asistenciaProfModel.ficharConUbicacion(lat, lng, que);
     // Sin la hora de vuelta no se guardó nada: no se avisa "fichada".
@@ -61,7 +64,9 @@ async function fichar(btn, cuerpo) {
     toast(que === 'entrada' ? `Entrada fichada a las ${String(hora).slice(0, 5)}.` : `Salida fichada a las ${String(hora).slice(0, 5)}.`);
   } catch (err) {
     console.error('Error fichando:', err);
-    toast(esErrorDeUbicacion(err) ? mensajeErrorUbicacion(err) : mensajeError(err, 'No se pudo fichar. Probá de nuevo.'), 'bad');
+    toast(esErrorDeUbicacion(err)
+      ? mensajeErrorUbicacion(err)
+      : conPrecision(mensajeError(err, 'No se pudo fichar. Probá de nuevo.'), precision), 'bad');
     // Se vuelve a pedir el estado real: por si cambió (lo cargó la
     // secretaría, o se fichó desde otro dispositivo).
     try {
