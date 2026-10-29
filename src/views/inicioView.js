@@ -9,10 +9,20 @@ import { estadoVencimiento, fechaLarga, formatearFecha, iniciales } from '../uti
 import { etiquetaPeriodo } from '../utils/periodos.js';
 import { esc, pill } from '../utils/ui.js';
 import { horarioDe } from '../utils/turnosCentro.js';
+import { ESTADOS_FICHAJE } from './asistenciaProfView.js';
 
 // Estructura general de la vista: contenedores que el controlador rellena.
-export function renderInicio() {
+// `conFichaje`: el usuario es un profesional -> arriba de todo, su fichaje.
+export function renderInicio({ conFichaje = false } = {}) {
   return `
+    ${conFichaje ? `
+    <div class="panel" style="margin-bottom:20px">
+      <div class="panel-h">
+        <h2>Mi fichaje</h2>
+        <span class="cnt">${esc(fechaLarga())}</span>
+      </div>
+      <div class="panel-b" id="inicio-fichaje"></div>
+    </div>` : ''}
     <div class="panel" style="margin-bottom:20px">
       <div class="panel-h">
         <h2>Grilla de atención</h2>
@@ -49,6 +59,35 @@ export function renderInicio() {
         </div>
         <div class="panel-b" id="inicio-alertas"></div>
       </div>
+    </div>`;
+}
+
+// Panel "Mi fichaje" del profesional. `paso` sale de proximoPaso()
+// (utils/ubicacion.js) y `fila` es su fichaje del día (o null). No hay
+// campo de hora: la pone la base al fichar.
+export function renderMiFichaje({ paso, fila }) {
+  const hhmm = (t) => t ? String(t).slice(0, 5) : '';
+  const linea = (etiqueta, hora, por) => hora
+    ? `<div><span style="color:var(--ink-soft)">${etiqueta}:</span> <b>${esc(hhmm(hora))}</b>${por === 'secretaria' ? ' <small style="color:var(--ink-faint)">(cargada por secretaría)</small>' : ''}</div>`
+    : '';
+  const horas = fila ? linea('Entrada', fila.hora_entrada, fila.entrada_por) + linea('Salida', fila.hora_salida, fila.salida_por) : '';
+
+  if (paso === 'bloqueado') {
+    const estado = ESTADOS_FICHAJE[fila?.estado] || fila?.estado || '';
+    return `<div class="state">Hoy figurás como <b>${esc(estado)}</b> en la planilla. Si es un error, avisale a la secretaría.</div>`;
+  }
+  if (paso === 'listo') {
+    return `<div class="fichaje-mio">${horas}<div style="color:var(--teal-700);font-weight:600;margin-top:6px">Ya fichaste la entrada y la salida de hoy. ✓</div></div>`;
+  }
+
+  const texto = paso === 'salida' ? 'Fichar salida' : 'Fichar entrada';
+  return `
+    <div class="fichaje-mio">
+      ${horas || '<div style="color:var(--ink-soft)">Todavía no fichaste hoy.</div>'}
+      <button type="button" class="btn" id="btn-fichar" style="margin-top:12px">📍 ${texto}</button>
+      <p style="color:var(--ink-faint);font-size:13.5px;margin-top:10px">
+        Se usa tu ubicación para confirmar que estás en el centro. La hora la pone el sistema.
+      </p>
     </div>`;
 }
 

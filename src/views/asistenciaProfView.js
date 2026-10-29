@@ -15,6 +15,14 @@ export const ESTADOS_FICHAJE = { presente: 'Presente', ausente: 'Ausente', licen
 // "HH:MM:SS" -> "HH:MM" (para <input type="time">).
 function hhmm(t) { return t ? String(t).slice(0, 5) : ''; }
 
+// Marca 📍 junto a "Entrada" / "Salida" cuando esa hora la fichó el
+// propio profesional con su ubicación (la marca la pone la base).
+function marcaUbicacion(por, distancia) {
+  if (por !== 'ubicacion') return '';
+  const detalle = Number.isFinite(distancia) ? `, a ${distancia} m del centro` : '';
+  return ` <span class="apf-ubi" title="La fichó el profesional con su ubicación${detalle}">📍</span>`;
+}
+
 // Encabezado con navegación de fecha.
 export function renderEstructura(fecha) {
   return `
@@ -85,9 +93,9 @@ export function filaHtml(prof, fichaje, ctx = {}) {
       </button>
       <select class="apf-estado" ${bloqueado ? 'disabled' : ''}>${opts}</select>
       <div class="apf-horas">
-        <label class="apf-hora"><span>Entrada</span>
+        <label class="apf-hora"><span>Entrada${marcaUbicacion(f.entrada_por, f.entrada_distancia_m)}</span>
           <input type="time" class="apf-entrada" value="${entrada}" ${offHoras}></label>
-        <label class="apf-hora"><span>Salida</span>
+        <label class="apf-hora"><span>Salida${marcaUbicacion(f.salida_por, f.salida_distancia_m)}</span>
           <input type="time" class="apf-salida" value="${salida}" ${offHoras}></label>
       </div>
       <span class="gtick ${guardado ? 'ok' : 'pend'}" title="${guardado ? 'Fichaje guardado' : 'Sin guardar'}">${guardado ? '✓' : '•'}</span>

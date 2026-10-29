@@ -19,12 +19,12 @@ administrativa (convenios, facturación y gastos), con usuarios y permisos por r
 | **Admisión** | Ingreso de pacientes nuevos con checklist de documentación. Al aprobar, el paciente pasa a la lista de Pacientes. |
 | **Pacientes** | Legajo e **historia clínica**: documentos por categoría, buscador, informes profesionales y evaluación / certificado. |
 | **Turnos** | Agenda para pacientes **casuales** (sin legajo). Nunca puede pisar un turno fijo de la grilla. |
-| **Asistencia** | Planilla diaria de pacientes y fichaje de profesionales, con calendario mensual y PDF. |
+| **Asistencia** | Planilla diaria de pacientes y fichaje de profesionales, con calendario mensual y PDF. El profesional también puede **fichar solo desde Inicio con su ubicación** (📍 en la planilla). |
 | **Profesionales** | Equipo, profesiones (sectores), días y turnos de trabajo. Al crear un profesional se le crea su usuario. |
 | **Galería** | Fotos del trabajo del mes (material de difusión). Cada profesional sube las suyas. |
 | **Facturación / Gastos** | Gestión de la sociedad: estado de facturación por paciente y mes, gastos y rendición por socio. Ambas se **exportan a Excel** (.xlsx). |
 | **Estadísticas** | Asistencia, atención y grilla, informes y turnos, facturación y gastos: el mes elegido y la tendencia de los últimos 6 meses, con gráficos. |
-| **Administración** | Usuarios, roles y secciones habilitadas para cada uno. |
+| **Administración** | Usuarios, roles y secciones habilitadas para cada uno. **Ubicación del centro** y radio para el fichaje por ubicación. |
 
 **Documentos en PDF** (con el membrete de la clínica): informes (mensual, anual,
 evolución, admisión), evaluación / certificado ocasional y planilla de asistencia.
@@ -146,6 +146,7 @@ orden, y son re-ejecutables:
 | `13-cm-sin-datos-clinicos.sql` | El usuario de contenido (CM) no lee datos clínicos (solo la galería) |
 | `14-escritura-informes-y-documentos.sql` | El profesional crea y edita solo sus informes del día; el CM no escribe informes ni documentos |
 | `15-documentacion-y-categorias.sql` | Documentación de admisión y categorías de la historia clínica, editables desde la app |
+| `16-fichaje-por-ubicacion.sql` | El profesional ficha su entrada y salida con su ubicación (la base valida distancia y hora); ubicación del centro configurable |
 
 Tablas principales:
 

@@ -84,7 +84,8 @@ nuestra y agrega el rol y los permisos.
 | Tabla | Qué guarda | Claves y reglas |
 |---|---|---|
 | **asistencias** | Asistencia del paciente por día: presente / ausente / con aviso / enfermo. | **Única por (paciente, fecha)**: se guarda con *upsert*. |
-| **asistencias_profesionales** | Fichaje: entrada, salida y estado (presente / ausente / licencia). | **Única por (profesional, fecha).** |
+| **asistencias_profesionales** | Fichaje: entrada, salida y estado (presente / ausente / licencia). `entrada_por` / `salida_por` dicen quién cargó cada hora (`ubicacion` o `secretaria`) y, si fue por ubicación, a cuántos metros del centro. | **Única por (profesional, fecha).** El profesional no escribe la tabla: ficha con la función `fichar()`, que valida la distancia y pone la hora del servidor. La marca de origen la pone un trigger. |
+| **configuracion_centro** | Una sola fila: ubicación del centro (latitud, longitud) y radio permitido para fichar. | La lee cualquier usuario logueado; la cambia solo el director (Administración). |
 | **evaluaciones** | Informes (`mensual`, `anual`, `evolucion`, `admision`) y la **evaluación / certificado** (`certificado`). El texto va en `contenido` como **JSON** (tipo, título, cuerpo). | Única por (paciente, profesional, fecha, **tipo**): un informe no pisa a otro del mismo día. El certificado de un casual no tiene paciente: va atado a su `turno_id` (uno por turno). |
 | **fotos_trabajo** | Fotos del trabajo del mes (galería): profesional, `periodo` ('2026-10'), ruta del archivo. | Se borran solas a los 3 meses. |
 

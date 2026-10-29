@@ -52,3 +52,24 @@ export async function guardarFichaje({ profesionalId, fecha, horaEntrada, horaSa
   if (error) throw error;
   return data;
 }
+
+// Fichaje del día de UN profesional (o null si todavía no tiene).
+export async function fichajeDelDia(profesionalId, fecha) {
+  const { data, error } = await supabase
+    .from(TABLA)
+    .select('*')
+    .eq('profesional_id', profesionalId)
+    .eq('fecha', fecha)
+    .maybeSingle();
+  if (error) throw error;
+  return data;
+}
+
+// Fichaje por ubicación del profesional logueado. Solo manda dónde está:
+// la base (función fichar(), script 16) decide si está en el centro, pone
+// la hora y elige si es la entrada o la salida. Devuelve la fila del día.
+export async function ficharConUbicacion(lat, lng) {
+  const { data, error } = await supabase.rpc('fichar', { lat, lng });
+  if (error) throw error;
+  return data;
+}

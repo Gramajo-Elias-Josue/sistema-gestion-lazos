@@ -10,6 +10,7 @@
 //   23503 -> clave foránea (el registro está referenciado por otro)
 //   23502 -> NOT NULL (falta un dato obligatorio)
 //   42501 -> sin permisos (lo rechazó la RLS por rol de la base)
+//   P0001 -> mensaje propio de una función de la base (raise exception)
 // =====================================================================
 
 export function mensajeError(err, respaldo = 'No se pudo completar la operación.') {
@@ -38,6 +39,12 @@ export function mensajeError(err, respaldo = 'No se pudo completar la operación
   // en `perfiles` (queda sin permisos de escritura).
   if (codigo === '42501' || /row-level security|row level security/.test(texto)) {
     return 'Tu usuario no tiene permiso para hacer esto.';
+  }
+
+  // Mensaje propio de una función de la base (raise exception): ya está
+  // escrito para el usuario (por ejemplo, el fichaje por ubicación).
+  if (codigo === 'P0001' && err?.message) {
+    return err.message;
   }
 
   // Error típico de Storage cuando no está creado el bucket "documentos".

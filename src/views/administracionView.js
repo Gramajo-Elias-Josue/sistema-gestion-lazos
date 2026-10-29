@@ -14,6 +14,7 @@
 // =====================================================================
 
 import { esc, pill } from '../utils/ui.js';
+import { linkMapa } from '../utils/ubicacion.js';
 import { SECCIONES, seccionesEfectivas, seccionesPorDefecto, etiquetaRol } from '../permisos.js';
 
 // Secciones que el director puede TILDAR por usuario. "inicio" queda fuera
@@ -49,7 +50,47 @@ export function renderEstructura() {
       <p style="color:var(--ink-soft);font-size:15px">Gestión de usuarios del sistema. Asigná el rol y las secciones a las que accede cada uno. El director siempre tiene acceso total.</p>
       <button class="btn" id="btn-nuevo-usuario" style="white-space:nowrap">+ Nuevo usuario</button>
     </div>
-    <div id="usuarios-tabla"></div>`;
+    <div id="usuarios-tabla"></div>
+    <div id="adm-ubicacion" style="margin-top:22px"></div>`;
+}
+
+// Panel "Ubicación del centro": desde dónde se permite el fichaje por
+// ubicación de los profesionales. `conf` = { latitud, longitud, radio_m }.
+// Para cargarla, lo más cómodo es estar en el centro y tocar "Usar mi
+// ubicación actual"; también se pueden pegar las coordenadas de Maps.
+export function renderUbicacionCentro(conf = {}) {
+  const val = (v) => (v === null || v === undefined) ? '' : esc(String(v));
+  const cargada = conf.latitud != null && conf.longitud != null;
+  return `
+    <form class="panel" id="form-ubicacion">
+      <div class="panel-h">
+        <h2>Ubicación del centro</h2>
+        <span class="cnt">fichaje de profesionales</span>
+      </div>
+      <div class="panel-b" style="padding:16px 18px">
+        <p style="color:var(--ink-soft);margin-bottom:14px">
+          Los profesionales fichan su entrada y salida desde el celular, solo si están
+          dentro del radio de este punto.
+          ${cargada ? '' : '<b>Todavía no está cargada: hasta entonces nadie puede fichar por ubicación.</b>'}
+        </p>
+        <div class="form-grid">
+          <div class="form-field"><label>Latitud</label>
+            <input name="latitud" id="ubi-lat" inputmode="decimal" value="${val(conf.latitud)}" placeholder="Ej: -27.4321"></div>
+          <div class="form-field"><label>Longitud</label>
+            <input name="longitud" id="ubi-lng" inputmode="decimal" value="${val(conf.longitud)}" placeholder="Ej: -65.6123"></div>
+          <div class="form-field"><label>Radio permitido (metros)</label>
+            <input name="radio" type="number" min="20" max="2000" step="1" value="${val(conf.radio_m ?? 100)}"></div>
+        </div>
+        <small id="ubi-precision" style="display:block;color:var(--ink-faint);margin-top:8px">
+          Dentro de un edificio el GPS puede errar 30 a 80 m: por eso conviene un radio de 100 m o más.
+        </small>
+        <div style="display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;margin-top:14px">
+          <button type="button" class="btn ghost" id="btn-ubi-actual">📍 Usar mi ubicación actual</button>
+          ${cargada ? `<a class="btn ghost" id="lnk-ubi-mapa" href="${esc(linkMapa(conf.latitud, conf.longitud))}" target="_blank" rel="noopener">Ver en el mapa</a>` : ''}
+          <button type="submit" class="btn" id="btn-ubi-guardar">Guardar ubicación</button>
+        </div>
+      </div>
+    </form>`;
 }
 
 // Resumen de las secciones de un usuario, como chips (solo lectura).

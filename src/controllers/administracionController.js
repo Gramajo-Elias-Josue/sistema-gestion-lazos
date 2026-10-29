@@ -12,12 +12,14 @@
 // =====================================================================
 
 import * as usuarioModel from '../models/usuarioModel.js';
+import * as configuracionModel from '../models/configuracionModel.js';
 import {
   renderEstructura, renderListaUsuarios, renderFormUsuario,
-  renderModalPermisos, seccionesDefaultDeRol,
+  renderModalPermisos, seccionesDefaultDeRol, renderUbicacionCentro,
 } from '../views/administracionView.js';
 import { htmlCargando, htmlError, toast } from '../utils/ui.js';
 import { mensajeError } from '../utils/errores.js';
+import { obtenerUbicacion, mensajeErrorUbicacion, validarUbicacionCentro } from '../utils/ubicacion.js';
 
 // Usuarios de la última carga (para abrir el panel sin volver a pedirlos).
 let usuariosCargados = [];
@@ -27,7 +29,69 @@ export async function iniciarAdministracion() {
   const cont = document.getElementById('v-administracion');
   cont.innerHTML = renderEstructura();
   document.getElementById('btn-nuevo-usuario').addEventListener('click', abrirFormUsuario);
-  await cargarUsuarios();
+  await Promise.all([cargarUsuarios(), cargarUbicacion()]);
+}
+
+// ---------------------------------------------------------------------
+// UBICACIÓN DEL CENTRO (para el fichaje por ubicación)
+// ---------------------------------------------------------------------
+async function cargarUbicacion() {
+  const caja = document.getElementById('adm-ubicacion');
+  caja.innerHTML = htmlCargando('Cargando la ubicación del centro…');
+  try {
+    const conf = await configuracionModel.obtenerConfiguracion();
+    caja.innerHTML = renderUbicacionCentro(conf || {});
+  } catch (err) {
+    console.error('Error cargando la configuración del centro:', err);
+    caja.innerHTML = htmlError('No se pudo cargar la ubicación del centro.');
+    return;
+  }
+
+  const form = document.getElementById('form-ubicacion');
+  document.getElementById('btn-ubi-actual').addEventListener('click', usarUbicacionActual);
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(form);
+    const v = validarUbicacionCentro({
+      latitud: fd.get('latitud'), longitud: fd.get('longitud'), radio: Number(fd.get('radio')),
+    });
+    if (!v.ok) { toast(v.mensaje, 'bad'); return; }
+
+    const btn = document.getElementById('btn-ubi-guardar');
+    btn.disabled = true;
+    btn.textContent = 'Guardando…';
+    try {
+      await configuracionModel.guardarUbicacion(v.datos);
+      toast('Ubicación del centro guardada.');
+      await cargarUbicacion(); // re-render: aparece "Ver en el mapa"
+    } catch (err) {
+      console.error('Error guardando la ubicación:', err);
+      btn.disabled = false;
+      btn.textContent = 'Guardar ubicación';
+      toast(mensajeError(err, 'No se pudo guardar la ubicación. Probá de nuevo.'), 'bad');
+    }
+  });
+}
+
+// Completa latitud y longitud con la ubicación actual del dispositivo.
+// No guarda: el director revisa y toca "Guardar ubicación".
+async function usarUbicacionActual() {
+  const btn = document.getElementById('btn-ubi-actual');
+  btn.disabled = true;
+  btn.textContent = 'Buscando tu ubicación…';
+  try {
+    const { lat, lng, precision } = await obtenerUbicacion();
+    document.getElementById('ubi-lat').value = lat.toFixed(6);
+    document.getElementById('ubi-lng').value = lng.toFixed(6);
+    document.getElementById('ubi-precision').textContent =
+      `Ubicación tomada con una precisión de ±${precision} m. Revisala y tocá "Guardar ubicación".`;
+  } catch (err) {
+    console.error('Error obteniendo la ubicación:', err);
+    toast(mensajeErrorUbicacion(err), 'bad');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '📍 Usar mi ubicación actual';
+  }
 }
 
 // ---------------------------------------------------------------------
