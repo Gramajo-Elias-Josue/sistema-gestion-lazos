@@ -728,11 +728,15 @@ describe('asistenciaProfView.filaHtml (fichaje)', () => {
     expect(html).toContain('class="apf-salida" value="12:00"');
   });
 
-  it('con los dos turnos, el horario va de la entrada de la mañana a la salida de la tarde', () => {
-    const html = filaFichaje({ ...prof, turnos_trabajo: ['manana', 'tarde'] }, undefined, { esHoy: false });
-    expect(html).toContain('class="apf-entrada" value="08:00"');
-    expect(html).toContain('class="apf-salida" value="18:00"');
-    expect(html).toContain('Mañana y tarde');
+  it('con los dos turnos, cada pestaña sugiere el horario de su turno', () => {
+    const doble = { ...prof, turnos_trabajo: ['manana', 'tarde'] };
+    const manana = filaFichaje(doble, undefined, { esHoy: false, turno: 'manana' });
+    expect(manana).toContain('class="apf-entrada" value="08:00"');
+    expect(manana).toContain('class="apf-salida" value="12:00"');
+    expect(manana).toContain('Mañana y tarde');
+    const tarde = filaFichaje(doble, undefined, { esHoy: false, turno: 'tarde' });
+    expect(tarde).toContain('class="apf-entrada" value="14:00"');
+    expect(tarde).toContain('class="apf-salida" value="18:00"');
   });
 });
 

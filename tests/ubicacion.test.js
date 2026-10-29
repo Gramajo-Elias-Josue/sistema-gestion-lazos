@@ -6,7 +6,7 @@ import { mensajeError } from '../src/utils/errores.js';
 import { renderInicio, renderInicioProfesional, renderRecordatorioFichaje } from '../src/views/inicioView.js';
 import { renderFichaje } from '../src/views/fichajeView.js';
 import { botonesFichaje, pasoFichaje, puedeDeshacerSalida, tramosDe, horaFichada } from '../src/utils/tramosFichaje.js';
-import { filaHtml as filaPlanilla } from '../src/views/asistenciaProfView.js';
+import { filaHtml as filaPlanilla, renderFilas as filasPlanilla, renderPestanasTurnoAsistencia, trabajaEnTurno } from '../src/views/asistenciaProfView.js';
 import { validarTramosFichaje } from '../src/utils/validacion.js';
 import { renderCalendario, renderDetalleDia } from '../src/views/calendarioAsistenciaView.js';
 import { armarCalendario, origenFichaje, diasConHorario } from '../src/utils/calendario.js';
@@ -391,17 +391,38 @@ describe('Doble turno: dos tramos (mañana y tarde) en el mismo día', () => {
     expect(html).not.toContain('entrada_2');
   });
 
-  it('planilla de la secretaría: dos pares de horas para doble turno, uno para el resto', () => {
-    const dos = filaPlanilla(doble, { estado: 'presente', hora_entrada: '08:00:00', hora_salida: '12:00:00', hora_entrada_2: '14:00:00' });
-    expect(dos).toContain('data-tramo="2"');
-    expect(dos).toContain('Mañana');
-    expect(dos).toContain('Tarde');
-    expect(dos).toContain('value="14:00"');
-    expect(filaPlanilla(tarde, null)).not.toContain('data-tramo="2"');
+  it('planilla de la secretaría: en cada pestaña, las horas de ese turno', () => {
+    const fila = { estado: 'presente', hora_entrada: '08:00:00', hora_salida: '12:00:00', hora_entrada_2: '14:10:00' };
+    const manana = filaPlanilla(doble, fila, { turno: 'manana' });
+    expect(manana).toContain('data-tramo="1"');
+    expect(manana).toContain('value="08:00"');
+    expect(manana).not.toContain('14:10');
+    const tardeHtml = filaPlanilla(doble, fila, { turno: 'tarde' });
+    expect(tardeHtml).toContain('data-tramo="2"');
+    expect(tardeHtml).toContain('value="14:10"');
+    // El de un solo turno (tarde) carga su único tramo, el 1.
+    expect(filaPlanilla(tarde, null, { turno: 'tarde' })).toContain('data-tramo="1"');
   });
-  it('planilla de un día pasado: sugiere el horario de cada turno', () => {
-    const html = filaPlanilla(doble, null, { esHoy: false });
-    for (const h of ['08:00', '12:00', '14:00', '18:00']) expect(html).toContain(`value="${h}"`);
+  it('planilla de hoy a la mañana: la tarde todavía no empezó, no se sugiere hora', () => {
+    const html = filaPlanilla(doble, null, { esHoy: true, ahora: '09:30', turno: 'tarde' });
+    expect(html).toContain('class="apf-entrada" value=""');
+  });
+  it('pestañas: cada turno lista a los suyos (el de doble turno, en las dos)', () => {
+    const sinTurno = { id: 'p3', nombre_completo: 'Paz Florencia', turnos_trabajo: [] };
+    const lista = [doble, tarde, sinTurno];
+    expect(trabajaEnTurno(tarde, 'manana')).toBe(false);
+    expect(trabajaEnTurno(doble, 'manana')).toBe(true);
+    expect(trabajaEnTurno(sinTurno, 'tarde')).toBe(true);
+    const filasManana = filasPlanilla(lista, {}, { turno: 'manana' });
+    expect(filasManana).toContain('Flores Ingrid');
+    expect(filasManana).not.toContain('Soria Gabriela');
+    expect(filasManana).toContain('Sin turno cargado');
+    expect(filasPlanilla(lista, {}, { turno: 'tarde' })).toContain('Soria Gabriela');
+    const tabs = renderPestanasTurnoAsistencia(lista, 'tarde');
+    expect(tabs).toContain('Turno mañana');
+    expect(tabs).toMatch(/apf-tab-tarde active/);
+    expect(tabs).toContain('· 2'); // mañana: doble + sin turno
+    expect(tabs).toContain('· 3'); // tarde: doble + tarde + sin turno
   });
 
   it('validación de la secretaría: la tarde no puede empezar antes de que termine la mañana', () => {

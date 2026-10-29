@@ -3,13 +3,18 @@
 // ---------------------------------------------------------------------
 // CAPA VISTA. Navegación por fecha + una fila por profesional con su
 // estado del día y los horarios de entrada / salida (prellenados con el
-// horario habitual del perfil si todavía no fichó). El que trabaja
-// mañana Y tarde tiene dos pares de horas: uno por turno (script 17).
+// horario habitual del perfil si todavía no fichó).
+//
+// Separada en dos pestañas, TURNO MAÑANA y TURNO TARDE (como la grilla):
+// cada una muestra a quienes trabajan ese turno, con las horas de ese
+// turno. El que hace los dos aparece en las dos: a la mañana carga su
+// primer tramo y a la tarde el segundo (script 17). El estado del día
+// (presente / ausente / licencia) es uno solo y se ve en las dos.
 // =====================================================================
 
 import { esc } from '../utils/ui.js';
 import { nombreDia, iniciales } from '../utils/fechas.js';
-import { horarioDe, textoTurnos } from '../utils/turnosCentro.js';
+import { horarioDe, textoTurnos, turnosDe, TURNOS_CENTRO, rangoTurno } from '../utils/turnosCentro.js';
 import { tramosDe, CAMPOS_TRAMO } from '../utils/tramosFichaje.js';
 
 export const ESTADOS_FICHAJE = { presente: 'Presente', ausente: 'Ausente', licencia: 'Licencia' };
@@ -45,57 +50,77 @@ export function renderEstructura(fecha) {
         <div><div class="n" id="apf-pct">0%</div><small>Asistencia</small></div>
       </div>
     </div>
+    <div class="tabs ga-turnos apf-turnos" id="apf-turnos"></div>
     <div id="apf-body"></div>`;
 }
 
+// ¿El profesional aparece en la pestaña de ese turno? Los que no tienen
+// turno cargado aparecen en las dos (para que igual se les pueda fichar).
+export function trabajaEnTurno(prof, turno) {
+  const suyos = turnosDe(prof);
+  return !suyos.length || suyos.some(t => t.clave === turno);
+}
+
+// Pestañas Turno mañana / Turno tarde, con cuántos profesionales tiene cada una.
+export function renderPestanasTurnoAsistencia(profesionales, turno) {
+  return TURNOS_CENTRO.map(t => {
+    const cuantos = profesionales.filter(p => trabajaEnTurno(p, t.clave)).length;
+    const icono = t.clave === 'manana' ? '☀️' : '🌇';
+    return `
+      <button type="button" class="tab apf-tab-${t.clave}${t.clave === turno ? ' active' : ''}" data-turno="${t.clave}">
+        ${icono} ${esc(t.etiqueta)} <small>${esc(rangoTurno(t))} · ${cuantos}</small>
+      </button>`;
+  }).join('');
+}
+
+// El tramo que se carga en la pestaña de `turno`: el de doble turno usa
+// el 1 a la mañana y el 2 a la tarde; el de un turno (o sin turno), el 1.
+export function tramoEnTurno(prof, turno) {
+  const tramos = tramosDe(prof);
+  return tramos.find(t => t.turno?.clave === turno) || tramos[0];
+}
+
 // Una fila por profesional. `fichaje` es su registro del día (o undefined).
-// `ctx` = { bloqueado, esHoy, ahora }:
+// `ctx` = { bloqueado, esHoy, ahora, turno }:
+//   - turno: la pestaña ('manana' | 'tarde'); se muestran las horas de ese turno.
 //   - bloqueado: fecha futura -> todo deshabilitado.
 //   - esHoy + ahora: el prefill NO adelanta horas que todavía no ocurrieron
 //     (si el horario habitual aún no llegó, el campo queda vacío: se ficha
 //     la hora real cuando el profesional efectivamente llega / se va).
 export function filaHtml(prof, fichaje, ctx = {}) {
-  const { bloqueado = false, esHoy = false, ahora = '' } = ctx;
+  const { bloqueado = false, esHoy = false, ahora = '', turno = 'manana' } = ctx;
   const f = fichaje || {};
   const estado = f.estado || 'presente';
-  const tramos = tramosDe(prof);
-  const doble = tramos.length === 2;
+  const { n, turno: suTurno } = tramoEnTurno(prof, turno);
+  const c = CAMPOS_TRAMO[n];
+  // Horario habitual de este tramo: el de su turno (o el de su perfil si
+  // no tiene turno cargado).
+  const habitual = suTurno ? { entrada: suTurno.desde, salida: suTurno.hasta } : horarioDe(prof);
 
-  // Prellenado de un tramo. `habitual` = { entrada, salida } de su turno.
-  // El de la tarde (tramo 2), si es hoy, solo se sugiere cuando ya llegó
-  // la hora de la tarde (a la mañana todavía no pasó).
-  const prefill = (n, habitual, turno) => {
-    const c = CAMPOS_TRAMO[n];
-    const guardadaEnt = f[c.entrada], guardadaSal = f[c.salida];
-    let entrada;
-    if (guardadaEnt) entrada = (esHoy && ahora && hhmm(guardadaEnt) > ahora) ? ahora : hhmm(guardadaEnt);
-    else if (esHoy && ahora) entrada = (n === 2 && turno && ahora < turno.desde) ? '' : ahora;
-    else entrada = habitual.entrada;
-    let salida;
-    if (guardadaSal) salida = (esHoy && ahora && hhmm(guardadaSal) > ahora) ? '' : hhmm(guardadaSal);
-    else salida = esHoy ? '' : habitual.salida;
-    return { entrada, salida };
-  };
+  // Prellenado. Si es hoy no se adelantan horas que todavía no ocurrieron:
+  // la entrada sugiere la hora actual solo si su turno ya empezó.
+  const guardadaEnt = f[c.entrada], guardadaSal = f[c.salida];
+  let entrada;
+  if (guardadaEnt) entrada = (esHoy && ahora && hhmm(guardadaEnt) > ahora) ? ahora : hhmm(guardadaEnt);
+  else if (esHoy && ahora) entrada = (suTurno && ahora < suTurno.desde) ? '' : ahora;
+  else entrada = habitual.entrada;
+  let salida;
+  if (guardadaSal) salida = (esHoy && ahora && hhmm(guardadaSal) > ahora) ? '' : hhmm(guardadaSal);
+  else salida = esHoy ? '' : habitual.salida;
 
   const conHoras = estado === 'presente';
+  if (!conHoras) { entrada = ''; salida = ''; }
   const offHoras = (bloqueado || !conHoras) ? 'disabled' : '';
-  const horas = tramos.map(({ n, turno }) => {
-    const c = CAMPOS_TRAMO[n];
-    // Con un solo turno, el habitual es el de su perfil; con dos, el de cada turno.
-    const habitual = doble && turno ? { entrada: turno.desde, salida: turno.hasta } : horarioDe(prof);
-    const v = conHoras ? prefill(n, habitual, turno) : { entrada: '', salida: '' };
-    const titulo = doble && turno
-      ? `<span class="apf-turno apf-t-${turno.clave}">${turno.clave === 'manana' ? '☀️ Mañana' : '🌇 Tarde'}</span>`
-      : '';
-    return `
+  const sinTurno = !turnosDe(prof).length
+    ? `<span class="apf-sin-turno" title="Cargale el turno en Profesionales">Sin turno cargado</span>` : '';
+  const horas = `
       <div class="apf-horas" data-tramo="${n}">
-        ${titulo}
         <label class="apf-hora"><span>Entrada${marcaUbicacion(f[c.entradaPor], f[c.entradaDist])}</span>
-          <input type="time" class="apf-entrada" value="${v.entrada}" ${offHoras}></label>
+          <input type="time" class="apf-entrada" value="${entrada}" ${offHoras}></label>
         <label class="apf-hora"><span>Salida${marcaUbicacion(f[c.salidaPor], f[c.salidaDist])}</span>
-          <input type="time" class="apf-salida" value="${v.salida}" ${offHoras}></label>
+          <input type="time" class="apf-salida" value="${salida}" ${offHoras}></label>
+        ${sinTurno}
       </div>`;
-  }).join('');
 
   const opts = Object.entries(ESTADOS_FICHAJE)
     .map(([v, l]) => `<option value="${v}" ${v === estado ? 'selected' : ''}>${l}</option>`).join('');
@@ -126,5 +151,12 @@ export function renderFilas(profesionales, fichajesPorId = {}, ctx = {}) {
   const aviso = ctx.bloqueado
     ? `<div class="banner">📅 Fecha futura: el fichaje se registra el día que el profesional asiste.</div>`
     : '';
-  return `${aviso}<div class="tablewrap" style="padding:6px 4px">${profesionales.map(p => filaHtml(p, fichajesPorId[p.id], ctx)).join('')}</div>`;
+  // Solo los de la pestaña (turno) elegida.
+  const turno = ctx.turno || 'manana';
+  const delTurno = profesionales.filter(p => trabajaEnTurno(p, turno));
+  const nombreTurno = TURNOS_CENTRO.find(t => t.clave === turno)?.etiqueta.toLowerCase() || 'este turno';
+  if (!delTurno.length) {
+    return `${aviso}<div class="tablewrap"><div class="state">Nadie trabaja en el ${esc(nombreTurno)}. Se tilda en <b>Profesionales</b>.</div></div>`;
+  }
+  return `${aviso}<div class="tablewrap apf-lista apf-lista-${turno}" style="padding:6px 4px">${delTurno.map(p => filaHtml(p, fichajesPorId[p.id], ctx)).join('')}</div>`;
 }

@@ -8,31 +8,48 @@
 
 import * as profesionalModel from '../models/profesionalModel.js';
 import * as asistenciaProfModel from '../models/asistenciaProfesionalModel.js';
-import { renderEstructura, renderFilas, filaHtml } from '../views/asistenciaProfView.js';
+import { renderEstructura, renderFilas, filaHtml, renderPestanasTurnoAsistencia, tramoEnTurno } from '../views/asistenciaProfView.js';
 import { abrirCalendarioProfesional } from './calendarioAsistenciaController.js';
 import { hoyISO, sumarDias, nombreDia, ahoraHHMM, horaAMinutos } from '../utils/fechas.js';
-import { horarioDe } from '../utils/turnosCentro.js';
+import { horarioDe, turnoSegunHora } from '../utils/turnosCentro.js';
 import { htmlCargando, htmlError, toast, confirmar } from '../utils/ui.js';
 import { validarFichajeProfesional, validarTramosFichaje } from '../utils/validacion.js';
-import { tramosDe } from '../utils/tramosFichaje.js';
+import { esDobleTurno } from '../utils/tramosFichaje.js';
 import { mensajeError } from '../utils/errores.js';
 
 let fechaActual = hoyISO();
 let profesionales = [];
 let fichajes = {};       // { profesional_id: fichaje }
 let bloqueado = false;   // true si la fecha elegida es futura
+let turno = 'manana';    // pestaña visible: 'manana' | 'tarde'
 
-// Contexto temporal que necesita la vista (prefill y deshabilitados).
+// Contexto que necesita la vista (prefill, deshabilitados y la pestaña).
 function ctx() {
-  return { bloqueado, esHoy: fechaActual === hoyISO(), ahora: ahoraHHMM() };
+  return { bloqueado, esHoy: fechaActual === hoyISO(), ahora: ahoraHHMM(), turno };
+}
+
+// Pinta las pestañas y las filas del turno visible.
+function pintarFilas() {
+  document.getElementById('apf-turnos').innerHTML = renderPestanasTurnoAsistencia(profesionales, turno);
+  document.getElementById('apf-body').innerHTML = renderFilas(profesionales, fichajes, ctx());
 }
 
 // Arranca el panel de fichaje de profesionales (lo llama el shell de
 // asistencia al activar la pestaña por primera vez).
 export async function iniciarAsistenciaProf() {
   fechaActual = hoyISO();
+  // Abre en el turno en curso: a la tarde nadie busca la mañana.
+  turno = turnoSegunHora(ahoraHHMM());
   const cont = document.getElementById('asis-pane-prof');
   cont.innerHTML = renderEstructura(fechaActual);
+
+  // Pestañas Turno mañana / Turno tarde.
+  document.getElementById('apf-turnos').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-turno]');
+    if (!b || b.dataset.turno === turno) return;
+    turno = b.dataset.turno;
+    pintarFilas();
+  });
 
   document.getElementById('apf-prev').addEventListener('click', () => irAFecha(sumarDias(fechaActual, -1)));
   document.getElementById('apf-next').addEventListener('click', () => irAFecha(sumarDias(fechaActual, 1)));
@@ -100,7 +117,7 @@ async function cargarFecha(fecha) {
     if (fecha !== fechaActual) return;
     profesionales = profs;
     regs.forEach(r => { fichajes[r.profesional_id] = r; });
-    caja.innerHTML = renderFilas(profesionales, fichajes, ctx());
+    pintarFilas();
     recalcularStats();
   } catch (err) {
     console.error('Error cargando fichajes:', err);
@@ -159,49 +176,52 @@ async function guardar(profId) {
   const estado = fila.querySelector('.apf-estado').value;
   // Las horas solo aplican a "presente" (ausente / licencia van sin horas).
   const conHoras = estado === 'presente';
-  const leer = (tramo, clase) => {
-    const input = fila.querySelector(`.apf-horas[data-tramo="${tramo}"] ${clase}`);
-    return conHoras && input ? (input.value || null) : null;
-  };
-  const entrada = leer(1, '.apf-entrada');
-  const salida = leer(1, '.apf-salida');
-  // Segundo tramo (la tarde): solo existe para quien hace los dos turnos.
-  const dosTramos = !!fila.querySelector('.apf-horas[data-tramo="2"]');
-  const entrada2 = dosTramos ? leer(2, '.apf-entrada') : undefined;
-  const salida2 = dosTramos ? leer(2, '.apf-salida') : undefined;
+  const prof = profesionales.find(p => String(p.id) === String(profId));
+  // La fila muestra UN tramo: el del turno de la pestaña (1 = mañana o su
+  // único turno; 2 = la tarde de quien hace los dos).
+  const caja = fila.querySelector('.apf-horas');
+  const tramo = Number(caja?.dataset.tramo) || 1;
+  const entrada = conHoras ? (caja.querySelector('.apf-entrada').value || null) : null;
+  const salida = conHoras ? (caja.querySelector('.apf-salida').value || null) : null;
 
   // Reglas duras: salida sin entrada, salida < entrada y, si es HOY, horas
   // que todavía no ocurrieron (no se ficha el futuro). "Presente" sin horas
   // es válido: confirma que asiste hoy; las horas se cargan cuando ocurren.
+  // Con doble turno, además, la tarde va después de la mañana (se compara
+  // con lo que ya está guardado del otro tramo).
   const ctxHoy = { esHoy: fechaActual === hoyISO(), ahora: ahoraHHMM() };
-  const v = dosTramos
-    ? validarTramosFichaje(
-      { estado, hora_entrada: entrada, hora_salida: salida },
-      { estado, hora_entrada: entrada2, hora_salida: salida2 }, ctxHoy)
-    : validarFichajeProfesional({ estado, hora_entrada: entrada, hora_salida: salida }, ctxHoy);
+  const guardado = fichajes[profId] || {};
+  const hhmm = (t) => (t ? String(t).slice(0, 5) : null);
+  const actual = { estado, hora_entrada: entrada, hora_salida: salida };
+  const doble = prof && esDobleTurno(prof);
+  const v = !doble
+    ? validarFichajeProfesional(actual, ctxHoy)
+    : tramo === 1
+      ? validarTramosFichaje(actual, { estado, hora_entrada: hhmm(guardado.hora_entrada_2), hora_salida: hhmm(guardado.hora_salida_2) }, ctxHoy)
+      : validarTramosFichaje({ estado, hora_entrada: hhmm(guardado.hora_entrada), hora_salida: hhmm(guardado.hora_salida) }, actual, ctxHoy);
   if (!v.ok) { toast(v.mensaje, 'bad'); return; }
 
   // Regla blanda: muy lejos del horario habitual -> confirmar con nombre.
-  const prof = profesionales.find(p => String(p.id) === String(profId));
   if (conHoras && prof) {
-    const tramos = dosTramos
-      ? tramosDe(prof).map(({ n, turno }) => ({
-        habitual: { entrada: turno.desde, salida: turno.hasta },
-        entrada: n === 1 ? entrada : entrada2,
-        salida: n === 1 ? salida : salida2,
-      }))
-      : [{ habitual: horarioDe(prof), entrada, salida }];
-    if (!(await confirmarFueraDeHorario(prof, tramos))) return;
+    const { turno: suTurno } = tramoEnTurno(prof, turno);
+    const habitual = suTurno ? { entrada: suTurno.desde, salida: suTurno.hasta } : horarioDe(prof);
+    if (!(await confirmarFueraDeHorario(prof, [{ habitual, entrada, salida }]))) return;
   }
+
+  // Se guardan solo las horas de este tramo (el otro no se toca). Si el día
+  // no es "presente", el día entero va sin horas: se borran las de los dos.
+  const horas = !conHoras
+    ? { horaEntrada: null, horaSalida: null, ...(doble ? { horaEntrada2: null, horaSalida2: null } : {}) }
+    : tramo === 2
+      ? { horaEntrada2: entrada, horaSalida2: salida }
+      : { horaEntrada: entrada, horaSalida: salida };
 
   const btn = fila.querySelector('.apf-guardar');
   btn.disabled = true;
   btn.textContent = '…';
   try {
     const saved = await asistenciaProfModel.guardarFichaje({
-      profesionalId: profId, fecha: fechaActual,
-      horaEntrada: entrada, horaSalida: salida,
-      horaEntrada2: entrada2, horaSalida2: salida2, estado,
+      profesionalId: profId, fecha: fechaActual, estado, ...horas,
     });
     fichajes[profId] = saved;
     fila.outerHTML = filaHtml(prof, saved, ctx()); // tilde verde

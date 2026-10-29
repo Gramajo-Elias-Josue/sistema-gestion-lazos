@@ -33,17 +33,18 @@ export async function listarPorProfesionalRango(profesionalId, desde, hasta) {
 }
 
 // Registra o actualiza el fichaje de un profesional en una fecha.
-// `horaEntrada2` / `horaSalida2` (la tarde) se mandan solo para quien
-// hace los dos turnos: si no vienen (undefined), no se tocan.
+// Las horas que NO vienen (undefined) no se tocan: la planilla de la
+// secretaría guarda un turno por vez (a la mañana el tramo 1, a la tarde
+// el 2 de quien hace los dos) sin pisar el otro. null = borrar esa hora.
 export async function guardarFichaje({ profesionalId, fecha, horaEntrada, horaSalida, horaEntrada2, horaSalida2, estado, observaciones }) {
   const fila = {
     profesional_id: profesionalId,
     fecha,
-    hora_entrada: horaEntrada || null,
-    hora_salida: horaSalida || null,
     estado: estado || 'presente',
-    observaciones: observaciones || null,
   };
+  if (observaciones !== undefined) fila.observaciones = observaciones || null;
+  if (horaEntrada !== undefined) fila.hora_entrada = horaEntrada || null;
+  if (horaSalida !== undefined) fila.hora_salida = horaSalida || null;
   if (horaEntrada2 !== undefined) fila.hora_entrada_2 = horaEntrada2 || null;
   if (horaSalida2 !== undefined) fila.hora_salida_2 = horaSalida2 || null;
   const { data, error } = await supabase
