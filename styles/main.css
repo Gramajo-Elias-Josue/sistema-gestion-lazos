@@ -1266,3 +1266,9 @@ button.cal-dia:hover{filter:brightness(.96)}
    modo oscuro lo que se escribe quedaba invisible, p. ej. en los buscadores). */
 input, select, textarea{color:var(--ink)}
 input::placeholder, textarea::placeholder{color:var(--ink-faint)}
+
+/* El calendario de asistencia no se achica: con el detalle del día debajo,
+   la ventana ya no alcanza para "apretar" las semanas y la referencia de
+   colores se montaba sobre la última. Ahora el mes mantiene su alto y, si
+   no entra, la ventana hace scroll. */
+.cal-grid{flex:none;grid-auto-rows:clamp(30px,4.6vh,46px)}
