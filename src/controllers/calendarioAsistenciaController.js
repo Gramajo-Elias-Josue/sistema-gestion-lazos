@@ -12,7 +12,7 @@
 
 import * as asistenciaModel from '../models/asistenciaModel.js';
 import * as asistenciaProfModel from '../models/asistenciaProfesionalModel.js';
-import { renderModalCalendario, renderCalendario } from '../views/calendarioAsistenciaView.js';
+import { renderModalCalendario, renderCalendario, renderDetalleDia } from '../views/calendarioAsistenciaView.js';
 import { htmlCargando, htmlError, toast } from '../utils/ui.js';
 import { armarCalendario, etiquetaMes, mesDeFecha, moverMes, rangoDelMes } from '../utils/calendario.js';
 import { generarPlanillaAsistencia } from '../utils/informePdf.js';
@@ -75,8 +75,25 @@ function abrir({ tipo, persona, subtitulo, cargar }) {
   });
 
   document.getElementById('cal-pdf').addEventListener('click', descargarPdf);
+  engancharDetalleDia(document.getElementById('cal-contenido'), () => actual?.calendario);
 
   cargarMes(anio, mes);
+}
+
+// Tocar un día del calendario muestra su detalle debajo del mes. Lo usan
+// la ficha grande (este modal) y "Mi fichaje" del profesional.
+// `obtenerCalendario` devuelve el calendario que está dibujado ahora.
+export function engancharDetalleDia(contenedor, obtenerCalendario) {
+  contenedor.addEventListener('click', (e) => {
+    const boton = e.target.closest('.cal-dia[data-dia]');
+    if (!boton) return;
+    const dia = obtenerCalendario()?.dias.find(d => d.iso === boton.dataset.dia);
+    const caja = contenedor.querySelector('[data-cal-detalle]');
+    if (!dia || !caja) return;
+    contenedor.querySelectorAll('.cal-dia.sel').forEach(b => b.classList.remove('sel'));
+    boton.classList.add('sel');
+    caja.innerHTML = renderDetalleDia(dia);
+  });
 }
 
 // Trae los registros del mes y pinta el calendario.

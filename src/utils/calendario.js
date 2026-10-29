@@ -82,7 +82,8 @@ export function mesDeFecha(fechaISO = hoyISO()) {
 //   resumen -> conteos para la ficha
 //
 //   anio, mes  -> mes a dibujar (mes de 1 a 12)
-//   registros  -> [{ fecha, estado, observaciones, hora_entrada, hora_salida }]
+//   registros  -> [{ fecha, estado, observaciones, hora_entrada, hora_salida,
+//                    entrada_por, salida_por, entrada_distancia_m, salida_distancia_m }]
 //   hoy        -> fecha de referencia (los días posteriores no se juzgan)
 export function armarCalendario({ anio, mes, registros = [], hoy = hoyISO() }) {
   const porFecha = {};
@@ -107,6 +108,11 @@ export function armarCalendario({ anio, mes, registros = [], hoy = hoyISO() }) {
       nota: reg?.observaciones ?? null,
       entrada: reg?.hora_entrada ?? null,
       salida: reg?.hora_salida ?? null,
+      // Fichaje del profesional: quién cargó cada hora y a qué distancia.
+      entradaPor: reg?.entrada_por ?? null,
+      salidaPor: reg?.salida_por ?? null,
+      entradaDist: reg?.entrada_distancia_m ?? null,
+      salidaDist: reg?.salida_distancia_m ?? null,
     });
   }
   while (celdas.length % 7 !== 0) celdas.push(null);
@@ -140,4 +146,27 @@ export function resumirMes(dias) {
     // Presentismo sobre los días con registro (no se castiga lo no cargado).
     pct: registrados ? Math.round((presentes / registrados) * 100) : 0,
   };
+}
+
+// Quién cargó una hora del fichaje, en palabras ('ubicacion' | 'secretaria').
+export function etiquetaOrigen(por) {
+  if (por === 'ubicacion') return 'Ubicación';
+  if (por === 'secretaria') return 'Secretaría';
+  return '—';
+}
+
+// "Cargada por" de un día, para la planilla en PDF: si las dos horas las
+// cargó el mismo, una sola palabra; si no, una por cada hora.
+export function origenFichaje(dia) {
+  const ent = dia?.entrada ? dia.entradaPor : null;
+  const sal = dia?.salida ? dia.salidaPor : null;
+  if (!ent && !sal) return '—';
+  if (!sal || ent === sal) return etiquetaOrigen(ent || sal);
+  if (!ent) return etiquetaOrigen(sal);
+  return `Entrada: ${etiquetaOrigen(ent)} · Salida: ${etiquetaOrigen(sal)}`;
+}
+
+// Días con horario fichado (para el detalle de horarios de la planilla).
+export function diasConHorario(dias = []) {
+  return dias.filter(d => d.entrada || d.salida);
 }

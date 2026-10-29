@@ -1170,3 +1170,15 @@ tbody tr:last-child td{border-bottom:none}
 .fich-recordatorio{justify-content:space-between;flex-wrap:wrap}
 .fich-recordatorio .tx span{display:block;font-size:13.5px;margin-top:2px}
 .fich-recordatorio .btn{white-space:nowrap;text-decoration:none}
+
+/* ---- Detalle del día en el calendario de asistencia (al tocar un día) ---- */
+button.cal-dia{font-family:inherit;cursor:pointer;padding:0}
+button.cal-dia:hover{filter:brightness(.96)}
+.cal-dia.sel{outline:3px solid var(--teal-700);outline-offset:1px}
+.cal-detalle{margin-top:12px;padding:11px 14px;border:1px solid var(--line);border-radius:11px;background:var(--card-2);display:flex;flex-wrap:wrap;gap:4px 18px;align-items:baseline;font-size:14px;color:var(--ink-soft)}
+.cal-detalle b{color:var(--ink)}
+.cal-detalle small{color:var(--ink-faint)}
+.cal-detalle-ayuda{color:var(--ink-faint)}
+/* Mi fichaje: "Deshacer salida" (enlace discreto debajo del botón) */
+.fich-deshacer{margin-top:6px;background:none;border:none;color:var(--ink-soft);font:inherit;font-size:13.5px;text-decoration:underline;cursor:pointer;align-self:center}
+.fich-deshacer:disabled{opacity:.5;cursor:wait}

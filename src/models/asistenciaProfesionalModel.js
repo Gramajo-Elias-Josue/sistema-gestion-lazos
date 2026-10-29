@@ -74,3 +74,11 @@ export async function ficharConUbicacion(lat, lng, que) {
   if (error) throw error;
   return data;
 }
+
+// Deshace la salida de HOY del profesional logueado (por si la fichó por
+// error). La base solo lo permite si la fichó él con su ubicación.
+export async function deshacerSalida() {
+  const { data, error } = await supabase.rpc('deshacer_salida');
+  if (error) throw error;
+  return data;
+}

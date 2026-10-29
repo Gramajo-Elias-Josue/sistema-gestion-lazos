@@ -14,7 +14,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { fechaLarga, formatearFecha } from './fechas.js';
 import { SECCIONES_INFORME } from './evaluacion.js';
-import { DIAS_SEMANA, ESTADOS_CALENDARIO, etiquetaMes } from './calendario.js';
+import { DIAS_SEMANA, ESTADOS_CALENDARIO, etiquetaMes, diasConHorario, origenFichaje } from './calendario.js';
 import { CLINICA } from '../config/clinica.js';
 
 // Carga el logo institucional como dataURL (base64) para incrustarlo en el
@@ -352,12 +352,8 @@ export async function generarPlanillaAsistencia({ persona = {}, tipo = 'paciente
       doc.setTextColor(...texto);
       doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
       doc.text(String(dia.dia), x + 6, y + 14);
-
-      // Fichaje del profesional: el horario, chiquito, dentro del día.
-      if (dia.entrada || dia.salida) {
-        doc.setFont('helvetica', 'normal'); doc.setFontSize(6.5);
-        doc.text(`${hhmm(dia.entrada)}-${hhmm(dia.salida)}`, x + 6, y + 25);
-      }
+      // El horario no va dentro del día: va en la tabla "Detalle de
+      // horarios", más abajo (igual que en pantalla, donde se ve al tocarlo).
     });
     y += filaH;
   });
@@ -391,6 +387,21 @@ export async function generarPlanillaAsistencia({ persona = {}, tipo = 'paciente
     margin: { left: margin, right: margin },
   });
   y = (doc.lastAutoTable?.finalY || y) + 22;
+
+  // --- Detalle de horarios (fichaje del profesional, si hubo) ---
+  const conHorario = tipo === 'profesional' ? diasConHorario(dias) : [];
+  if (conHorario.length) {
+    autoTable(doc, {
+      startY: y,
+      head: [['Fecha', 'Entrada', 'Salida', 'Cargada por']],
+      body: conHorario.map(d => [formatearFecha(d.iso), hhmm(d.entrada), hhmm(d.salida), origenFichaje(d)]),
+      styles: { fontSize: 9.5, cellPadding: 5, lineColor: [225, 225, 225], lineWidth: 0.5 },
+      headStyles: { fillColor: [23, 119, 179], textColor: 255, fontStyle: 'bold' },
+      columnStyles: { 0: { cellWidth: 90 }, 1: { cellWidth: 70, halign: 'center' }, 2: { cellWidth: 70, halign: 'center' }, 3: { cellWidth: 'auto' } },
+      margin: { left: margin, right: margin },
+    });
+    y = (doc.lastAutoTable?.finalY || y) + 22;
+  }
 
   // --- Detalle de ausencias (solo si hubo) ---
   const ausencias = dias.filter(d => d.estado && d.estado !== 'presente');

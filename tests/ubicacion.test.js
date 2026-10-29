@@ -4,7 +4,9 @@ import { describe, it, expect, afterEach, vi } from 'vitest';
 import { mensajeErrorUbicacion, proximoPaso, linkMapa, validarUbicacionCentro, obtenerUbicacion, conPrecision } from '../src/utils/ubicacion.js';
 import { mensajeError } from '../src/utils/errores.js';
 import { renderInicio, renderInicioProfesional, renderRecordatorioFichaje } from '../src/views/inicioView.js';
-import { renderFichaje } from '../src/views/fichajeView.js';
+import { renderFichaje, puedeDeshacerSalida } from '../src/views/fichajeView.js';
+import { renderCalendario, renderDetalleDia } from '../src/views/calendarioAsistenciaView.js';
+import { armarCalendario, origenFichaje, diasConHorario } from '../src/utils/calendario.js';
 import { renderGrilla } from '../src/views/grillaAtencionView.js';
 import { puedeVer, seccionesEfectivas } from '../src/permisos.js';
 import { renderUbicacionCentro } from '../src/views/administracionView.js';
@@ -258,5 +260,61 @@ describe('conPrecision: el "Estás a X m" dice qué tan preciso estaba el GPS', 
   });
   it('otros mensajes no se tocan', () => {
     expect(conPrecision('Ya fichaste la entrada a las 08:00.', 12)).toBe('Ya fichaste la entrada a las 08:00.');
+  });
+});
+
+describe('Deshacer la salida', () => {
+  it('solo si la salida la fichó el profesional con su ubicación', () => {
+    expect(puedeDeshacerSalida({ hora_salida: '12:00:00', salida_por: 'ubicacion' })).toBe(true);
+    expect(puedeDeshacerSalida({ hora_salida: '12:00:00', salida_por: 'secretaria' })).toBe(false);
+    expect(puedeDeshacerSalida({ hora_entrada: '08:00:00' })).toBe(false);
+    expect(puedeDeshacerSalida(null)).toBe(false);
+  });
+  it('el botón aparece en la tarjeta de salida solo en ese caso', () => {
+    const propia = renderFichaje({ fila: { estado: 'presente', hora_entrada: '08:00:00', hora_salida: '12:00:00', salida_por: 'ubicacion' } });
+    expect(propia).toContain('data-deshacer-salida');
+    const deSecretaria = renderFichaje({ fila: { estado: 'presente', hora_entrada: '08:00:00', hora_salida: '12:00:00', salida_por: 'secretaria' } });
+    expect(deSecretaria).not.toContain('data-deshacer-salida');
+  });
+  it('después de deshacer, vuelve a tocar la salida (y el Inicio la recuerda)', () => {
+    const fila = { estado: 'presente', hora_entrada: '08:00:00', hora_salida: null };
+    expect(proximoPaso(fila)).toBe('salida');
+    expect(renderRecordatorioFichaje({ paso: proximoPaso(fila), fila })).toContain('fichar la salida');
+  });
+});
+
+describe('Calendario de asistencia: sin horario en el día, detalle al tocarlo', () => {
+  const registros = [
+    { fecha: '2026-10-21', estado: 'presente', hora_entrada: '14:00:00', hora_salida: '18:00:00', entrada_por: 'secretaria', salida_por: 'secretaria' },
+    { fecha: '2026-10-29', estado: 'presente', hora_entrada: '12:15:00', hora_salida: null, entrada_por: 'ubicacion', entrada_distancia_m: 12 },
+  ];
+  const cal = armarCalendario({ anio: 2026, mes: 10, registros, hoy: '2026-10-30' });
+
+  it('los días no muestran el horario, y cada día se puede tocar', () => {
+    const html = renderCalendario(cal);
+    expect(html).not.toContain('14:00');
+    expect(html).not.toContain('12:15');
+    expect(html).toContain('data-dia="2026-10-21"');
+    expect(html).toContain('data-cal-detalle');
+  });
+  it('el detalle del día tiene estado, horario y quién lo cargó', () => {
+    const d = cal.dias.find(x => x.iso === '2026-10-29');
+    const html = renderDetalleDia(d);
+    expect(html).toContain('Presente');
+    expect(html).toContain('12:15');
+    expect(html).toContain('Ubicación, a 12 m del centro');
+    expect(renderDetalleDia(cal.dias.find(x => x.iso === '2026-10-21'))).toContain('Secretaría');
+  });
+  it('sin tocar ninguno, invita a tocar; fin de semana y sin registro lo dicen', () => {
+    expect(renderDetalleDia(null)).toContain('Tocá un día');
+    expect(renderDetalleDia(cal.dias.find(x => x.iso === '2026-10-24'))).toContain('no abre');
+    expect(renderDetalleDia(cal.dias.find(x => x.iso === '2026-10-22'))).toContain('Sin registro');
+  });
+  it('la planilla en PDF lista los días con horario y quién los cargó', () => {
+    expect(diasConHorario(cal.dias).map(d => d.iso)).toEqual(['2026-10-21', '2026-10-29']);
+    expect(origenFichaje(cal.dias.find(x => x.iso === '2026-10-21'))).toBe('Secretaría');
+    expect(origenFichaje(cal.dias.find(x => x.iso === '2026-10-29'))).toBe('Ubicación');
+    expect(origenFichaje({ entrada: '08:00', salida: '12:00', entradaPor: 'ubicacion', salidaPor: 'secretaria' }))
+      .toBe('Entrada: Ubicación · Salida: Secretaría');
   });
 });

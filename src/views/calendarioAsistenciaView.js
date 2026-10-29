@@ -8,8 +8,8 @@
 // =====================================================================
 
 import { esc } from '../utils/ui.js';
-import { iniciales, formatearFecha } from '../utils/fechas.js';
-import { DIAS_SEMANA, ESTADOS_CALENDARIO, etiquetaMes } from '../utils/calendario.js';
+import { iniciales, formatearFecha, fechaLarga } from '../utils/fechas.js';
+import { DIAS_SEMANA, ESTADOS_CALENDARIO, etiquetaMes, etiquetaOrigen } from '../utils/calendario.js';
 
 // Modal completo. `persona` = { nombre_completo, ... }, `subtitulo` es el
 // renglón chico (diagnóstico del paciente o profesión del profesional).
@@ -118,14 +118,9 @@ export function renderCalendario(calendario) {
       clase += ` ${e?.clase || ''}`;
       titulo += ` · ${e?.etiqueta || d.estado}`;
       if (d.nota) titulo += ` — ${d.nota}`;
-      // Los fichajes de profesional muestran el horario dentro del día.
-      if (d.entrada || d.salida) {
-        const hhmm = (t) => (t ? String(t).slice(0, 5) : '—');
-        marca = `<small>${hhmm(d.entrada)}–${hhmm(d.salida)}</small>`;
-        titulo += ` · ${hhmm(d.entrada)} a ${hhmm(d.salida)}`;
-      } else if (d.nota) {
-        marca = `<small title="${esc(d.nota)}">✎</small>`;
-      }
+      // El horario no va dentro del día (queda chico y amontonado): se ve
+      // tocando el día, en el detalle de abajo. Solo se marca si hay nota.
+      if (d.nota) marca = `<small title="${esc(d.nota)}">✎</small>`;
     } else if (d.futuro) {
       clase += ' futuro';
     } else {
@@ -133,7 +128,8 @@ export function renderCalendario(calendario) {
       titulo += ' · Sin registro';
     }
 
-    return `<div class="${clase}" title="${esc(titulo)}"><b>${d.dia}</b>${marca}</div>`;
+    // Cada día es un botón: al tocarlo se ve su detalle debajo del mes.
+    return `<button type="button" class="${clase}" data-dia="${d.iso}" title="${esc(titulo)}"><b>${d.dia}</b>${marca}</button>`;
   }).join('');
 
   return `
@@ -155,5 +151,30 @@ export function renderCalendario(calendario) {
       <span><i class="cal-enf"></i>Enfermedad</span>
       <span><i class="cerrado"></i>Fin de semana (la clínica no abre)</span>
       <span><i class="sinreg"></i>Sin registro</span>
-    </div>`;
+    </div>
+    <div class="cal-detalle" data-cal-detalle>${renderDetalleDia(null)}</div>`;
+}
+
+// Detalle de UN día (al tocarlo en el calendario): estado, horario del
+// fichaje con quién lo cargó y la nota. `dia` es una celda de
+// armarCalendario(); null = todavía no se tocó ninguno.
+export function renderDetalleDia(dia) {
+  if (!dia) return `<span class="cal-detalle-ayuda">Tocá un día para ver el detalle.</span>`;
+
+  const fecha = `<b>${esc(fechaLarga(dia.iso))}</b>`;
+  if (dia.finde) return `${fecha}<span>La clínica no abre.</span>`;
+  if (!dia.estado) return `${fecha}<span>${dia.futuro ? 'Todavía no pasó.' : 'Sin registro.'}</span>`;
+
+  const hhmm = (t) => (t ? String(t).slice(0, 5) : '—');
+  const origen = (por, dist) => {
+    if (!por) return '';
+    const metros = por === 'ubicacion' && Number.isFinite(dist) ? `, a ${dist} m del centro` : '';
+    return ` <small>(${esc(etiquetaOrigen(por))}${metros})</small>`;
+  };
+  const estado = ESTADOS_CALENDARIO[dia.estado]?.etiqueta || dia.estado;
+  const horas = (dia.entrada || dia.salida) ? `
+    <span>Entrada: <b>${hhmm(dia.entrada)}</b>${origen(dia.entrada && dia.entradaPor, dia.entradaDist)}</span>
+    <span>Salida: <b>${hhmm(dia.salida)}</b>${origen(dia.salida && dia.salidaPor, dia.salidaDist)}</span>` : '';
+  const nota = dia.nota ? `<span>Observaciones: ${esc(dia.nota)}</span>` : '';
+  return `${fecha}<span>${esc(estado)}</span>${horas}${nota}`;
 }

@@ -100,6 +100,7 @@ $$;
 -- ---------------------------------------------------------------------
 -- `que` = 'entrada' o 'salida' (un botón para cada una en la app). Cada
 -- una se ficha UNA vez por día, y la salida recién después de la entrada.
+-- Si la salida se fichó por error, se deshace con deshacer_salida().
 -- Devuelve la fila del día. Los mensajes de error son para el usuario.
 -- (La primera versión recibía solo lat/lng y adivinaba cuál tocaba.)
 drop function if exists public.fichar(double precision, double precision);
@@ -115,7 +116,6 @@ declare
   ahora  time := date_trunc('minute', now() at time zone 'America/Argentina/Buenos_Aires')::time;
   fila   public.asistencias_profesionales;
   existe boolean;
-  MINUTOS_ENTRE_ENTRADA_Y_SALIDA constant integer := 10;
 begin
   if que is null or que not in ('entrada', 'salida') then
     raise exception 'Fichaje inválido: tiene que ser la entrada o la salida.';
@@ -142,11 +142,6 @@ begin
   end if;
   if que = 'salida' and fila.hora_salida is not null then
     raise exception 'Ya fichaste la salida a las %.', to_char(fila.hora_salida, 'HH24:MI');
-  end if;
-  if que = 'salida' and ahora < fila.hora_entrada + make_interval(mins => MINUTOS_ENTRE_ENTRADA_Y_SALIDA) then
-    raise exception 'Fichaste la entrada a las %. La salida se puede fichar desde las %.',
-      to_char(fila.hora_entrada, 'HH24:MI'),
-      to_char(fila.hora_entrada + make_interval(mins => MINUTOS_ENTRE_ENTRADA_Y_SALIDA), 'HH24:MI');
   end if;
 
   -- 2) ¿Está en el centro?
@@ -184,9 +179,45 @@ begin
 end;
 $$;
 
+-- ---------------------------------------------------------------------
+-- 5) deshacer_salida(): por si la salida se fichó por error
+-- ---------------------------------------------------------------------
+-- Solo la de HOY y solo si la fichó el propio profesional con su
+-- ubicación (si la cargó la secretaría, la corrige ella en la planilla).
+-- La hora vuelve a quedar vacía: el trigger borra también la marca de
+-- origen, y en el Inicio vuelve a aparecer el recordatorio de la salida.
+create or replace function public.deshacer_salida()
+returns public.asistencias_profesionales
+language plpgsql security definer set search_path = public as $$
+declare
+  prof uuid := public.mi_profesional_id();
+  fila public.asistencias_profesionales;
+begin
+  if prof is null then
+    raise exception 'Tu usuario no está vinculado a un profesional. Avisale a la dirección.';
+  end if;
+  select * into fila from public.asistencias_profesionales
+   where profesional_id = prof and fecha = public.hoy_local()
+   for update;
+  if not found or fila.hora_salida is null then
+    raise exception 'Hoy no tenés una salida fichada para deshacer.';
+  end if;
+  if fila.salida_por is distinct from 'ubicacion' then
+    raise exception 'La salida la cargó la secretaría: pedile a ella que la corrija.';
+  end if;
+  update public.asistencias_profesionales
+     set hora_salida = null, salida_distancia_m = null
+   where id = fila.id
+  returning * into fila;
+  return fila;
+end;
+$$;
+
 -- Solo con sesión. distancia_metros y el trigger no se llaman desde afuera.
 revoke execute on function public.fichar(double precision, double precision, text) from public, anon;
 grant execute on function public.fichar(double precision, double precision, text) to authenticated;
+revoke execute on function public.deshacer_salida() from public, anon;
+grant execute on function public.deshacer_salida() to authenticated;
 revoke execute on function public.distancia_metros(double precision, double precision, double precision, double precision) from public, anon;
 revoke execute on function public.marcar_origen_fichaje() from public, anon;
 
