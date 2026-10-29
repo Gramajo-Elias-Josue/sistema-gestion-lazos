@@ -8,7 +8,7 @@
 // reintroduce, el test falla. Se anota "[regresión: …]" en esos casos.
 import { describe, it, expect } from 'vitest';
 import {
-  renderTabla as tablaPacientes, renderFormPaciente, renderEvaluacionesHistoria,
+  renderTabla as tablaPacientes, renderFormPaciente, renderEvaluacionesHistoria, renderFormEvaluacion,
 } from '../src/views/pacientesView.js';
 import { renderTabla as tablaProfesionales, renderFormProfesional, renderListaSectores, renderModalSector } from '../src/views/profesionalesView.js';
 import { renderAlertas, renderEntregas } from '../src/views/inicioView.js';
@@ -747,10 +747,17 @@ describe('pacientesView.renderEvaluacionesHistoria (informes)', () => {
     expect(renderEvaluacionesHistoria([])).toContain('Todavía no hay informes');
   });
 
-  it('además del informe de hoy, ofrece la evaluación / certificado ocasional', () => {
+  it('además del informe, ofrece la evaluación / certificado ocasional', () => {
     const html = renderEvaluacionesHistoria([]);
     expect(html).toContain('btn-nueva-eval');
     expect(html).toContain('btn-nuevo-certificado');
+  });
+
+  it('[regresión] el informe es mensual: ningún texto habla de "informe de hoy"', () => {
+    const html = renderEvaluacionesHistoria([]) + renderFormEvaluacion({ nombre_completo: 'Ana' }, []);
+    expect(html).not.toContain('informe de hoy');
+    expect(html).not.toContain('atendió hoy');
+    expect(html).toContain('+ Nuevo informe');
   });
 
   it('muestra el título, el profesional y los botones Ver / PDF', () => {

@@ -84,8 +84,9 @@ Vite y Supabase (base de datos, login, archivos y seguridad por rol).*
    por nombre o DNI, o se abre **Filtros** (estado, CUD, obra social). Buscar al
    paciente que se marcó presente.
 2. **Historia clínica**: documentos por categoría (CUD con vencimiento, etc.).
-3. **+ Nuevo informe de hoy**:
-   - Solo deja elegir a los profesionales que **lo atendieron hoy** (grilla + asistencia).
+3. **+ Nuevo informe** (mensual, anual, de evolución o de admisión):
+   - Se carga un día que el profesional atiende al paciente: solo deja elegir a los
+     profesionales que **lo atendieron ese día** (grilla + asistencia).
    - Se escribe sobre una **hoja con el membrete** del centro.
    - Guardar → se **descarga el PDF** y queda **adjunto** en la historia clínica.
 4. **+ Evaluación / certificado**: documento ocasional (cuando la familia lo pide).

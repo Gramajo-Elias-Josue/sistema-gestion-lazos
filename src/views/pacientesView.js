@@ -361,11 +361,12 @@ export function renderCategorias(docs, filtro = '', categorias = []) {
   return tarjetas;
 }
 
-// Apartado de EVALUACIONES PROFESIONALES dentro de la historia clínica.
-// Lista las evaluaciones que los profesionales cargaron al atender al
-// paciente (una por profesional/día), de la más reciente a la más vieja.
-// La lista es solo lectura; la carga se hace con "+ Nueva evaluación de
-// hoy" (renderFormEvaluacion), disponible tras atender al paciente.
+// Apartado de INFORMES PROFESIONALES dentro de la historia clínica.
+// Lista los informes (mensual, anual, evolución, admisión) que cargaron
+// los profesionales, del más reciente al más viejo. La lista es solo
+// lectura; la carga se hace con "+ Nuevo informe" (renderFormEvaluacion),
+// disponible el día que el profesional atiende al paciente.
+// (Antes había evaluaciones DIARIAS; ya no: el informe es mensual.)
 export function renderEvaluacionesHistoria(evaluaciones = []) {
   // Cada informe guarda su contenido como JSON; se parsea para mostrar.
   // Se descartan los que quedaron totalmente vacíos.
@@ -397,7 +398,7 @@ export function renderEvaluacionesHistoria(evaluaciones = []) {
           <button class="btn ghost btn-eval-ver" data-eval-id="${esc(String(ev.id))}" style="padding:6px 12px">Ver</button>
         </div>`;
       }).join('')
-    : `<div class="state" style="padding:18px">Todavía no hay informes. Se cargan con <b>+ Nuevo informe de hoy</b> después de atender al paciente.</div>`;
+    : `<div class="state" style="padding:18px">Todavía no hay informes. Se cargan con <b>+ Nuevo informe</b> un día que el profesional atiende al paciente.</div>`;
 
   return `
     <div class="panel" style="margin-bottom:18px">
@@ -408,7 +409,7 @@ export function renderEvaluacionesHistoria(evaluaciones = []) {
       <div class="panel-b">
         ${cuerpo}
         <div class="eval-acciones">
-          <button class="btn btn-nueva-eval">+ Nuevo informe de hoy</button>
+          <button class="btn btn-nueva-eval" title="Informe mensual, anual, de evolución o de admisión">+ Nuevo informe</button>
           <button class="btn ghost btn-nuevo-certificado" title="Documento ocasional: cuando el paciente o su familia lo pide">+ Evaluación / certificado</button>
         </div>
       </div>
@@ -453,7 +454,7 @@ export function renderFormEvaluacion(paciente = {}, turnos = [], datosPorProf = 
   const {
     tipos = TIPOS_INFORME,
     titulo = 'Nuevo informe',
-    etiquetaProf = 'Profesional (atendió hoy) *',
+    etiquetaProf = 'Profesional *',
     nota = 'Al guardar se genera el PDF con el membrete y se adjunta a la historia clínica.',
   } = opts;
   const opciones = turnos.map(t => {
@@ -504,7 +505,7 @@ export function renderFormEvaluacion(paciente = {}, turnos = [], datosPorProf = 
 
 // PREVISUALIZACIÓN (solo lectura) de un informe ya guardado, con la misma
 // hoja del editor. Sirve para leer informes anteriores sin descargarlos.
-// `editable=true` (solo el informe de HOY) habilita el botón Editar para
+// `editable=true` (solo el informe cargado HOY) habilita el botón Editar para
 // corregir un error del mismo día; los de días pasados quedan solo lectura.
 // ev: la fila de evaluaciones (con profesionales embebido). inf: parseado.
 export function renderVistaEvaluacion(paciente = {}, ev = {}, inf = {}, editable = false) {
@@ -529,7 +530,7 @@ export function renderVistaEvaluacion(paciente = {}, ev = {}, inf = {}, editable
         </div>
         <div class="modal-f">
           <button type="button" class="btn ghost" data-cerrar>Cerrar</button>
-          ${editable ? `<button type="button" class="btn ghost" id="btn-vista-editar" data-eval-id="${esc(String(ev.id))}">Editar (informe de hoy)</button>` : ''}
+          ${editable ? `<button type="button" class="btn ghost" id="btn-vista-editar" data-eval-id="${esc(String(ev.id))}" title="Se puede corregir el mismo día en que se cargó">Editar</button>` : ''}
           <button type="button" class="btn" id="btn-vista-pdf" data-eval-id="${esc(String(ev.id))}">⤓ Descargar PDF</button>
         </div>
       </div>
